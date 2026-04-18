@@ -368,10 +368,11 @@ function _renderAssignPopup() {
           <div style="display:flex;gap:8px;min-width:max-content;padding:2px;">
             ${unassigned.length ? unassigned.map(photo => {
               const sel = _selectedIds.has(photo.id);
-              return `<div onclick="togglePhotoSelect('${photo.id}');_renderAssignPopup();" style="flex-shrink:0;width:64px;cursor:pointer;">
-                <div style="position:relative;width:64px;height:64px;border-radius:10px;overflow:hidden;border:3px solid ${sel ? 'var(--accent)' : 'transparent'};box-shadow:${sel ? '0 2px 8px rgba(241,128,145,0.4)' : 'none'};">
-                  <img src="${photo.dataUrl}" style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;">
-                  <div style="position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;border:2px solid #fff;background:${sel ? 'var(--accent)' : 'rgba(0,0,0,0.3)'};display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;">${sel ? '✓' : ''}</div>
+              // 피드백 #4: 체크 아이콘 크고 뚜렷하게 (24px + 딥 shadow + selected tint)
+              return `<div onclick="togglePhotoSelect('${photo.id}');_renderAssignPopup();" style="flex-shrink:0;width:72px;cursor:pointer;">
+                <div style="position:relative;width:72px;height:72px;border-radius:12px;overflow:hidden;border:3px solid ${sel ? 'var(--accent)' : 'transparent'};box-shadow:${sel ? '0 4px 12px rgba(241,128,145,0.55)' : '0 1px 3px rgba(0,0,0,0.08)'};">
+                  <img src="${photo.dataUrl}" style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;${sel ? 'filter:brightness(0.85);' : ''}">
+                  <div style="position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;border:2px solid #fff;background:${sel ? 'var(--accent)' : 'rgba(0,0,0,0.35)'};display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);">${sel ? '✓' : ''}</div>
                 </div>
               </div>`;
             }).join('') : '<div style="padding:16px;text-align:center;color:var(--accent2);font-size:12px;font-weight:600;">모든 사진 배정 완료 ✅</div>'}

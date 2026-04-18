@@ -573,14 +573,11 @@ async function _doGenerateCaption(scenario, closePopup) {
       const msg = _CAP_ERR_MSG[code] || '캡션 생성에 실패했습니다. 다시 시도해주세요.';
       hideCaptionLoader(false, () => {
         closePopup();
-        // 피드백 #11: identity_incomplete 시 페르소나 탭으로 바로 유도 (CBT/초기 사용자)
+        // 피드백 #11/#5: identity_incomplete → 기존 페르소나 팝업 열기 (숨겨진 탭 말고)
         if (code.startsWith('identity_incomplete')) {
-          if (confirm('사장님 프로필(업종·매장명 등)을 먼저 등록해주세요.\n\n지금 등록하러 가시겠어요?')) {
-            if (typeof showTab === 'function') {
-              const personaBtn = document.querySelector('[onclick*="showTab(\'persona\'"]');
-              showTab('persona', personaBtn);
-              if (typeof initPersonaTab === 'function') initPersonaTab();
-            }
+          showToast('사장님 프로필(업종·매장명 등)을 먼저 등록해주세요');
+          if (typeof window.openPersonaPopup === 'function') {
+            setTimeout(() => window.openPersonaPopup(), 300);
           }
           return;
         }
