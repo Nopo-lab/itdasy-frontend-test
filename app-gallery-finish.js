@@ -70,17 +70,17 @@ function _renderFinishTab(root, galleryItems = []) {
           </div>
           <button onclick="openSlotPopup('${slot.id}')" style="flex-shrink:0;padding:6px 12px;border-radius:10px;border:1px solid var(--border);background:transparent;font-size:11px;color:var(--text2);cursor:pointer;font-weight:600;">편집</button>
         </div>
-        <!-- 5가지 선택지 -->
+        <!-- 마무리 액션 (피드백 #7: 예약 버튼 추가) -->
         <div style="display:flex;flex-direction:column;gap:6px;">
-          <button onclick="publishSlotToInstagram('${slot.id}')" style="width:100%;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:13px;font-weight:800;cursor:pointer;">📸 인스타에 올리기</button>
+          <button onclick="publishSlotToInstagram('${slot.id}')" style="width:100%;min-height:48px;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:13px;font-weight:800;cursor:pointer;">🚀 인스타 바로 올리기</button>
+          <button onclick="_scheduleFromFinishTab('${slot.id}')" style="width:100%;min-height:44px;padding:10px;border-radius:12px;border:1.5px solid var(--accent);background:#fff;color:var(--accent);font-size:12px;font-weight:800;cursor:pointer;">🗓️ 예약 발행 설정</button>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-            <button onclick="_saveSlotToGallery('${slot.id}')" style="padding:10px;border-radius:10px;border:1.5px solid rgba(241,128,145,0.3);background:transparent;color:var(--accent);font-size:11px;font-weight:700;cursor:pointer;">📁 갤러리에만 보관</button>
-            <button onclick="downloadSlotPhotos('${slot.id}')" style="padding:10px;border-radius:10px;border:1.5px solid var(--border);background:transparent;color:var(--text2);font-size:11px;font-weight:700;cursor:pointer;">📥 내 폰에 저장</button>
+            <button onclick="_saveSlotToGallery('${slot.id}')" style="min-height:40px;padding:10px;border-radius:10px;border:1.5px solid rgba(241,128,145,0.3);background:transparent;color:var(--accent);font-size:11px;font-weight:700;cursor:pointer;">📁 갤러리 보관</button>
+            <button onclick="downloadSlotPhotos('${slot.id}')" style="min-height:40px;padding:10px;border-radius:10px;border:1.5px solid var(--border);background:transparent;color:var(--text2);font-size:11px;font-weight:700;cursor:pointer;">📥 폰에 저장</button>
           </div>
           <div style="display:flex;gap:6px;">
-            <button onclick="_deferSlot('${slot.id}')" style="flex:1;padding:8px;border-radius:10px;border:1.5px solid rgba(255,193,7,0.5);background:transparent;color:#f57c00;font-size:11px;font-weight:700;cursor:pointer;">🕐 나중에</button>
-            <button onclick="deleteSlotFinish('${slot.id}')" style="padding:8px 14px;border-radius:10px;border:1.5px solid rgba(220,53,69,0.3);background:transparent;color:#dc3545;font-size:11px;cursor:pointer;font-weight:600;">삭제</button>
-            <button onclick="showToast('슬롯이 유지돼요 🌸')" style="padding:8px 14px;border-radius:10px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:11px;cursor:pointer;">취소</button>
+            <button onclick="_deferSlot('${slot.id}')" style="flex:1;min-height:40px;padding:8px;border-radius:10px;border:1.5px solid rgba(255,193,7,0.5);background:transparent;color:#f57c00;font-size:11px;font-weight:700;cursor:pointer;">🕐 나중에 (AI추천으로)</button>
+            <button onclick="deleteSlotFinish('${slot.id}')" style="min-height:40px;padding:8px 14px;border-radius:10px;border:1.5px solid rgba(220,53,69,0.3);background:transparent;color:#dc3545;font-size:11px;cursor:pointer;font-weight:600;">삭제</button>
           </div>
         </div>
       </div>
@@ -249,6 +249,42 @@ async function publishSlotToInstagram(slotId) {
       }
     }
   } catch(e) { showToast('오류: ' + e.message); }
+}
+
+// 피드백 #7: 마무리 탭에서 예약 발행 — 슬롯 사진을 portfolio에 올려 URL 받고 예약 팝업 자동 prefill
+async function _scheduleFromFinishTab(slotId) {
+  const slot = _slots.find(s => s.id === slotId);
+  if (!slot) return;
+  const visPhotos = slot.photos.filter(p => !p.hidden);
+  const photo = visPhotos[0] || slot.photos[0];
+  if (!photo) { showToast('사진이 필요해요'); return; }
+  const fullCaption = (slot.caption || '') + (slot.hashtags ? '\n\n' + slot.hashtags : '');
+  showToast('예약 준비 중…');
+  try {
+    const blob = _dataUrlToBlob(photo.editedDataUrl || photo.dataUrl);
+    const fd = new FormData();
+    fd.append('image', blob, 'slot.jpg');
+    fd.append('photo_type', 'after');
+    fd.append('main_tag', slot.label);
+    fd.append('tags', '');
+    const upRes = await fetch(API + '/portfolio', { method: 'POST', headers: authHeader(), body: fd });
+    if (!upRes.ok) { showToast('사진 업로드 실패'); return; }
+    const upData = await upRes.json();
+    const imgUrl = upData.image_url?.startsWith('http') ? upData.image_url : API + (upData.image_url || '');
+    if (typeof openScheduledPopup === 'function') {
+      await openScheduledPopup();
+      setTimeout(() => {
+        const imgField = document.getElementById('schedImg');
+        const capField = document.getElementById('schedCaption');
+        if (imgField) imgField.value = imgUrl;
+        if (capField) capField.value = fullCaption;
+        const wrap = document.getElementById('scheduledFormWrap');
+        if (wrap) wrap.open = true;
+      }, 250);
+    }
+  } catch(err) {
+    showToast('예약 준비 실패: ' + err.message);
+  }
 }
 
 async function _deferSlot(slotId) {

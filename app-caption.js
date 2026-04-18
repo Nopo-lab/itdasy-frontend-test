@@ -966,6 +966,69 @@ function createConfetti() {
 // 마지막 생성 payload 저장 (재생성용)
 let _lastGeneratePayload = null;
 
+// 피드백 #13: 캡션 생성 후 인스타 피드 미리보기 (스마트폰 프레임 시뮬)
+function _previewCaptionOnInsta() {
+  const caption = document.getElementById('captionText')?.value || '';
+  const hash    = document.getElementById('captionHash')?.value || '';
+  const handle  = (window._instaHandle || 'itdasy').replace('@', '');
+
+  // 현재 선택된 슬롯의 첫 사진을 미리보기에 사용
+  let previewImg = '';
+  if (typeof _captionSlotId !== 'undefined' && _captionSlotId && typeof _slots !== 'undefined') {
+    const slot = _slots.find(s => s.id === _captionSlotId);
+    if (slot) {
+      const p = (slot.photos || []).find(x => !x.hidden) || slot.photos?.[0];
+      if (p) previewImg = p.editedDataUrl || p.dataUrl;
+    }
+  }
+
+  let pop = document.getElementById('_capInstaPreview');
+  if (!pop) {
+    pop = document.createElement('div');
+    pop.id = '_capInstaPreview';
+    pop.style.cssText = 'display:none;position:fixed;inset:0;z-index:9600;background:rgba(0,0,0,0.82);align-items:center;justify-content:center;padding:14px;';
+    pop.onclick = e => { if (e.target === pop) pop.style.display = 'none'; };
+    document.body.appendChild(pop);
+  }
+  const hashHtml = hash ? hash.split(/\s+/).filter(Boolean).map(h => {
+    const clean = h.startsWith('#') ? h : '#' + h;
+    return `<span style="color:#1e7abf;">${clean}</span>`;
+  }).join(' ') : '';
+  pop.innerHTML = `
+    <div style="width:100%;max-width:360px;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,0.5);font-family:-apple-system,sans-serif;">
+      <!-- 인스타 헤더 -->
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #dbdbdb;">
+        <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045);padding:2px;"><div style="width:100%;height:100%;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;">🎀</div></div>
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:700;">${handle}</div>
+          <div style="font-size:10px;color:#888;">Sponsored · 서울</div>
+        </div>
+        <div style="font-size:18px;color:#262626;">⋯</div>
+      </div>
+      <!-- 이미지 -->
+      <div style="width:100%;aspect-ratio:1/1;background:#000;display:flex;align-items:center;justify-content:center;">
+        ${previewImg
+          ? `<img src="${previewImg}" style="width:100%;height:100%;object-fit:cover;">`
+          : `<div style="color:#888;font-size:12px;">작업실에서 사진을 먼저 선택해주세요</div>`}
+      </div>
+      <!-- 하단 아이콘 -->
+      <div style="display:flex;gap:14px;padding:8px 12px;font-size:22px;">
+        ❤️ 💬 ✈️ <span style="flex:1;"></span> 🔖
+      </div>
+      <!-- 캡션 -->
+      <div style="padding:4px 12px 12px;font-size:12px;line-height:1.5;color:#262626;max-height:220px;overflow-y:auto;">
+        <b>${handle}</b> <span style="white-space:pre-wrap;">${(caption || '(캡션 없음)').replace(/</g,'&lt;')}</span>
+        ${hashHtml ? '<div style="margin-top:6px;word-break:break-word;">' + hashHtml + '</div>' : ''}
+      </div>
+      <div style="padding:10px 12px;border-top:1px solid #efefef;display:flex;gap:8px;">
+        <button onclick="document.getElementById('_capInstaPreview').style.display='none'" style="flex:1;min-height:40px;padding:10px;border-radius:10px;border:1px solid #dbdbdb;background:#fff;font-size:12px;font-weight:700;cursor:pointer;">닫기</button>
+        <button onclick="publishFromCaption();document.getElementById('_capInstaPreview').style.display='none'" style="flex:1;min-height:40px;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:12px;font-weight:800;cursor:pointer;">이대로 올리기</button>
+      </div>
+    </div>
+  `;
+  pop.style.display = 'flex';
+}
+
 async function regenerateCaption(overrides = {}) {
   if (!_lastGeneratePayload) {
     showToast('먼저 캡션을 한 번 생성해주세요');
@@ -1029,6 +1092,8 @@ function _renderCaptionActionBar(caption, hashtags) {
 
     <div style="background:rgba(76,175,80,0.08);border:1.5px solid rgba(76,175,80,0.25);border-radius:14px;padding:14px;margin-bottom:10px;">
       <div style="font-size:12px;font-weight:700;color:#388e3c;margin-bottom:10px;">✅ 캡션 생성 완료!</div>
+      <!-- 피드백 #13: 인스타 피드 미리보기 버튼 복원 -->
+      <button onclick="_previewCaptionOnInsta()" style="width:100%;min-height:48px;padding:12px;border-radius:12px;border:1.5px solid #833ab4;background:#fff;color:#833ab4;font-size:13px;font-weight:800;cursor:pointer;margin-bottom:8px;">📱 인스타 피드 미리보기</button>
       <button onclick="saveCaptionToGallery()" style="width:100%;min-height:48px;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#4caf50,#388e3c);color:#fff;font-size:13px;font-weight:700;cursor:pointer;">📁 갤러리에 저장하기</button>
     </div>
     ${hasNextSlot ? `

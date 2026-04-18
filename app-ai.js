@@ -84,6 +84,18 @@ function _renderAiRecommendTab(root, slots) {
     // 테두리 색상: 완성=초록, 미완성=주황, deferred=노랑, 체크=핑크
     const borderColor = isChecked ? 'var(--accent)' : isComplete ? 'rgba(76,175,80,0.35)' : isDeferred ? 'rgba(255,193,7,0.4)' : 'rgba(255,152,0,0.35)';
 
+    // 피드백 #6,#12: 완성된 슬롯은 "인스타 즉시 올리기"와 "예약" 버튼 카드에 직접 노출
+    const actionBtns = isComplete ? `
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:6px;margin-top:10px;">
+        <button onclick="_quickPublishFromAi('${slot.id}',event)" style="min-height:44px;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:12px;font-weight:800;cursor:pointer;">🚀 인스타 바로 올리기</button>
+        <button onclick="_schedulePublishFromAi('${slot.id}',event)" style="min-height:44px;padding:10px;border-radius:10px;border:1.5px solid var(--accent);background:#fff;color:var(--accent);font-size:12px;font-weight:800;cursor:pointer;">🗓️ 예약</button>
+      </div>
+    ` : (hasPhotos && !hasCaption) ? `
+      <div style="margin-top:10px;">
+        <button onclick="_goToSlotStep('${slot.id}')" style="width:100%;min-height:44px;padding:10px;border-radius:10px;border:1.5px solid var(--accent2);background:#fff5f7;color:var(--accent);font-size:12px;font-weight:800;cursor:pointer;">✍️ 글쓰기 → 캡션 만들기</button>
+      </div>
+    ` : '';
+
     return `
       <div data-ai-card="${slot.id}" style="background:#fff;border:1.5px solid ${borderColor};border-radius:16px;padding:12px;margin-bottom:10px;position:relative;">
         <!-- 체크박스 -->
@@ -104,6 +116,7 @@ function _renderAiRecommendTab(root, slots) {
             <div style="font-size:11px;color:var(--text2);line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${capPreview}</div>
           </div>
         </div>
+        ${actionBtns}
       </div>`;
   }).join('');
 
@@ -198,6 +211,65 @@ async function _goToSlotStep(slotId) {
   } else {
     // 완성 → 마무리 탭으로
     _goToFinishSlot(slotId);
+  }
+}
+
+// =====================================================================
+// ===== AI 추천 카드 퀵 액션 (즉시 인스타 / 예약) =====
+// =====================================================================
+async function _quickPublishFromAi(slotId, e) {
+  e?.stopPropagation();
+  // app-gallery-finish.js에 이미 있는 publishSlotToInstagram 재사용
+  if (typeof publishSlotToInstagram === 'function') {
+    if (typeof _slots === 'undefined' || !_slots || _slots.length === 0) {
+      try { _slots = await loadSlotsFromDB(); } catch(_e) { _slots = []; }
+    }
+    return publishSlotToInstagram(slotId);
+  }
+  showToast('잠시 후 다시 시도해주세요');
+}
+
+async function _schedulePublishFromAi(slotId, e) {
+  e?.stopPropagation();
+  // 슬롯의 사진·캡션을 scheduled-posts 생성 폼에 자동 주입
+  let slots = [];
+  try { slots = await loadSlotsFromDB(); } catch(_e) {}
+  const slot = slots.find(s => s.id === slotId);
+  if (!slot) { showToast('슬롯을 찾을 수 없어요'); return; }
+
+  // 사진을 portfolio로 올려 URL 확보
+  const visPhotos = slot.photos.filter(p => !p.hidden);
+  const photo = visPhotos[0] || slot.photos[0];
+  if (!photo) { showToast('사진이 필요해요'); return; }
+  const fullCaption = (slot.caption || '') + (slot.hashtags ? '\n\n' + slot.hashtags : '');
+  showToast('예약 준비 중…');
+  try {
+    const blob = _dataUrlToBlob(photo.editedDataUrl || photo.dataUrl);
+    const fd = new FormData();
+    fd.append('image', blob, 'slot.jpg');
+    fd.append('photo_type', 'after');
+    fd.append('main_tag', slot.label);
+    fd.append('tags', '');
+    const upRes = await fetch(API + '/portfolio', { method: 'POST', headers: authHeader(), body: fd });
+    if (!upRes.ok) { showToast('사진 업로드 실패'); return; }
+    const upData = await upRes.json();
+    const imgUrl = upData.image_url?.startsWith('http') ? upData.image_url : API + (upData.image_url || '');
+
+    // 예약 팝업 열고 값 자동 prefill (app-scheduled.js 참조)
+    if (typeof openScheduledPopup === 'function') {
+      await openScheduledPopup();
+      setTimeout(() => {
+        const imgField = document.getElementById('schedImg');
+        const capField = document.getElementById('schedCaption');
+        if (imgField) imgField.value = imgUrl;
+        if (capField) capField.value = fullCaption;
+        // 폼 자동 확장
+        const wrap = document.getElementById('scheduledFormWrap');
+        if (wrap) wrap.open = true;
+      }, 250);
+    }
+  } catch(err) {
+    showToast('예약 준비 실패: ' + err.message);
   }
 }
 
