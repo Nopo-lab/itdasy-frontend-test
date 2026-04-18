@@ -83,12 +83,16 @@ p { word-break: keep-all; }
   background: var(--bg2);
   overflow-x: auto;
   scrollbar-width: none;
+  /* iOS Safari 하단 툴바와 충돌 방지 — sticky/fixed 배치 기반 앱에선 필수 */
+  padding-bottom: env(safe-area-inset-bottom);
 }
 .nav::-webkit-scrollbar { display: none; }
 .nav-btn {
   flex-shrink: 0;
-  padding: 14px 18px;
-  font-size: 13px;
+  /* Apple HIG 권장 44pt 터치 영역 — 기존 28pt에서 상향 */
+  min-height: 48px;
+  padding: 14px 20px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--text3);
   background: none;
@@ -100,10 +104,10 @@ p { word-break: keep-all; }
   letter-spacing: -0.02em;
   white-space: nowrap;
 }
-.nav-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.nav-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
 
-/* 탭 컨텐츠 */
-.tab { display: none; padding: 24px 20px 100px; }
+/* 탭 컨텐츠 — 하단 safe-area 보정 */
+.tab { display: none; padding: 24px 20px calc(120px + env(safe-area-inset-bottom)); }
 .tab.active { display: block; }
 
 /* 섹션 타이틀 */
@@ -1200,21 +1204,36 @@ textarea:focus, input[type=text]:focus { border-color: var(--accent); }
 .frame-action-btn.primary { color: var(--accent); }
 .frame-action-btn:active { background: rgba(241,128,145,0.07); }
 
-/* ───── 복사 토스트 ───── */
+/* ───── 복사 토스트 (포지션·폰트 통일, safe-area 대응) ───── */
 .copy-toast {
-  position: fixed; bottom: 90px; left: 50%;
+  position: fixed;
+  /* nav(하단) 바로 위에 뜨도록 safe-area까지 감안 */
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  left: 50%;
   transform: translateX(-50%) translateY(16px);
   background: rgba(25,31,40,0.92);
   backdrop-filter: blur(10px);
-  color: #fff; padding: 11px 22px; border-radius: 30px;
-  font-size: 13px; font-weight: 500;
-  font-family: 'Pretendard', sans-serif; letter-spacing: -0.02em;
-  white-space: nowrap; pointer-events: none;
-  opacity: 0; transition: all 0.28s cubic-bezier(0.34,1.56,0.64,1);
+  color: #fff;
+  padding: 13px 24px;
+  border-radius: 30px;
+  font-size: 14px;  /* 13 → 14 상향 */
+  font-weight: 500;
+  font-family: 'Pretendard', sans-serif;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: all 0.28s cubic-bezier(0.34,1.56,0.64,1);
   z-index: 9998;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  max-width: calc(100vw - 32px);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .copy-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ───── 본문 기본 폰트 15px 상향 (40대 이상 가독성) ───── */
+body { font-size: 15px; line-height: 1.55; }
 
 /* ───── 스플래시 스크린 ───── */
 #splashScreen {

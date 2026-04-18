@@ -1,10 +1,28 @@
 // Itdasy Studio - Core (설정, 인증, 유틸, 탭, 온보딩)
 
 // ===== 백엔드 설정 =====
+// 이 레포(itdasy-frontend-test-yeunjun)는 연준 스테이징 전용 → 스테이징 백엔드 바라봄
+// 운영 레포(itdasy-frontend)는 프로덕션 백엔드(itdasy260417-production)를 사용해야 함
 const PROD_API = 'https://itdasy260417-production.up.railway.app';
 const API = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
   ? 'http://localhost:8000'
   : PROD_API;
+
+// ===== 토큰 localStorage 키를 백엔드별로 분리 =====
+// nopo-lab.github.io는 운영/스테이징 프론트가 같은 origin이라 localStorage 공유.
+// 백엔드가 다르면(운영 vs 스테이징) JWT 서명이 달라서 크로스 오염 시 401 "인증 실패" 발생.
+// → API URL 기반으로 토큰 키를 분리해서 완전 격리.
+const _TOKEN_KEY = 'itdasy_token::' + (API.includes('staging') ? 'staging' : (API.includes('localhost') ? 'local' : 'prod'));
+// 구버전 토큰 자동 마이그레이션 (한 번만 실행)
+(function migrateLegacyToken(){
+  try {
+    const legacy = localStorage.getItem('itdasy_token');
+    if (legacy && !localStorage.getItem(_TOKEN_KEY)) {
+      // 현재 API가 스테이징인데 기존 토큰이 존재하면 보수적으로 정리 (어느 백엔드 토큰인지 알 수 없음)
+      localStorage.removeItem('itdasy_token');
+    }
+  } catch(_){}
+})();
 
 let _instaHandle = '';  // checkInstaStatus에서 저장
 
@@ -230,18 +248,24 @@ document.getElementById('obShopNameInput').addEventListener('keydown', e => {
 });
 
 function getToken() {
-  const t = localStorage.getItem('itdasy_token');
+  const t = localStorage.getItem(_TOKEN_KEY);
   if (!t) return null;
   try {
     const payload = JSON.parse(atob(t.split('.')[1]));
     if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-      localStorage.removeItem('itdasy_token');
+      localStorage.removeItem(_TOKEN_KEY);
       return null;
     }
   } catch { return null; }
   return t;
 }
-function setToken(t) { localStorage.setItem('itdasy_token', t); }
+function setToken(t) {
+  if (t === null || t === undefined) {
+    localStorage.removeItem(_TOKEN_KEY);
+  } else {
+    localStorage.setItem(_TOKEN_KEY, t);
+  }
+}
 function authHeader() { return { 'Authorization': 'Bearer ' + getToken(), 'ngrok-skip-browser-warning': 'true' }; }
 
 function getMyUserId() {
@@ -343,14 +367,14 @@ async function fullReset() {
   try {
     const res = await fetch(API + '/admin/reset', { method: 'POST', headers: authHeader() });
     if (!res.ok) throw new Error('초기화 실패');
-    ['itdasy_token','itdasy_consented','itdasy_consented_at','itdasy_latest_analysis','onboarding_done','shop_name','shop_type','itdasy_master_set'].forEach(k => localStorage.removeItem(k));
+    [_TOKEN_KEY,'itdasy_token','itdasy_consented','itdasy_consented_at','itdasy_latest_analysis','onboarding_done','shop_name','shop_type','itdasy_master_set'].forEach(k => localStorage.removeItem(k));
     // 말투 카드 즉시 숨기기
     const pd = document.getElementById('personaDash');
     if (pd) { pd.style.display = 'none'; const pc = document.getElementById('personaContent'); if (pc) pc.innerHTML = ''; }
-    alert('초기화 완료! 처음부터 시작합니다.');
-    location.reload();
+    showToast('초기화 완료! 처음부터 시작합니다.');
+    setTimeout(() => location.reload(), 800);
   } catch(e) {
-    alert('오류: ' + e.message);
+    showToast('초기화 중 오류가 발생했습니다.');
   }
 }
 
@@ -368,15 +392,14 @@ async function logout() {
   // 1. 토큰 및 로컬 스토리지 삭제
   setToken(null);
   // 세션 관련 키만 삭제 (온보딩 등 설정 유지)
-  ['itdasy_token', 'itdasy_consented', 'itdasy_consented_at', 'itdasy_latest_analysis'].forEach(k => localStorage.removeItem(k));
+  [_TOKEN_KEY, 'itdasy_token', 'itdasy_consented', 'itdasy_consented_at', 'itdasy_latest_analysis'].forEach(k => localStorage.removeItem(k));
 
   // 2. 서비스 워커 캐시 강제 삭제
   if ('caches' in window) {
     try {
       const keys = await caches.keys();
       await Promise.all(keys.map(key => caches.delete(key)));
-      console.log('Caches cleared');
-    } catch (e) { console.error('Cache clear fail', e); }
+    } catch (e) { /* cache clear best-effort */ }
   }
 
   // 3. 페이지 새로고침 (클린 캐시 상태로 진입)
@@ -562,7 +585,7 @@ if ('serviceWorker' in navigator) {
         const newWorker = reg.installing;
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'activated') {
-            console.log('[SW] 새 버전 적용됨 — 캐시 갱신 완료');
+            /* SW 활성화 완료 */
           }
         });
       });
@@ -682,6 +705,100 @@ if ('serviceWorker' in navigator) {
   });
 })();
 
+// ──────────────────────────────────────────────
+// 통계 카드 데이터 로드 (Subscription usage 기반)
+// ──────────────────────────────────────────────
+async function loadStatsCard() {
+  try {
+    const r = await fetch(API + '/subscription/usage', { headers: authHeader() });
+    if (!r.ok) return;
+    const d = await r.json();
+    const cap = document.getElementById('statCaptions');
+    const pub = document.getElementById('statPosts');
+    if (cap) cap.textContent = d.caption?.used ?? 0;
+    if (pub) pub.textContent = d.publish?.used ?? 0;
+  } catch(_) {}
+}
+
+// ──────────────────────────────────────────────
+// 429 한도 초과 감지 → 플랜 팝업 자동 오픈 (Pro 전환 유도)
+// fetch 래핑해서 429 응답을 감시. 단일 이벤트만 발행해서 토스트·팝업 중복 방지.
+// ──────────────────────────────────────────────
+(function wrapFetchFor429() {
+  const origFetch = window.fetch;
+  let lastOpened = 0;
+  window.fetch = async function(...args) {
+    const r = await origFetch.apply(this, args);
+    if (r.status === 429) {
+      const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url) || '';
+      // API 도메인에 한정 (외부 요청 무시)
+      if (url.includes('railway.app') || url.startsWith(API)) {
+        const now = Date.now();
+        if (now - lastOpened > 3000 && typeof openPlanPopup === 'function') {
+          lastOpened = now;
+          try {
+            const clone = r.clone();
+            const j = await clone.json().catch(() => ({}));
+            showToast(j.detail || '사용 한도 초과 — 플랜을 확인해주세요');
+          } catch (_) {}
+          setTimeout(() => openPlanPopup(), 600);
+        }
+      }
+    }
+    return r;
+  };
+})();
+
 // Module에서 접근 가능하도록 window에 노출
 window.API = API;
 window.authHeader = authHeader;
+
+// ──────────────────────────────────────────────
+// 보안 민감 버튼은 inline onclick 대신 addEventListener로 연결
+// (CSP strict 대비 + 핸들러 중복 바인딩 방지)
+// ──────────────────────────────────────────────
+(function bindCriticalHandlers() {
+  function on(id, fn) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('click', fn);
+  }
+  const ready = () => {
+    on('loginBtn', () => typeof login === 'function' && login());
+    on('logoutBtn', () => {
+      if (typeof closeSettings === 'function') closeSettings();
+      if (typeof logout === 'function') logout();
+    });
+    on('fullResetBtn', () => typeof fullReset === 'function' && fullReset());
+
+    // 플랜 팝업
+    on('planBadge', openPlanPopup);
+    on('planCloseBtn', closePlanPopup);
+    on('planActionBtn', doPlanAction);
+    document.querySelectorAll('.plan-card[data-plan]').forEach(card => {
+      card.addEventListener('click', () => selectPlan(card.dataset.plan));
+    });
+
+    // 예약 발행 팝업
+    on('openScheduledBtn', () => {
+      if (typeof closeSettings === 'function') closeSettings();
+      if (typeof openScheduledPopup === 'function') openScheduledPopup();
+    });
+
+    // 통계 카드 Pro 업그레이드 버튼
+    on('statsUpgradeBtn', openPlanPopup);
+
+    // 통계 숫자 로드 (Subscription/usage 에서 가져옴)
+    loadStatsCard();
+
+    // 프로덕션(운영) 배포에서만 CBT 전용 버튼 숨김. yeunjun/test 레포는 유지.
+    if (location.pathname.startsWith('/itdasy-frontend/') || location.pathname === '/itdasy-frontend') {
+      const reset = document.getElementById('fullResetBtn');
+      if (reset) reset.style.display = 'none';
+    }
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', ready);
+  } else {
+    ready();
+  }
+})();

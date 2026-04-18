@@ -3,19 +3,21 @@
 //  CACHE_VERSION = 날짜(YYYYMMDD) + 빌드번호
 //  배포할 때마다 이 값만 올리면 구 캐시 자동 삭제
 // ─────────────────────────────────────────────
-const CACHE_VERSION = '20260417-v2';
+const CACHE_VERSION = '20260418-v3';
 const CACHE_NAME    = `itdasy-${CACHE_VERSION}`;
+const OFFLINE_URL   = '/itdasy-frontend-test/offline.html';
 
 const STATIC_ASSETS = [
-  '/itdasy-studio/index.html',
-  '/itdasy-studio/style.css',
-  '/itdasy-studio/app-core.js',
-  '/itdasy-studio/app-instagram.js',
-  '/itdasy-studio/app-caption.js',
-  '/itdasy-studio/app-portfolio.js',
-  '/itdasy-studio/app-ai.js',
-  '/itdasy-studio/app-gallery.js',
-  '/itdasy-studio/manifest.json',
+  '/itdasy-frontend-test/index.html',
+  '/itdasy-frontend-test/style.css',
+  '/itdasy-frontend-test/app-core.js',
+  '/itdasy-frontend-test/app-instagram.js',
+  '/itdasy-frontend-test/app-caption.js',
+  '/itdasy-frontend-test/app-portfolio.js',
+  '/itdasy-frontend-test/app-ai.js',
+  '/itdasy-frontend-test/app-gallery.js',
+  '/itdasy-frontend-test/manifest.json',
+  '/itdasy-frontend-test/offline.html',
   'https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600&family=Noto+Sans+KR:wght@300;400;500&display=swap',
 ];
 
@@ -70,6 +72,15 @@ self.addEventListener('fetch', event => {
         }
         return response;
       })
-      .catch(() => caches.match(event.request)) // 오프라인 폴백
+      .catch(async () => {
+        // 오프라인 폴백: 캐시에 있으면 캐시, HTML 탐색이면 offline.html
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+        if (event.request.mode === 'navigate' || (event.request.headers.get('accept') || '').includes('text/html')) {
+          const offline = await caches.match(OFFLINE_URL);
+          if (offline) return offline;
+        }
+        return new Response('', { status: 503, statusText: 'Offline' });
+      })
   );
 });
