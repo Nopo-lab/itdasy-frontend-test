@@ -8,6 +8,22 @@ const API = (window.location.hostname === 'localhost' || window.location.hostnam
   ? 'http://localhost:8000'
   : PROD_API;
 
+// ===== 토큰 localStorage 키를 백엔드별로 분리 =====
+// nopo-lab.github.io는 운영/스테이징 프론트가 같은 origin이라 localStorage 공유.
+// 백엔드가 다르면(운영 vs 스테이징) JWT 서명이 달라서 크로스 오염 시 401 "인증 실패" 발생.
+// → API URL 기반으로 토큰 키를 분리해서 완전 격리.
+const _TOKEN_KEY = 'itdasy_token::' + (API.includes('staging') ? 'staging' : (API.includes('localhost') ? 'local' : 'prod'));
+// 구버전 토큰 자동 마이그레이션 (한 번만 실행)
+(function migrateLegacyToken(){
+  try {
+    const legacy = localStorage.getItem('itdasy_token');
+    if (legacy && !localStorage.getItem(_TOKEN_KEY)) {
+      // 현재 API가 스테이징인데 기존 토큰이 존재하면 보수적으로 정리 (어느 백엔드 토큰인지 알 수 없음)
+      localStorage.removeItem('itdasy_token');
+    }
+  } catch(_){}
+})();
+
 let _instaHandle = '';  // checkInstaStatus에서 저장
 
 function showToast(msg) {
@@ -232,18 +248,24 @@ document.getElementById('obShopNameInput').addEventListener('keydown', e => {
 });
 
 function getToken() {
-  const t = localStorage.getItem('itdasy_token');
+  const t = localStorage.getItem(_TOKEN_KEY);
   if (!t) return null;
   try {
     const payload = JSON.parse(atob(t.split('.')[1]));
     if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-      localStorage.removeItem('itdasy_token');
+      localStorage.removeItem(_TOKEN_KEY);
       return null;
     }
   } catch { return null; }
   return t;
 }
-function setToken(t) { localStorage.setItem('itdasy_token', t); }
+function setToken(t) {
+  if (t === null || t === undefined) {
+    localStorage.removeItem(_TOKEN_KEY);
+  } else {
+    localStorage.setItem(_TOKEN_KEY, t);
+  }
+}
 function authHeader() { return { 'Authorization': 'Bearer ' + getToken(), 'ngrok-skip-browser-warning': 'true' }; }
 
 function getMyUserId() {
@@ -345,7 +367,7 @@ async function fullReset() {
   try {
     const res = await fetch(API + '/admin/reset', { method: 'POST', headers: authHeader() });
     if (!res.ok) throw new Error('초기화 실패');
-    ['itdasy_token','itdasy_consented','itdasy_consented_at','itdasy_latest_analysis','onboarding_done','shop_name','shop_type','itdasy_master_set'].forEach(k => localStorage.removeItem(k));
+    [_TOKEN_KEY,'itdasy_token','itdasy_consented','itdasy_consented_at','itdasy_latest_analysis','onboarding_done','shop_name','shop_type','itdasy_master_set'].forEach(k => localStorage.removeItem(k));
     // 말투 카드 즉시 숨기기
     const pd = document.getElementById('personaDash');
     if (pd) { pd.style.display = 'none'; const pc = document.getElementById('personaContent'); if (pc) pc.innerHTML = ''; }
@@ -370,7 +392,7 @@ async function logout() {
   // 1. 토큰 및 로컬 스토리지 삭제
   setToken(null);
   // 세션 관련 키만 삭제 (온보딩 등 설정 유지)
-  ['itdasy_token', 'itdasy_consented', 'itdasy_consented_at', 'itdasy_latest_analysis'].forEach(k => localStorage.removeItem(k));
+  [_TOKEN_KEY, 'itdasy_token', 'itdasy_consented', 'itdasy_consented_at', 'itdasy_latest_analysis'].forEach(k => localStorage.removeItem(k));
 
   // 2. 서비스 워커 캐시 강제 삭제
   if ('caches' in window) {
