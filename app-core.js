@@ -683,6 +683,35 @@ if ('serviceWorker' in navigator) {
   });
 })();
 
+// ──────────────────────────────────────────────
+// 429 한도 초과 감지 → 플랜 팝업 자동 오픈 (Pro 전환 유도)
+// fetch 래핑해서 429 응답을 감시. 단일 이벤트만 발행해서 토스트·팝업 중복 방지.
+// ──────────────────────────────────────────────
+(function wrapFetchFor429() {
+  const origFetch = window.fetch;
+  let lastOpened = 0;
+  window.fetch = async function(...args) {
+    const r = await origFetch.apply(this, args);
+    if (r.status === 429) {
+      const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url) || '';
+      // API 도메인에 한정 (외부 요청 무시)
+      if (url.includes('railway.app') || url.startsWith(API)) {
+        const now = Date.now();
+        if (now - lastOpened > 3000 && typeof openPlanPopup === 'function') {
+          lastOpened = now;
+          try {
+            const clone = r.clone();
+            const j = await clone.json().catch(() => ({}));
+            showToast(j.detail || '사용 한도 초과 — 플랜을 확인해주세요');
+          } catch (_) {}
+          setTimeout(() => openPlanPopup(), 600);
+        }
+      }
+    }
+    return r;
+  };
+})();
+
 // Module에서 접근 가능하도록 window에 노출
 window.API = API;
 window.authHeader = authHeader;
@@ -703,6 +732,20 @@ window.authHeader = authHeader;
       if (typeof logout === 'function') logout();
     });
     on('fullResetBtn', () => typeof fullReset === 'function' && fullReset());
+
+    // 플랜 팝업
+    on('planBadge', openPlanPopup);
+    on('planCloseBtn', closePlanPopup);
+    on('planActionBtn', doPlanAction);
+    document.querySelectorAll('.plan-card[data-plan]').forEach(card => {
+      card.addEventListener('click', () => selectPlan(card.dataset.plan));
+    });
+
+    // 프로덕션(운영) 배포에서만 CBT 전용 버튼 숨김. yeunjun/test 레포는 유지.
+    if (location.pathname.startsWith('/itdasy-frontend/') || location.pathname === '/itdasy-frontend') {
+      const reset = document.getElementById('fullResetBtn');
+      if (reset) reset.style.display = 'none';
+    }
   };
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', ready);

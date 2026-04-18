@@ -561,6 +561,7 @@ async function _doGenerateCaption(scenario, closePopup) {
   const tone_override = 'normal';
 
   const payload = { category, photo_context, length_tier, tone_override };
+  _lastGeneratePayload = payload;  // 재생성 버튼용
   if (typeof window._assertSpec === 'function') window._assertSpec('POST /persona/generate', payload);
 
   try {
@@ -942,6 +943,35 @@ function createConfetti() {
 // ═══════════════════════════════════════════════════════
 // 캡션 완료 후 액션바 (갤러리 저장 + 다음 손님 유도)
 // ═══════════════════════════════════════════════════════
+// 마지막 생성 payload 저장 (재생성용)
+let _lastGeneratePayload = null;
+
+async function regenerateCaption(overrides = {}) {
+  if (!_lastGeneratePayload) {
+    showToast('먼저 캡션을 한 번 생성해주세요');
+    return;
+  }
+  const payload = { ..._lastGeneratePayload, ...overrides };
+  _lastGeneratePayload = payload;
+  const ta = document.getElementById('captionText');
+  if (ta) { ta.value = '✨ 새로 쓰는 중…'; _capAutoGrow(ta); }
+  try {
+    const res = await _personaFetch('POST', '/persona/generate', payload);
+    const data = await res.json();
+    if (!res.ok) {
+      showToast(_CAP_ERR_MSG[data.code || data.detail] || '재생성 실패');
+      if (ta) ta.value = '';
+      return;
+    }
+    _capAiDraft = data.caption || '';
+    _lastLogId = data.log_id || null;
+    if (ta) { ta.value = _capAiDraft; _capAutoGrow(ta); }
+    _renderCaptionActionBar(_capAiDraft, '');
+  } catch (e) {
+    showToast('네트워크 오류. 다시 시도해주세요');
+  }
+}
+
 function _renderCaptionActionBar(caption, hashtags) {
   const actionBar = document.getElementById('captionActionBar');
   if (!actionBar) return;
@@ -951,18 +981,29 @@ function _renderCaptionActionBar(caption, hashtags) {
   if (typeof _slots !== 'undefined' && _slots.length > 0) {
     doneCount = _slots.filter(s => s.status === 'done').length;
     totalCount = _slots.length;
-    // 다음 미완료 슬롯 찾기
     nextSlot = _slots.find(s => s.status !== 'done' && s.photos.length > 0);
   }
 
   const hasNextSlot = !!nextSlot;
   const progressText = totalCount > 0 ? `(완료 ${doneCount}/${totalCount})` : '';
+  const _btnBase = 'min-height:44px;padding:10px 12px;border-radius:10px;border:1.5px solid var(--border);background:#fff;color:var(--text);font-size:12px;font-weight:700;cursor:pointer;';
 
   actionBar.style.display = 'block';
   actionBar.innerHTML = `
+    <!-- 재생성 옵션 4종 (Apple HIG 44pt 보장) -->
+    <div style="background:rgba(241,128,145,0.06);border:1.5px solid rgba(241,128,145,0.2);border-radius:14px;padding:12px;margin-bottom:10px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:8px;">마음에 안 드시면 다시 써드릴게요</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+        <button onclick="regenerateCaption({})" style="${_btnBase}">🔄 다시 생성</button>
+        <button onclick="regenerateCaption({length_tier:'short'})" style="${_btnBase}">📏 더 짧게</button>
+        <button onclick="regenerateCaption({length_tier:'long'})" style="${_btnBase}">📖 더 길게</button>
+        <button onclick="regenerateCaption({tone_override:'ornate'})" style="${_btnBase}">💕 더 친근하게</button>
+      </div>
+    </div>
+
     <div style="background:rgba(76,175,80,0.08);border:1.5px solid rgba(76,175,80,0.25);border-radius:14px;padding:14px;margin-bottom:10px;">
       <div style="font-size:12px;font-weight:700;color:#388e3c;margin-bottom:10px;">✅ 캡션 생성 완료!</div>
-      <button onclick="saveCaptionToGallery()" style="width:100%;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#4caf50,#388e3c);color:#fff;font-size:13px;font-weight:700;cursor:pointer;">📁 갤러리에 저장하기</button>
+      <button onclick="saveCaptionToGallery()" style="width:100%;min-height:48px;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#4caf50,#388e3c);color:#fff;font-size:13px;font-weight:700;cursor:pointer;">📁 갤러리에 저장하기</button>
     </div>
     ${hasNextSlot ? `
     <div style="background:rgba(241,128,145,0.07);border:1.5px solid rgba(241,128,145,0.2);border-radius:14px;padding:14px;">
