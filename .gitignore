@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Capacitor native projects (native source는 별도 브랜치 또는 별 레포 관리 권장.
+# 여기선 설정만 git 포함하고 빌드 산출물은 제외)
+ios/App/build/
+ios/App/Pods/
+ios/App/App.xcworkspace/xcuserdata/
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+
+# macOS
+.DS_Store
