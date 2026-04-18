@@ -592,11 +592,7 @@ async function _doGenerateCaption(scenario, closePopup) {
     // [WIRING] 요청값 vs 서버 응답값 일치 확인
     const respLT = data.length_tier;
     const respTO = data.used_tone;
-    if (respLT && respLT !== length_tier)
-      console.warn('[WIRING-MISMATCH] length_tier sent:', length_tier, '/ server used:', respLT);
-    if (respTO && respTO !== tone_override)
-      console.warn('[WIRING-MISMATCH] tone_override sent:', tone_override, '/ server used:', respTO);
-    console.log('[WIRING] sent:', { length_tier, tone_override }, '| resp:', { length_tier: respLT, used_tone: respTO });
+    // WIRING 디버그 로그 제거 (프로덕션 환경 민감 정보 노출 방지)
 
     hideCaptionLoader(true, () => {
       closePopup();
@@ -632,7 +628,7 @@ async function _doGenerateCaption(scenario, closePopup) {
 // ===== 마스터: 인스타 자동 발행 (1단계: 프리뷰 열기) =====
 function publishToInstagram() {
   if (!getToken()) {
-    alert("홈 탭에서 인스타 연동을 먼저 진행해주세요!");
+    showToast("홈 탭에서 인스타 연동을 먼저 진행해주세요");
     return;
   }
 
@@ -828,7 +824,7 @@ function loadImage(input, side) {
 
 function renderBA() {
   if (!imgs.before || !imgs.after) {
-    alert('Before, After 사진을 모두 선택해주세요!');
+    showToast('Before, After 사진을 모두 선택해주세요');
     return;
   }
   const layout = document.querySelector('.style-opts .style-opt.on[data-v]') ?

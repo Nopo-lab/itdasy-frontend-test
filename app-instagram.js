@@ -49,7 +49,7 @@ function renderPersonaDash(p, showTestBtn) {
 function showDetailedAnalysis() {
   const raw = JSON.parse(localStorage.getItem('itdasy_latest_analysis') || '{}');
   if (!raw.tone_summary) {
-    alert('학습된 말투 데이터가 없습니다. 먼저 분석을 진행해주세요!');
+    showToast('학습된 말투 데이터가 없습니다. 먼저 분석을 진행해주세요');
     return;
   }
   // 팝업 데이터 렌더링 (runPersonaAnalyze에 있는 로직 재사용)
@@ -158,9 +158,15 @@ async function runPersonaAnalyze() {
     clearInterval(ticker);
 
     if (!res.ok) {
-      const err = await res.json();
+      let friendly = '인스타 분석에 실패했습니다. 잠시 후 다시 시도해주세요';
+      try {
+        const err = await res.json();
+        if (err.detail && typeof err.detail === 'string' && !err.detail.includes('Error')) {
+          friendly = err.detail;
+        }
+      } catch(_) {}
       overlay.style.display = 'none';
-      alert('분석 실패: ' + (err.detail || '알 수 없는 오류'));
+      showToast(friendly);
       return;
     }
 
@@ -206,7 +212,7 @@ async function runPersonaAnalyze() {
   } catch(e) {
     clearInterval(ticker);
     overlay.style.display = 'none';
-    alert('분석 오류: ' + e.message);
+    showToast('네트워크 오류로 분석이 중단됐어요. 잠시 후 다시 시도해주세요');
   }
 }
 
@@ -226,7 +232,7 @@ async function disconnectInstagram() {
 
     checkInstaStatus();
   } catch(e) {
-    alert('해제 오류: ' + e.message);
+    showToast('해제 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요');
   }
 }
 
@@ -283,7 +289,7 @@ async function connectInstagram() {
     window.location.href = `${API}/instagram/go?token=${encodeURIComponent(token)}&origin=${origin}`;
 
   } catch(e) {
-    alert('연동 오류: ' + e.message + '\n\n지속될 경우 크롬이나 사파리 앱에서 직접 접속해주세요!');
+    showToast('연동 중 오류가 발생했습니다. 크롬/사파리에서 재시도해주세요');
     btn.textContent = '연동하기';
     btn.disabled = false;
   }

@@ -349,10 +349,10 @@ async function fullReset() {
     // 말투 카드 즉시 숨기기
     const pd = document.getElementById('personaDash');
     if (pd) { pd.style.display = 'none'; const pc = document.getElementById('personaContent'); if (pc) pc.innerHTML = ''; }
-    alert('초기화 완료! 처음부터 시작합니다.');
-    location.reload();
+    showToast('초기화 완료! 처음부터 시작합니다.');
+    setTimeout(() => location.reload(), 800);
   } catch(e) {
-    alert('오류: ' + e.message);
+    showToast('초기화 중 오류가 발생했습니다.');
   }
 }
 
@@ -377,8 +377,7 @@ async function logout() {
     try {
       const keys = await caches.keys();
       await Promise.all(keys.map(key => caches.delete(key)));
-      console.log('Caches cleared');
-    } catch (e) { console.error('Cache clear fail', e); }
+    } catch (e) { /* cache clear best-effort */ }
   }
 
   // 3. 페이지 새로고침 (클린 캐시 상태로 진입)
@@ -564,7 +563,7 @@ if ('serviceWorker' in navigator) {
         const newWorker = reg.installing;
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'activated') {
-            console.log('[SW] 새 버전 적용됨 — 캐시 갱신 완료');
+            /* SW 활성화 완료 */
           }
         });
       });
@@ -687,3 +686,27 @@ if ('serviceWorker' in navigator) {
 // Module에서 접근 가능하도록 window에 노출
 window.API = API;
 window.authHeader = authHeader;
+
+// ──────────────────────────────────────────────
+// 보안 민감 버튼은 inline onclick 대신 addEventListener로 연결
+// (CSP strict 대비 + 핸들러 중복 바인딩 방지)
+// ──────────────────────────────────────────────
+(function bindCriticalHandlers() {
+  function on(id, fn) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('click', fn);
+  }
+  const ready = () => {
+    on('loginBtn', () => typeof login === 'function' && login());
+    on('logoutBtn', () => {
+      if (typeof closeSettings === 'function') closeSettings();
+      if (typeof logout === 'function') logout();
+    });
+    on('fullResetBtn', () => typeof fullReset === 'function' && fullReset());
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', ready);
+  } else {
+    ready();
+  }
+})();
