@@ -76,7 +76,7 @@ function getCloudBg(W, H, colorMode) {
 }
 
 async function renderEdit() {
-  if (!editFile) { alert('사진을 먼저 올려주세요!'); return; }
+  if (!editFile) { showToast('사진을 먼저 올려주세요'); return; }
 
   const bgMode = document.querySelector('#bgOpts .style-opt.on')?.dataset.v || 'cloud_bw';
   const wm = document.querySelector('#editWmOpts .style-opt.on')?.dataset.v || 'wm1';
@@ -194,7 +194,7 @@ async function renderEdit() {
     canvas.toBlob(blob => { if (blob) detectFaceAfterEdit(blob); }, 'image/png');
 
   } catch(e) {
-    alert('오류: ' + e.message);
+    showToast('편집 중 오류: ' + (e.message || '잠시 후 다시 시도해주세요'));
   }
 
   document.getElementById('editBtn').style.display = 'block';

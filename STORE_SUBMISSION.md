@@ -164,14 +164,56 @@ itdasy_premium_monthly_39900    Auto-Renewable Subscription  $29.99 Tier (≈₩
 Subscription Group: `itdasy_subscriptions`
 
 ### App Review Information
+
+**Contact:**
+- 강연준 / l2doworks@gmail.com / +82 10-xxxx-xxxx
+
+**Demo Account** (Apple Reviewer / Play Reviewer 둘 다 이 계정으로 로그인):
 ```
-Contact: 강연준
-Email: l2doworks@gmail.com
-Phone: +82 10-xxxx-xxxx
-Review notes (연결법 안내):
-  Demo account: demo@itdasy.com / demo1234
-  (Instagram Business 계정 준비한 테스트 계정 제공 필요)
+Email:    review@itdasy.com
+Password: review1234!
+Plan:     Pro (1년 부여 — 모든 기능 접근 가능)
 ```
+*(백엔드에 이미 시드 완료 — `seed_review_demo.py` 실행됨)*
+
+**Review Notes (영문, Apple / Play 양쪽 제출 시 복붙)**:
+```
+Itdasy Studio is a hybrid mobile application built with Capacitor,
+integrating multiple native iOS/Android APIs:
+
+- Native Camera (Capacitor Camera plugin) — photo capture for portfolio
+- Push Notifications (FCM on Android / APNs on iOS) — caption ready alerts, scheduled post reminders
+- Native Share Sheet — share generated captions to other apps
+- Splash Screen & Status Bar — native startup experience
+- Deep Links (itdasy:// scheme) — Instagram OAuth return flow
+- In-App Purchase (StoreKit / Play Billing) — subscription plans
+
+The app provides value beyond a web wrapper:
+1. AI-generated Instagram captions using Google Gemini
+2. Background removal for beauty shop portfolio photos (Replicate API)
+3. Scheduled post publishing to Instagram Graph API (server-side cron)
+4. Persona learning from past Instagram posts (on-device tone analysis)
+5. Native camera integration for quick uploads
+
+To test core flows, please use the demo account above. This account has
+pre-populated persona data (Korean beauty shop owner tone) and
+a Pro subscription for full feature access.
+
+Instagram connection is OPTIONAL — the app works with sample content
+in "Sample Captions" mode without requiring Instagram login.
+
+Business Verification: Submitted to Meta on 2026-04-19 (in review).
+Privacy Policy: https://nopo-lab.github.io/itdasy-promo/privacy.html
+Terms of Service: https://nopo-lab.github.io/itdasy-frontend-test-yeunjun/terms.html
+Support URL: https://nopo-lab.github.io/itdasy-promo/
+```
+
+**제출 전 백엔드에서 실행 필수**:
+```bash
+cd itdasy_backend
+PYTHONPATH=backend python backend/scripts/seed_review_demo.py
+```
+→ 운영 DB에 `review@itdasy.com` 계정이 생성됨. Review 끝나면 Play/App Store 에서 제거 가능.
 
 ---
 

@@ -1,5 +1,23 @@
 // Itdasy Studio - Core (설정, 인증, 유틸, 탭, 온보딩)
 
+// ===== 프로덕션 console 무력화 =====
+// localhost·?debug=1 제외한 실사용자 환경에선 console.log/info/warn/debug 를
+// no-op 으로 대체. 민감 정보 유출 + 심사관 devtools 열었을 때 잡음 방지.
+// error 는 유지 (실제 에러 추적 위해).
+(function _muzzleConsole() {
+  const isLocal = (typeof location !== 'undefined' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1'));
+  const isDebug = (typeof location !== 'undefined' && location.search && location.search.includes('debug=1'));
+  if (isLocal || isDebug) return;
+  const noop = function() {};
+  if (typeof console !== 'undefined') {
+    console.log = noop;
+    console.info = noop;
+    console.warn = noop;
+    console.debug = noop;
+    // console.error 는 유지 — Sentry 등에서 캐치용
+  }
+})();
+
 // ===== 백엔드 설정 =====
 // 이 레포(itdasy-frontend-test-yeunjun)는 연준 스테이징 전용 → 스테이징 백엔드 바라봄
 // 운영 레포(itdasy-frontend)는 프로덕션 백엔드(itdasy260417-production)를 사용해야 함
