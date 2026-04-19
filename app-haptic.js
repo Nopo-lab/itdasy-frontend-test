@@ -11,41 +11,49 @@
   const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
   const Haptics = window.Capacitor?.Plugins?.Haptics;
   const Dialog = window.Capacitor?.Plugins?.Dialog;
+  const canWebVibrate = typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
 
   function _safe(fn) { try { fn(); } catch (_) {} }
 
+  // 웹 브라우저 폴백 — navigator.vibrate (Android Chrome 만 지원. iOS Safari 미지원)
+  // ms duration or [on, off, on, ...] 배열 가능
+  function _webVibrate(pattern) {
+    if (!canWebVibrate) return;
+    _safe(() => navigator.vibrate(pattern));
+  }
+
   // 버튼 탭·확인 액션용 (가벼운 탁)
   window.hapticLight = () => {
-    if (!isNative || !Haptics) return;
-    _safe(() => Haptics.impact({ style: 'LIGHT' }));
+    if (isNative && Haptics) { _safe(() => Haptics.impact({ style: 'LIGHT' })); return; }
+    _webVibrate(10);
   };
 
   // 중요 액션 (만들기·저장)
   window.hapticMedium = () => {
-    if (!isNative || !Haptics) return;
-    _safe(() => Haptics.impact({ style: 'MEDIUM' }));
+    if (isNative && Haptics) { _safe(() => Haptics.impact({ style: 'MEDIUM' })); return; }
+    _webVibrate(25);
   };
 
   // 위험·삭제 액션
   window.hapticHeavy = () => {
-    if (!isNative || !Haptics) return;
-    _safe(() => Haptics.impact({ style: 'HEAVY' }));
+    if (isNative && Haptics) { _safe(() => Haptics.impact({ style: 'HEAVY' })); return; }
+    _webVibrate(40);
   };
 
-  // 성공 알림 (복사·발행)
+  // 성공 알림 (복사·발행) — 두 번 연속 탁탁
   window.hapticSuccess = () => {
-    if (!isNative || !Haptics) return;
-    _safe(() => Haptics.notification({ type: 'SUCCESS' }));
+    if (isNative && Haptics) { _safe(() => Haptics.notification({ type: 'SUCCESS' })); return; }
+    _webVibrate([15, 60, 15]);
   };
 
   window.hapticWarning = () => {
-    if (!isNative || !Haptics) return;
-    _safe(() => Haptics.notification({ type: 'WARNING' }));
+    if (isNative && Haptics) { _safe(() => Haptics.notification({ type: 'WARNING' })); return; }
+    _webVibrate([30, 50, 30]);
   };
 
   window.hapticError = () => {
-    if (!isNative || !Haptics) return;
-    _safe(() => Haptics.notification({ type: 'ERROR' }));
+    if (isNative && Haptics) { _safe(() => Haptics.notification({ type: 'ERROR' })); return; }
+    _webVibrate([60, 40, 60, 40, 60]);
   };
 
   // 네이티브 다이얼로그 (confirm 대체)

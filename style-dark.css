@@ -1,0 +1,49 @@
+/* ───── 다크모드 대응 (2026-04-20 추가) ─────
+   시스템 다크모드 감지 시 기본 색상만 반전. 완전한 다크 테마는 아니고
+   흰 배경에서 눈부심 완화 수준. 완성 디자인은 TECH_DEBT 참조. */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:  #14171C;
+    --bg2: #1E2229;
+    --bg3: #262B33;
+    --text:  #ECEEF1;
+    --text2: #B0B4BB;
+    --text3: #8E929A;
+    --border: rgba(255,255,255,0.08);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  /* 흰 배경 카드들 자동 반전 */
+  .hc-card, .pf-upload-card, .input-card,
+  #tab-home, #tab-portfolio, #tab-caption, #tab-ai-suggest, #tab-finish,
+  .insta-frame {
+    background: var(--bg2) !important;
+    color: var(--text);
+  }
+
+  /* 팝업 배경 반투명 + 본문은 다크 */
+  .popup-content, #planPopup > div, #_samplePopup > div,
+  #analyzeResultPopup, #captionLoadingPopup {
+    background: var(--bg2) !important;
+    color: var(--text);
+  }
+
+  /* 텍스트 인풋 */
+  input[type="text"], input[type="email"], input[type="password"],
+  input[type="datetime-local"], textarea {
+    background: var(--bg3);
+    color: var(--text);
+    border-color: var(--border);
+  }
+
+  /* 토스트 */
+  .copy-toast {
+    background: rgba(40,44,52,0.95);
+    color: #fff;
+  }
+}

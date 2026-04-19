@@ -3,7 +3,7 @@
 //  CACHE_VERSION = 날짜(YYYYMMDD) + 빌드번호
 //  배포할 때마다 이 값만 올리면 구 캐시 자동 삭제
 // ─────────────────────────────────────────────
-const CACHE_VERSION = '20260420-v10';
+const CACHE_VERSION = '20260420-v11';
 const CACHE_NAME    = `itdasy-${CACHE_VERSION}`;
 const OFFLINE_URL   = '/itdasy-frontend-test-yeunjun/offline.html';
 
@@ -14,6 +14,7 @@ const STATIC_ASSETS = [
   '/itdasy-frontend-test-yeunjun/style-home.css',
   '/itdasy-frontend-test-yeunjun/style-components.css',
   '/itdasy-frontend-test-yeunjun/style-polish.css',
+  '/itdasy-frontend-test-yeunjun/style-dark.css',
   '/itdasy-frontend-test-yeunjun/app-core.js',
   '/itdasy-frontend-test-yeunjun/app-instagram.js',
   '/itdasy-frontend-test-yeunjun/app-caption.js',

@@ -161,10 +161,20 @@ function renderDetailedPopup(data) {
         </div>
     </div>
 
+    ${(() => {
+      // 상단 "말투 스타일" 과 동일/유사하면 하단 "이렇게 쓰면 잘 돼요" 숨기기 (중복 방지)
+      const top = (raw.tone_summary || p.tone || '').trim();
+      const bot = (raw.style_summary || p.style_summary || '').trim();
+      if (!bot || top === bot) return '';
+      // 부분 포함도 체크 (Gemini 가 비슷한 표현 반복하는 경우)
+      const shortCheck = bot.length > 0 && top.length > 0 && (top.includes(bot.slice(0, 12)) || bot.includes(top.slice(0, 12)));
+      if (shortCheck) return '';
+      return `
     <div style="padding:24px; background:linear-gradient(135deg, #fffcfd, #fff5f7); border-radius:24px; border:1.5px solid rgba(241,128,145,0.2);">
         <div style="color:var(--accent2); font-size:11px; font-weight:700; margin-bottom:10px; letter-spacing:0.5px;">이렇게 쓰면 잘 돼요</div>
-        <div style="font-size:14px; font-weight:700; color:var(--text); line-height:1.7; word-break:keep-all;">" ${raw.style_summary || p.style_summary || '사장님만의 감성을 살려서 써보세요!'} "</div>
-    </div>
+        <div style="font-size:14px; font-weight:700; color:var(--text); line-height:1.7; word-break:keep-all;">" ${bot} "</div>
+    </div>`;
+    })()}
     `;
 }
 
