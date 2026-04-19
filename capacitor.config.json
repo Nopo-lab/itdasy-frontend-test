@@ -1,8 +1,7 @@
 {
   "appId": "com.nopolab.itdasy",
   "appName": "잇데이 스튜디오",
-  "webDir": ".",
-  "bundledWebRuntime": false,
+  "webDir": "www",
   "server": {
     "url": "https://nopo-lab.github.io/itdasy-frontend-test-yeunjun/",
     "androidScheme": "https",
