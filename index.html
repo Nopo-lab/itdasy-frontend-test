@@ -391,17 +391,39 @@
         <button id="captionBtn" onclick="generateCaption()" style="width:100%;padding:11px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:14px;font-weight:800;cursor:pointer;">만들기 ✨</button>
       </div>
 
-      <!-- [캡션 결과] -->
-      <div style="padding:14px;">
-        <textarea id="captionText"
-          oninput="_capAutoGrow(this);_capSchedulePatch(this.value)"
-          placeholder="'만들기 ✨'를 눌러 AI 캡션을 생성하세요"
-          style="width:100%;box-sizing:border-box;min-height:160px;padding:0;border:none;outline:none;font-family:'Pretendard',sans-serif;font-size:14px;line-height:1.8;color:var(--text);resize:none;background:transparent;overflow:hidden;display:block;"></textarea>
-        <div id="captionEditMicro" style="display:none;font-size:11px;color:var(--text3);margin-top:6px;padding-top:6px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
-          <span>수정하면 자동 저장됩니다</span><span id="captionEditPct"></span>
+      <!-- [캡션 결과 — 실제 인스타 게시물처럼 미리보기] -->
+      <div id="captionResult" class="insta-frame show" style="margin:14px;">
+        <div class="insta-frame-header">
+          <div class="frame-avatar-ring">
+            <div class="frame-avatar-inner" id="frameAvatarInner">
+              <span id="frameAvatarLetter">잇</span>
+            </div>
+          </div>
+          <div>
+            <div class="insta-frame-handle" id="frameHandle">@itdasy</div>
+            <div class="insta-frame-meta">방금 · 게시물 미리보기</div>
+          </div>
         </div>
-        <div style="display:flex;gap:8px;margin-top:12px;">
-          <button onclick="copyCaption()" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid var(--border);background:transparent;font-size:12px;font-weight:700;color:var(--text2);cursor:pointer;">복사 📋</button>
+        <div class="insta-frame-body">
+          <textarea id="captionText"
+            class="insta-caption-text"
+            rows="5"
+            oninput="_capAutoGrow(this);_capSchedulePatch(this.value)"
+            placeholder="'만들기 ✨'를 눌러 AI 캡션을 생성하세요"
+            style="width:100%;box-sizing:border-box;min-height:160px;padding:0;border:none;outline:none;background:transparent;resize:none;overflow:hidden;display:block;"></textarea>
+          <textarea id="captionHash"
+            class="insta-hashtag-text"
+            rows="2"
+            oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
+            placeholder="#해시태그"
+            style="width:100%;box-sizing:border-box;padding:0;border:none;outline:none;background:transparent;resize:none;overflow:hidden;display:block;"></textarea>
+          <div id="captionEditMicro" style="display:none;font-size:11px;color:var(--text3);margin-top:10px;padding-top:8px;border-top:1px solid var(--border);justify-content:space-between;align-items:center;">
+            <span>수정하면 자동 저장됩니다</span><span id="captionEditPct"></span>
+          </div>
+        </div>
+        <div class="insta-frame-actions">
+          <button class="frame-action-btn" onclick="copyCaption()">해시태그 빼고 복사</button>
+          <button class="frame-action-btn primary" onclick="copyAll()">전체 복사 📋</button>
         </div>
       </div>
 
@@ -416,9 +438,6 @@
 
     <!-- 캡션 완료 후 행동유도 (동적 렌더링) -->
     <div id="captionActionBar" style="display:none;margin-bottom:12px;"></div>
-
-    <!-- 히든: 해시태그 보관 (TD-020 노출 예정) -->
-    <textarea id="captionHash" style="display:none;"></textarea>
 
   </div>
 </div>
