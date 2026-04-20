@@ -168,6 +168,32 @@
 | 🟡 | `app-revenue.js` | 시술 인센티브 계산 카드(월 탭) — 매출×(1−재료비%)−고정비 | **+51** | ✅ |
 | 🟡 | `index.html` | 설정시트 `📦 재고 관리` 행 + script 태그 | **+4** | ✅ |
 
+#### 3.6 경쟁사 데이터 임포터 ⭐ 전환 레버 (Phase 3 추가) — 2026-04-20
+
+| 상태 | 파일 | 변경 내용 | 실제 라인 | 진행 |
+|---|---|---|---|---|
+| 🔴 | `itdasy_backend/backend/services/importer.py` | CSV/XLSX 로더(utf-8/cp949/euc-kr 자동) + 한국어 컬럼 자동 매핑 사전 + 전화/금액/날짜 정규화 | **247** | ✅ |
+| 🔴 | `itdasy_backend/backend/schemas/import_job.py` | Preview/Commit/Result/JobOut | **46** | ✅ |
+| 🔴 | `itdasy_backend/backend/routers/imports.py` | /preview + /commit + /jobs + Free 50명 가드 | **164** | ✅ |
+| 🟡 | `itdasy_backend/backend/models.py` | `ImportJob` 모델 (kind, status, rows_*, error_summary) | +17 | ✅ |
+| 🟡 | `itdasy_backend/backend/requirements.txt` | `openpyxl>=3.1.0` 추가 | +1 | ✅ |
+| 🟡 | `itdasy_backend/backend/main.py` + `schemas/__init__.py` | 라우터·스키마 등록 | +2/+3 | ✅ |
+| 🔴 | `app-import.js` | 3단계 플로우(종류→드롭→매핑→반영→리포트) + 샘플 테이블 + 필수 필드 가드 | **289** | ✅ |
+| 🟡 | `index.html` | 설정시트 `📥 다른 앱에서 가져오기` + script 태그 | +4 | ✅ |
+| 🟡 | `shared/schemas.json` | 4 엔드포인트 + 3 모델(ImportPreview/ImportResult/ImportJob) | +50 | ✅ |
+
+**3.6 완료 기준**
+- [x] CSV(UTF-8/CP949/EUC-KR) / XLSX 지원
+- [x] 3개 엔티티(고객/매출/예약) 임포트 + 한국어 컬럼 자동 매핑
+- [x] 전화번호 정규화, 금액 파싱, 다중 날짜 포맷
+- [x] 필수 필드 누락 시 프론트 가드 + BE 400
+- [x] Free 50명 한도 서버 선제 체크
+- [x] 건별 실패 사유 리포트(20건까지 표시)
+- [ ] 실제 경쟁사(핸드SOS/공비서/용감한뷰티) 샘플 파일 확보 후 포맷 프리셋 (Phase 3.7)
+- [ ] 대용량(10,000+건) 백그라운드 잡 (Celery) — 초기엔 동기 처리
+
+---
+
 **Phase 3 완료 기준 (2026-04-20 FE+BE 2차 검증)**
 - [x] 재고 UI + 백엔드: 부족 알림 배지 + ±1 입고/출고 + `POST /inventory/{id}/adjust`
 - [x] 시술 인센티브 계산 카드(월 탭)
@@ -306,7 +332,8 @@
 | 2026-04-20 | `a972c6a` (상위 monorepo, **reset됨**) | Phase 2~3 BE 초안을 잘못된 레포(`itdasy-beauty-app-main/`)에 커밋 → 커밋 취소. 사용자 지시 "recent 하위만 건드려" 반영 |
 | 2026-04-20 | `1c0ec6f` (`itdasy_backend` · 브랜치 `phase2-3-crm`) | Phase 2~3 BE 재커밋 — 올바른 레포에 4 router + 4 schema + models 확장. **`test` 리모트로만 푸시**, 명시 지시 대기 |
 | 2026-04-20 | `06383e5` (`itdasy_backend` · `phase2-3-crm`) | Phase 3 BE — NPS(90) + 네이버 리뷰 수동 저장(84) + Before/After MP4 ffmpeg(76+85) |
-| 2026-04-20 | (이번 커밋, FE) | Phase 3 FE — app-nps(279) + app-naver-reviews(254) + app-video(217) + 설정시트 3 진입점 + 스키마 12 엔드포인트 |
+| 2026-04-20 | `8abf50a` (FE) | Phase 3 FE — app-nps(279) + app-naver-reviews(254) + app-video(217) + 설정시트 3 진입점 + 스키마 12 엔드포인트 |
+| 2026-04-20 | (이번 커밋, BE+FE) | Phase 3.6 ⭐ 경쟁사 CSV/XLSX 임포터 — importer(247) + router(164) + app-import(289) + ImportJob 모델 + openpyxl 의존성 |
 
 ---
 

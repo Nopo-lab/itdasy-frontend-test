@@ -1983,6 +1983,39 @@
         "format": "binary",
         "description": "video/mp4"
       }
+    },
+    "POST /imports/preview": {
+      "request": {
+        "type": "object",
+        "description": "multipart/form-data — file (CSV/XLSX) + kind=customer|revenue|booking"
+      },
+      "response": { "$ref": "#/models/ImportPreview" }
+    },
+    "POST /imports/commit": {
+      "request": {
+        "type": "object",
+        "properties": {
+          "job_id": { "type": "integer" },
+          "mapping": { "type": "object", "additionalProperties": { "type": "string" } }
+        },
+        "required": ["job_id", "mapping"]
+      },
+      "response": { "$ref": "#/models/ImportResult" }
+    },
+    "GET /imports/jobs": {
+      "response": {
+        "type": "object",
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/models/ImportJob" } }
+        }
+      }
+    },
+    "DELETE /imports/jobs/{job_id}": {
+      "response": {
+        "type": "object",
+        "properties": { "ok": { "type": "boolean" } },
+        "required": ["ok"]
+      }
     }
   },
   "models": {
@@ -2072,6 +2105,51 @@
         "created_at": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "rating", "source", "responded_at", "created_at"]
+    },
+    "ImportPreview": {
+      "description": "임포트 프리뷰 결과.",
+      "type": "object",
+      "properties": {
+        "job_id": { "type": "integer" },
+        "kind": { "type": "string", "enum": ["customer", "revenue", "booking"] },
+        "file_name": { "type": ["string", "null"] },
+        "columns": { "type": "array", "items": { "type": "string" } },
+        "sample_rows": { "type": "array" },
+        "total_rows": { "type": "integer" },
+        "detected_mapping": { "type": "object" },
+        "required_fields": { "type": "array", "items": { "type": "string" } },
+        "missing_required": { "type": "array", "items": { "type": "string" } },
+        "available_fields": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["job_id", "kind", "columns", "total_rows"]
+    },
+    "ImportResult": {
+      "description": "commit 결과.",
+      "type": "object",
+      "properties": {
+        "job_id": { "type": "integer" },
+        "imported": { "type": "integer" },
+        "failed": { "type": "integer" },
+        "errors": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": "string" }
+      },
+      "required": ["job_id", "imported", "failed", "status"]
+    },
+    "ImportJob": {
+      "description": "임포트 잡 이력.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "kind": { "type": "string" },
+        "file_name": { "type": ["string", "null"] },
+        "status": { "type": "string" },
+        "rows_total": { "type": "integer" },
+        "rows_imported": { "type": "integer" },
+        "rows_failed": { "type": "integer" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "committed_at": { "type": ["string", "null"] }
+      },
+      "required": ["id", "kind", "status"]
     },
     "NaverReview": {
       "description": "네이버 플레이스 리뷰 수동 저장.",
