@@ -207,22 +207,32 @@
 
 ---
 
-### Phase 4 — AI 선제 제안 (16~20주)
+### Phase 4 — AI 선제 제안 (2026-04-20 1차 구현)
 
-| 상태 | 파일 | 변경 내용 | 예상 라인 |
-|---|---|---|---|
-| 🔴 | `itdasy_backend/backend/services/retention_predictor.py` | 마지막 방문일·주기 학습 → 이탈 임박 고객 리스트 | ~500 |
-| 🔴 | `itdasy_backend/backend/routers/retention.py` | 주간 자동 쿠폰 알림톡 발송 잡 | ~200 |
-| 🔴 | `itdasy_backend/backend/services/revenue_forecaster.py` | 주간 매출 예측 + 저조 주 마케팅 제안 | ~400 |
-| 🟡 | `routers/persona.py` | 페르소나 v2: 고객 세그먼트별 어퓨샷 분기 | +300 |
-| 🔴 | `app-ar-consult.js` | Capacitor Camera + on-device 스킨/네일 분석 | ~600 |
-| 🔴 | `itdasy_backend/backend/services/dynamic_coupon.py` | 비수기·요일별 자동 할인 엔진 | ~350 |
-| 🟡 | `app-revenue.js` | 예측 차트 섹션 추가 | +150 |
+| 상태 | 파일 | 변경 내용 | 실제 라인 | 진행 |
+|---|---|---|---|---|
+| 🔴 | `itdasy_backend/backend/services/retention_predictor.py` | 고객별 방문 타임라인 + last_visit_at → at_risk / lost 분류 | **108** | ✅ |
+| 🔴 | `itdasy_backend/backend/routers/retention.py` | GET /retention/at-risk | **24** | ✅ |
+| 🔴 | `itdasy_backend/backend/services/revenue_forecaster.py` | 최근 8주 주차별 집계 + MA(4) 예측 + 추천 액션 4단계 | **78** | ✅ |
+| 🟡 | `itdasy_backend/backend/routers/revenue.py` | GET /revenue/forecast 추가 | +10 | ✅ |
+| 🔴 | `itdasy_backend/backend/services/dynamic_coupon.py` | 8주 요일별 평균 → 편차 기반 10/15/20% 할인 제안 | **82** | ✅ |
+| 🔴 | `itdasy_backend/backend/routers/coupons.py` | GET /coupons/suggest | **18** | ✅ |
+| 🟡 | `itdasy_backend/backend/schemas/caption.py` | CaptionRequest.customer_segment (vip/regular/new/absent) | +4 | ✅ |
+| 🟡 | `itdasy_backend/backend/routers/caption.py` | SEGMENT_HINTS 4종 + build_prompt 확장 | +10 | ✅ |
+| 🟡 | `itdasy_backend/backend/main.py` | retention / coupons 라우터 등록 | +3 | ✅ |
+| 🔴 | `app-insights.js` | AI 인사이트 통합 대시보드 — 재방문·예측·쿠폰 3카드 | **207** | ✅ |
+| 🟡 | `index.html` | 설정시트 `✨ AI 인사이트` + script 태그 | +4 | ✅ |
+| 🔴 | `app-ar-consult.js` | Capacitor Camera + on-device 스킨/네일 분석 | ~600 | ⏸ **보류 (Phase 5 재검토)** |
 
-**Phase 4 완료 기준**
-- [ ] 재방문율 +15% (Phase 3 말 vs Phase 4 말)
-- [ ] AI 제안 채택률 ≥30%
-- [ ] AR 상담 후 시술 전환율 +10%
+**Phase 4 완료 기준 (2026-04-20 1차)**
+- [x] 재방문 예측 리스트 (방문 ≥2회 고객, 주기 × 1.5 초과)
+- [x] 매출 주간 예측 + 추천 액션 문구 자동 분기
+- [x] 요일별 자동 할인 쿠폰 제안 (편차 ≥15%)
+- [x] 캡션 생성에 customer_segment 4종 파라미터
+- [x] 통합 대시보드 3 카드 병렬 호출
+- [ ] 재방문 자동 알림톡 (🟡 알림톡 대행사 승인 후)
+- [ ] AR 스킨/네일 실시간 분석 (🔴 Phase 5 로 이월)
+- [ ] 실 데이터 정확도 검증 (CBT 30명+ 필요)
 
 ---
 
@@ -333,7 +343,9 @@
 | 2026-04-20 | `1c0ec6f` (`itdasy_backend` · 브랜치 `phase2-3-crm`) | Phase 2~3 BE 재커밋 — 올바른 레포에 4 router + 4 schema + models 확장. **`test` 리모트로만 푸시**, 명시 지시 대기 |
 | 2026-04-20 | `06383e5` (`itdasy_backend` · `phase2-3-crm`) | Phase 3 BE — NPS(90) + 네이버 리뷰 수동 저장(84) + Before/After MP4 ffmpeg(76+85) |
 | 2026-04-20 | `8abf50a` (FE) | Phase 3 FE — app-nps(279) + app-naver-reviews(254) + app-video(217) + 설정시트 3 진입점 + 스키마 12 엔드포인트 |
-| 2026-04-20 | (이번 커밋, BE+FE) | Phase 3.6 ⭐ 경쟁사 CSV/XLSX 임포터 — importer(247) + router(164) + app-import(289) + ImportJob 모델 + openpyxl 의존성 |
+| 2026-04-20 | `2d2a095` (BE) / `4ea6af5` (FE) | Phase 3.6 ⭐ 경쟁사 CSV/XLSX 임포터 — importer(247) + router(164) + app-import(289) + ImportJob 모델 + openpyxl |
+| 2026-04-20 | `c88385e` (BE) | Phase 4 BE — 재방문 예측(108) + 매출 예측(78) + 다이나믹 쿠폰(82) + 페르소나 v2 세그먼트 + 3 엔드포인트 |
+| 2026-04-20 | (이번 커밋, FE) | Phase 4 FE — AI 인사이트 통합 대시보드(app-insights 207) + 설정시트 진입 |
 
 ---
 

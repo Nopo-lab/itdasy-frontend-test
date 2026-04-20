@@ -197,6 +197,9 @@
     <button class="sheet-row" data-haptic="light" onclick="closeSettings(); if(typeof openImport==='function')openImport();">
       📥 다른 앱에서 가져오기
     </button>
+    <button class="sheet-row" data-haptic="light" onclick="closeSettings(); if(typeof openInsights==='function')openInsights();">
+      ✨ AI 인사이트
+    </button>
     <button class="sheet-row" onclick="closeSettings(); resetShopSetup();">샵 정보 다시 설정하기</button>
     <button class="sheet-row" data-haptic="light" onclick="closeSettings(); openSupportChat();">
       💬 고객센터
@@ -1130,6 +1133,7 @@
 <script src="app-naver-reviews.js"></script>
 <script src="app-video.js"></script>
 <script src="app-import.js"></script>
+<script src="app-insights.js"></script>
 <script src="app-debug-panel.js"></script>
 <!-- 쿠키 배너 제거 (2번 피드백): 한국 타겟 + 제3자 쿠키 없음이라 불필요 -->
 <!-- <script src="app-cookie-consent.js"></script> -->
