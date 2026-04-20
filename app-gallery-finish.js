@@ -73,6 +73,7 @@ function _renderFinishTab(root, galleryItems = []) {
               <div style="font-size:13px;font-weight:800;color:var(--text);">${slot.label} ✅</div>
               ${slot.caption ? '<span style="font-size:9px;background:rgba(76,175,80,0.15);color:#388e3c;border-radius:4px;padding:1px 5px;font-weight:700;">캡션✓</span>' : ''}
               ${isDeferred ? '<span style="font-size:9px;background:rgba(255,193,7,0.15);color:#f57c00;border-radius:4px;padding:1px 5px;font-weight:700;">나중에</span>' : ''}
+              ${slot.customer_name ? `<span style="font-size:9px;background:rgba(241,128,145,0.15);color:var(--accent,#F18091);border-radius:4px;padding:1px 5px;font-weight:700;">👤 ${slot.customer_name.slice(0,6)}</span>` : ''}
             </div>
             <div style="font-size:11px;color:var(--text3);">${visPhotos.length}장</div>
             ${cap}
@@ -87,6 +88,7 @@ function _renderFinishTab(root, galleryItems = []) {
             <button data-action="download" style="min-height:40px;padding:10px;border-radius:10px;border:1.5px solid var(--border);background:transparent;color:var(--text2);font-size:11px;font-weight:700;cursor:pointer;">📥 폰에 저장</button>
           </div>
           <div style="display:flex;gap:6px;">
+            <button data-action="pickCustomer" style="flex:1;min-height:40px;padding:8px;border-radius:10px;border:1.5px solid rgba(241,128,145,0.3);background:transparent;color:var(--accent,#F18091);font-size:11px;font-weight:700;cursor:pointer;">👤 ${slot.customer_name ? slot.customer_name.slice(0,8) : '고객 지정'}</button>
             <button data-action="defer" style="flex:1;min-height:40px;padding:8px;border-radius:10px;border:1.5px solid rgba(255,193,7,0.5);background:transparent;color:#f57c00;font-size:11px;font-weight:700;cursor:pointer;">🕐 나중에 (AI추천으로)</button>
             <button data-action="delete" style="min-height:40px;padding:8px 14px;border-radius:10px;border:1.5px solid rgba(220,53,69,0.3);background:transparent;color:#dc3545;font-size:11px;cursor:pointer;font-weight:600;">삭제</button>
           </div>
@@ -144,6 +146,7 @@ function _renderFinishTab(root, galleryItems = []) {
     card.querySelector('[data-action="publish"]').addEventListener('click', () => publishSlotToInstagram(slot.id));
     card.querySelector('[data-action="gallery"]').addEventListener('click', () => _saveSlotToGallery(slot.id));
     card.querySelector('[data-action="download"]').addEventListener('click', () => downloadSlotPhotos(slot.id));
+    card.querySelector('[data-action="pickCustomer"]').addEventListener('click', () => _pickCustomerForSlot(slot.id));
     card.querySelector('[data-action="defer"]').addEventListener('click', () => _deferSlot(slot.id));
     card.querySelector('[data-action="delete"]').addEventListener('click', () => deleteSlotFinish(slot.id));
   });
@@ -208,6 +211,7 @@ async function _republishGalleryItem(galleryId) {
     fd.append('image', blob, 'gallery_photo.jpg');
     fd.append('photo_type', 'after');
     fd.append('main_tag', item.label || '');
+    if (item.customer_id) fd.append('customer_id', item.customer_id);
     const upRes = await fetch(API + '/portfolio', { method: 'POST', headers: authHeader(), body: fd });
     if (!upRes.ok) { showToast('업로드 실패'); return; }
     const upData = await upRes.json();
@@ -230,6 +234,21 @@ async function downloadGalleryItem(galleryId) {
     a.click();
   });
   showToast('사진 저장 중... 📥');
+}
+
+async function _pickCustomerForSlot(slotId) {
+  const slot = _slots.find(s => s.id === slotId);
+  if (!slot) return;
+  if (!window.Customer || !window.Customer.pick) {
+    showToast('고객 관리 모듈이 아직 로드되지 않았어요');
+    return;
+  }
+  const picked = await window.Customer.pick({ selectedId: slot.customer_id });
+  if (picked === null) return; // 취소
+  slot.customer_id = picked.id;
+  slot.customer_name = picked.name;
+  try { await saveSlotToDB(slot); } catch(_e) {}
+  initFinishTab();
 }
 
 async function _saveSlotToGallery(slotId) {
@@ -260,6 +279,7 @@ async function publishSlotToInstagram(slotId) {
     fd.append('photo_type', 'after');
     fd.append('main_tag', slot.label);
     fd.append('tags', '');
+    if (slot.customer_id) fd.append('customer_id', slot.customer_id);
     const upRes  = await fetch(API + '/portfolio', { method: 'POST', headers: authHeader(), body: fd });
     if (!upRes.ok) { showToast('업로드 실패'); return; }
     const upData = await upRes.json();

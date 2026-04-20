@@ -1725,6 +1725,48 @@
         "properties": { "ok": { "type": "boolean" } },
         "required": ["ok"]
       }
+    },
+    "GET /revenue": {
+      "request": {
+        "type": "object",
+        "properties": {
+          "period": { "type": "string", "enum": ["today", "week", "month"] }
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/models/RevenueRecord" }
+          },
+          "total": { "type": "integer", "description": "KRW 원 단위 합계" },
+          "count": { "type": "integer" }
+        },
+        "required": ["items", "total", "count"]
+      }
+    },
+    "POST /revenue": {
+      "request": {
+        "type": "object",
+        "properties": {
+          "amount": { "type": "integer", "minimum": 1 },
+          "method": { "type": "string", "enum": ["card", "cash", "transfer", "etc"] },
+          "service_name": { "type": ["string", "null"], "maxLength": 50 },
+          "customer_id": { "type": ["string", "null"], "format": "uuid" },
+          "memo": { "type": ["string", "null"], "maxLength": 200 },
+          "recorded_at": { "type": ["string", "null"], "format": "date-time" }
+        },
+        "required": ["amount"]
+      },
+      "response": { "$ref": "#/models/RevenueRecord" }
+    },
+    "DELETE /revenue/{revenue_id}": {
+      "response": {
+        "type": "object",
+        "properties": { "ok": { "type": "boolean" } },
+        "required": ["ok"]
+      }
     }
   },
   "models": {
@@ -1750,6 +1792,23 @@
         "deleted_at": { "type": ["string", "null"], "format": "date-time" }
       },
       "required": ["id", "shop_id", "name", "tags", "visit_count", "created_at"]
+    },
+    "RevenueRecord": {
+      "description": "매출 건당 기록. shop_id 격리. 금액은 KRW 원 단위 정수.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "shop_id": { "type": "string" },
+        "amount": { "type": "integer", "minimum": 1 },
+        "method": { "type": "string", "enum": ["card", "cash", "transfer", "etc"], "default": "card" },
+        "service_name": { "type": ["string", "null"], "maxLength": 50 },
+        "customer_id": { "type": ["string", "null"], "format": "uuid" },
+        "customer_name": { "type": ["string", "null"], "description": "denormalized for history preservation" },
+        "memo": { "type": ["string", "null"], "maxLength": 200 },
+        "recorded_at": { "type": "string", "format": "date-time" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "shop_id", "amount", "method", "recorded_at", "created_at"]
     },
     "ServiceEntry": {
       "description": "대표 서비스 항목 (프론트 Q2 스펙).",

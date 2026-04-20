@@ -302,6 +302,66 @@
     document.body.style.overflow = '';
   };
 
-  // 외부 노출 (디버그·테스트용)
-  window.Customer = { list, create, update, remove, search, get _cache() { return _cache; }, get isOffline() { return _isOffline; } };
+  // ── 픽커 (외부 컴포넌트 재사용) ──────────────────────────
+  //   await Customer.pick({ selectedId })  →  {id, name} | null (취소)
+  async function pick(opts) {
+    opts = opts || {};
+    try { if (!_cache) await list(); } catch (_) {}
+    return new Promise((resolve) => {
+      const items = _cache || [];
+      const pop = document.createElement('div');
+      pop.style.cssText = 'position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end;';
+      pop.innerHTML = `
+        <div style="width:100%;background:var(--bg,#fff);border-radius:20px 20px 0 0;max-height:70vh;display:flex;flex-direction:column;padding:16px;padding-bottom:max(16px,env(safe-area-inset-bottom));">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <strong style="font-size:16px;">고객 선택</strong>
+            <button data-pick-cancel style="margin-left:auto;background:none;border:none;font-size:20px;cursor:pointer;">✕</button>
+          </div>
+          <input data-pick-search placeholder="이름·연락처 검색" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;margin-bottom:10px;" />
+          <div data-pick-list style="flex:1;overflow-y:auto;min-height:120px;"></div>
+          <button data-pick-clear style="margin-top:8px;padding:10px;border:1px solid #eee;border-radius:8px;background:#fafafa;color:#c00;cursor:pointer;font-size:12px;">지정 해제 (고객 없음)</button>
+        </div>
+      `;
+      document.body.appendChild(pop);
+      const searchEl = pop.querySelector('[data-pick-search]');
+      const listEl = pop.querySelector('[data-pick-list]');
+      const close = (val) => { pop.remove(); resolve(val); };
+
+      const render = () => {
+        const q = searchEl.value;
+        const hits = search(q);
+        if (!hits.length) {
+          listEl.innerHTML = '<div style="padding:30px;text-align:center;color:#aaa;font-size:13px;">' +
+            (items.length ? '검색 결과 없음' : '등록된 고객이 없어요. 먼저 설정 → 내 고객 관리에서 추가해 주세요.') +
+            '</div>';
+          return;
+        }
+        listEl.innerHTML = hits.map(c => `
+          <div data-pick-id="${c.id}" style="padding:12px 8px;border-bottom:1px solid #eee;cursor:pointer;${c.id === opts.selectedId ? 'background:rgba(241,128,145,0.08);' : ''}">
+            <strong style="font-size:14px;">${_esc(c.name)}</strong>
+            ${c.phone ? `<span style="font-size:12px;color:#888;margin-left:6px;">${_esc(c.phone)}</span>` : ''}
+            ${c.visit_count ? `<span style="font-size:10px;color:var(--accent,#F18091);margin-left:6px;">방문 ${c.visit_count}</span>` : ''}
+          </div>
+        `).join('');
+        listEl.querySelectorAll('[data-pick-id]').forEach(row => {
+          row.addEventListener('click', () => {
+            const c = items.find(x => x.id === row.dataset.pickId);
+            close(c ? { id: c.id, name: c.name } : null);
+          });
+        });
+      };
+      render();
+      searchEl.addEventListener('input', render);
+      pop.querySelector('[data-pick-cancel]').addEventListener('click', () => close(null));
+      pop.querySelector('[data-pick-clear]').addEventListener('click', () => close({ id: null, name: null }));
+      pop.addEventListener('click', (e) => { if (e.target === pop) close(null); });
+    });
+  }
+
+  // 외부 노출 (디버그·테스트·타 컴포넌트용)
+  window.Customer = {
+    list, create, update, remove, search, pick,
+    get _cache() { return _cache; },
+    get isOffline() { return _isOffline; },
+  };
 })();

@@ -90,23 +90,27 @@
 
 #### 2.4 포트폴리오 ↔ 고객 자동 첨부 — 1주
 
-| 상태 | 파일 | 변경 내용 | 예상 라인 |
-|---|---|---|---|
-| 🟡 | `itdasy_backend/routers/portfolio.py` | `customer_id` 컬럼 추가 + FK | +30 |
-| 🔴 | `itdasy_backend/migrations/20260530_portfolio_customer_fk.sql` | `portfolio.customer_id` 컬럼 추가 | ~15 |
-| 🟡 | `app-portfolio.js` | 고객 카드 링크 필드 + 필터 | +80 |
-| 🟡 | `app-gallery-finish.js` | 저장 시 고객 선택 드롭다운 | +40 |
+| 상태 | 파일 | 변경 내용 | 실제/예상 라인 | 진행 |
+|---|---|---|---|---|
+| 🟡 | `itdasy_backend/routers/portfolio.py` | `customer_id` 컬럼 추가 + FK | +30 | ⏳ |
+| 🔴 | `itdasy_backend/migrations/20260530_portfolio_customer_fk.sql` | 컬럼 추가 | ~15 | ⏳ |
+| 🟡 | `app-gallery-finish.js` | 슬롯 카드 `👤 고객 지정` 버튼 + 뱃지 + FormData `customer_id` 전달(2곳) + `_pickCustomerForSlot()` | **+20** | ✅ |
+| 🟡 | `app-customer.js` | `Customer.pick()` 외부 재사용 API 추가 | **+60** | ✅ |
+| 🟡 | `app-portfolio.js` | 카드 뱃지 표시 (Phase 2 후반) | +80 | ⏸ 후반 |
 
 #### 2.5 매출 입력 + 대시보드 — 1.5주
 
-| 상태 | 파일 | 변경 내용 | 예상 라인 |
-|---|---|---|---|
-| 🔴 | `itdasy_backend/routers/revenue.py` | 매출 건당 기록 + 일/주/월 집계 | ~400 |
-| 🔴 | `itdasy_backend/migrations/20260605_revenue.sql` | `revenue_records` 테이블 | ~25 |
-| 🔴 | `app-revenue.js` | 입력 폼 + 경량 SVG 차트(3탭: 오늘/이번주/이번달) | ~400 |
-| 🟡 | `app-core.js` | 매출 탭 라우팅 | +20 |
-| 🟡 | `index.html` | 매출 탭 마크업 | +70 |
-| 🟡 | `app-booking.js` | 예약 완료 처리 시 매출 자동 입력 제안 | +30 |
+| 상태 | 파일 | 변경 내용 | 실제/예상 라인 | 진행 |
+|---|---|---|---|---|
+| 🔴 | `itdasy_backend/routers/revenue.py` | 매출 건당 기록 + 일/주/월 집계 | ~400 | ⏳ |
+| 🔴 | `itdasy_backend/migrations/20260605_revenue.sql` | `revenue_records` 테이블 | ~25 | ⏳ |
+| 🔴 | `app-revenue.js` | 입력 폼 + SVG 차트(3탭 오늘/이번주/이번달) + 오프라인 폴백 + Customer.pick 연계 | **404** | ✅ |
+| 🟡 | `shared/schemas.json` | `RevenueRecord` 모델 + 3개 엔드포인트 (GET `?period=` / POST / DELETE) | **+67** | ✅ |
+| 🟡 | `index.html` | 설정시트 `💰 매출 보기` 행 + script 태그 | **+4** | ✅ |
+| 🟡 | `app-core.js` | 탭 라우팅 (T-200 후 추가) | +20 | ⏸ T-200 대기 |
+| 🟡 | `app-booking.js` | 예약 완료 시 매출 자동 입력 제안 (Phase 2.2 완료 후) | +30 | ⏸ 2.2 대기 |
+
+**2.5 진입 경로 (Phase 2 잠정)**: 설정시트 → `💰 매출 보기` → 오버레이 시트 3탭.
 
 #### 2.6 모놀리스 분할 (Phase 2 선결 조건) — 2주
 
@@ -269,7 +273,8 @@
 | 2026-04-20 | `27e885f` (원영) | T-200 디자인 리프레시 기반 + T-202 예약 제거 초기 커밋 |
 | 2026-04-20 | `5c59eb2` (연준) | Salvage — 네트워크/진단/채팅 UX 재이식 |
 | 2026-04-20 | `811f291` (연준) | Phase 2~5 로드맵 수립 |
-| 2026-04-20 | (이번 커밋) | Phase 2 P0-1 프론트 착수 — Customer 스키마·app-customer.js·설정시트 진입 |
+| 2026-04-20 | `54f9b6a` (연준) | Phase 2 P0-1 프론트 — Customer 스키마·app-customer.js·설정시트 진입 |
+| 2026-04-20 | (이번 커밋) | Phase 2 P0-2/P0-3 프론트 — 포트폴리오↔고객 연계 + 매출 입력 대시보드 |
 
 ---
 
