@@ -234,6 +234,49 @@
     });
   }
 
+  const ORDER_KEY = 'itdasy_widget_order_v1';
+  function _loadOrder() { try { return JSON.parse(localStorage.getItem(ORDER_KEY) || '[]'); } catch(e){ return []; } }
+  function _saveOrder(arr) { try { localStorage.setItem(ORDER_KEY, JSON.stringify(arr)); } catch(e){} }
+
+  function _applyOrder(container) {
+    const order = _loadOrder();
+    if (!order.length) return;
+    const children = Array.from(container.querySelectorAll('.kw-card'));
+    const keyed = {};
+    children.forEach((c, i) => { keyed[c.dataset.widget || String(i)] = c; });
+    order.forEach(k => { if (keyed[k]) container.appendChild(keyed[k]); });
+  }
+
+  function _enableDrag(container) {
+    if (!container || container.dataset.dragBound) return;
+    container.dataset.dragBound = '1';
+    let dragEl = null;
+    container.querySelectorAll('.kw-card').forEach((el, idx) => {
+      const key = `w${idx}`;
+      el.dataset.widget = key;
+      el.setAttribute('draggable', 'true');
+      el.addEventListener('dragstart', (e) => {
+        dragEl = el; el.style.opacity = '0.5';
+        try { e.dataTransfer.effectAllowed = 'move'; } catch(_){}
+      });
+      el.addEventListener('dragend', () => {
+        if (dragEl) dragEl.style.opacity = '';
+        dragEl = null;
+        // 저장
+        const order = Array.from(container.querySelectorAll('.kw-card')).map(c => c.dataset.widget);
+        _saveOrder(order);
+      });
+      el.addEventListener('dragover', (e) => { e.preventDefault(); });
+      el.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (!dragEl || dragEl === el) return;
+        const rect = el.getBoundingClientRect();
+        const before = (e.clientY - rect.top) < rect.height / 2;
+        container.insertBefore(dragEl, before ? el : el.nextSibling);
+      });
+    });
+  }
+
   async function render(containerId) {
     const el = document.getElementById(containerId);
     if (!el) return;
@@ -241,6 +284,8 @@
     const brief = await _fetchBrief();
     el.innerHTML = _renderWidgets(brief);
     _bindWidgets();
+    _applyOrder(el);
+    _enableDrag(el);
   }
 
   window.KillerWidgets = { render };

@@ -182,7 +182,10 @@
         </div>
         <div id="bookingNav" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"></div>
         <div id="bookingGrid" style="flex:1;overflow:auto;"></div>
-        <button id="bookingAddBtn" style="margin-top:10px;padding:12px;border:none;border-radius:10px;background:var(--accent,#F18091);color:#fff;font-weight:700;font-size:15px;cursor:pointer;">+ 예약 추가</button>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button id="bookingCalBtn" data-open="calendar-view" style="flex:1;padding:12px;border:1px solid #ddd;border-radius:10px;background:#fff;color:#555;font-weight:700;font-size:14px;cursor:pointer;">📅 캘린더 뷰</button>
+          <button id="bookingAddBtn" style="flex:1;padding:12px;border:none;border-radius:10px;background:var(--accent,#F18091);color:#fff;font-weight:700;font-size:15px;cursor:pointer;">+ 예약 추가</button>
+        </div>
       </div>
     `;
     document.body.appendChild(sheet);
@@ -278,10 +281,17 @@
       }
     }
 
-    const defDate = existing ? new Date(existing.starts_at) : new Date();
+    // T-310: 캘린더에서 슬롯 선택하고 넘어온 경우 해당 시간 프리필
+    const pending = window._pendingBookingSlot;
+    window._pendingBookingSlot = null;
+    const pendingStart = pending && pending.starts_at ? new Date(pending.starts_at) : null;
+    const pendingEnd = pending && pending.ends_at ? new Date(pending.ends_at) : null;
+
+    const defDate = existing ? new Date(existing.starts_at) : (pendingStart || new Date());
     const dateStr = defDate.getFullYear() + '-' + String(defDate.getMonth() + 1).padStart(2, '0') + '-' + String(defDate.getDate()).padStart(2, '0');
-    const defStart = existing ? String(new Date(existing.starts_at).getHours()).padStart(2, '0') + ':' + String(new Date(existing.starts_at).getMinutes()).padStart(2, '0') : slots[0];
-    const defEnd = existing ? String(new Date(existing.ends_at).getHours()).padStart(2, '0') + ':' + String(new Date(existing.ends_at).getMinutes()).padStart(2, '0') : slots[2];
+    const _fmt = d => String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    const defStart = existing ? _fmt(new Date(existing.starts_at)) : (pendingStart ? _fmt(pendingStart) : slots[0]);
+    const defEnd   = existing ? _fmt(new Date(existing.ends_at))   : (pendingEnd   ? _fmt(pendingEnd)   : slots[2]);
 
     grid.innerHTML = `
       <div style="padding:4px;">
