@@ -454,10 +454,96 @@ async function login() {
   btn.textContent = '로그인'; btn.disabled = false;
 }
 
+// 회원가입
+async function signup() {
+  const name = document.getElementById('signupName').value.trim();
+  const email = document.getElementById('signupEmail').value.trim();
+  const password = document.getElementById('signupPassword').value;
+  const referral_code = document.getElementById('signupRef').value.trim() || null;
+  const agree = document.getElementById('signupAgree').checked;
+  const btn = document.getElementById('signupBtn');
+  const errEl = document.getElementById('signupError');
+  errEl.style.display = 'none';
+  if (!agree) { errEl.textContent = '약관에 동의해주세요.'; errEl.style.display = 'block'; return; }
+  if (!name || !email || !password) { errEl.textContent = '모든 필수 항목을 입력해주세요.'; errEl.style.display = 'block'; return; }
+  if (password.length < 8 || !/[a-zA-Z]/.test(password) || !/\d/.test(password)) {
+    errEl.textContent = '비밀번호는 8자 이상이고 영문+숫자를 포함해야 합니다.';
+    errEl.style.display = 'block'; return;
+  }
+  btn.textContent = '가입 중…'; btn.disabled = true;
+  try {
+    const res = await fetch(API + '/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, name, referral_code }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || '가입 실패');
+    // 자동 로그인
+    const loginRes = await fetch(API + '/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const loginData = await loginRes.json();
+    if (!loginRes.ok) throw new Error(loginData.detail || '자동 로그인 실패');
+    setToken(loginData.access_token);
+    document.getElementById('signupOverlay').style.display = 'none';
+    document.getElementById('lockOverlay').classList.add('hidden');
+    checkOnboarding();
+    checkInstaStatus(true);
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
+  }
+  btn.textContent = '회원가입'; btn.disabled = false;
+}
+
+function _toggleSignup(show) {
+  const lock = document.getElementById('lockOverlay');
+  const signup = document.getElementById('signupOverlay');
+  if (show) {
+    lock.classList.add('hidden');
+    signup.style.display = 'flex';
+  } else {
+    signup.style.display = 'none';
+    lock.classList.remove('hidden');
+  }
+}
+
 // ===== 앱 초기화 (모든 모듈 로드 후 실행) =====
 window.addEventListener('load', function() {
   // Enter 키 로그인
   document.getElementById('loginPassword').addEventListener('keydown', e => { if(e.key === 'Enter') login(); });
+
+  // 회원가입 전환
+  const goSignup = document.getElementById('goSignup');
+  if (goSignup) goSignup.addEventListener('click', (e) => { e.preventDefault(); _toggleSignup(true); });
+  const goLogin = document.getElementById('goLogin');
+  if (goLogin) goLogin.addEventListener('click', (e) => { e.preventDefault(); _toggleSignup(false); });
+
+  // 약관 동의 시 버튼 활성화
+  const agree = document.getElementById('signupAgree');
+  const signupBtn = document.getElementById('signupBtn');
+  if (agree && signupBtn) {
+    agree.addEventListener('change', () => {
+      signupBtn.style.opacity = agree.checked ? '1' : '0.6';
+      signupBtn.style.pointerEvents = agree.checked ? 'auto' : 'none';
+    });
+    signupBtn.addEventListener('click', signup);
+  }
+  // #register 해시로 진입 시 바로 가입 화면
+  if ((window.location.hash || '').includes('register') && !getToken()) {
+    _toggleSignup(true);
+  }
+  ['signupName','signupEmail','signupPassword','signupRef'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('keydown', (e) => {
+      if (e.isComposing || e.keyCode === 229) return;
+      if (e.key === 'Enter' && agree && agree.checked) signup();
+    });
+  });
+  window.signup = signup;
 
   // Chrome으로 이동 시 토큰 자동 복원 + 연동 자동 실행
   (function() {

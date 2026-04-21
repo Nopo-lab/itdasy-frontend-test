@@ -58,7 +58,43 @@
   <input type="password" class="login-input" id="loginPassword" placeholder="비밀번호" autocomplete="current-password">
   <div class="login-error" id="loginError"></div>
   <button class="pin-btn" id="loginBtn">로그인</button>
-  <a href="index.html" style="display:block; margin-top:24px; font-size:13px; color:var(--text3); text-decoration:none;">홈으로 돌아가기</a>
+  <div style="margin-top:16px;text-align:center;font-size:13px;color:var(--text3);">
+    처음이신가요?
+    <a href="#register" id="goSignup" style="color:var(--accent);font-weight:700;text-decoration:none;margin-left:4px;">회원가입 →</a>
+  </div>
+  <a href="index.html" style="display:block; margin-top:18px; font-size:13px; color:var(--text3); text-decoration:none;">홈으로 돌아가기</a>
+</div>
+
+<!-- ───── 회원가입 오버레이 ───── -->
+<div class="lock-overlay" id="signupOverlay" style="display:none;">
+  <div class="lock-title">🚀 잇데이 회원가입</div>
+  <div class="lock-sub" style="margin-bottom:8px;">14일 무료 체험 · 카드 정보 불필요</div>
+
+  <div style="margin:20px 0 18px;text-align:center;font-size:12px;color:var(--text3);line-height:1.6;">
+    가입 즉시 샘플 데이터가 자동 주입되어<br>바로 둘러볼 수 있어요.
+  </div>
+
+  <input type="text" class="login-input" id="signupName" placeholder="성함 (예: 김원장)" maxlength="30" autocomplete="name">
+  <input type="email" class="login-input" id="signupEmail" placeholder="이메일" autocomplete="email">
+  <input type="password" class="login-input" id="signupPassword" placeholder="비밀번호 (8자 이상 · 영문+숫자)" autocomplete="new-password">
+  <input type="text" class="login-input" id="signupRef" placeholder="추천 코드 (선택)" maxlength="12" autocomplete="off">
+
+  <label style="display:flex;align-items:flex-start;gap:8px;margin:14px 0 4px;padding:10px;background:rgba(241,128,145,0.06);border-radius:10px;cursor:pointer;font-size:12px;line-height:1.55;">
+    <input type="checkbox" id="signupAgree" style="margin-top:2px;flex-shrink:0;">
+    <span>
+      <strong>필수 약관</strong>에 동의합니다 ·
+      <a href="https://itdasy.com/privacy.html" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;">개인정보처리방침</a> ·
+      고객 정보 AI 분석 처리 위탁(Google LLC, 미국) · 가명처리 후 국외이전
+    </span>
+  </label>
+
+  <div class="login-error" id="signupError"></div>
+  <button class="pin-btn" id="signupBtn" style="opacity:0.6;pointer-events:none;">회원가입</button>
+
+  <div style="margin-top:16px;text-align:center;font-size:13px;color:var(--text3);">
+    이미 계정이 있으신가요?
+    <a href="#login" id="goLogin" style="color:var(--accent);font-weight:700;text-decoration:none;margin-left:4px;">로그인 →</a>
+  </div>
 </div>
 
 <!-- ───── 온보딩 오버레이 ───── -->
