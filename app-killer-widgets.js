@@ -143,16 +143,10 @@
     document.querySelectorAll('[data-kw-draft]').forEach(btn => {
       btn.addEventListener('click', async () => {
         btn.disabled = true; btn.textContent = '초안 만드는 중…';
-        const d = await _askAI('이탈 위험 단골 3명에게 보낼 안부 문자 초안 써줘. 단순하고 부담없게.');
+        const d = await _askAI('이탈 위험 단골 3명에게 보낼 안부 문자 초안 써줘. 한 메시지 단순하고 부담없게 3문장 이내로.');
         btn.disabled = false; btn.textContent = '📋 안부 문자 초안 만들기';
-        if (d && d.answer) {
-          if (navigator.clipboard) {
-            try { await navigator.clipboard.writeText(d.answer); if (window.showToast) window.showToast('✅ 초안 복사됨 — 카톡에 붙여넣으세요'); } catch(e) {}
-          }
-          alert('초안:\n\n' + d.answer);
-        } else {
-          if (window.showToast) window.showToast('초안 생성 실패');
-        }
+        if (!d || !d.answer) { if (window.showToast) window.showToast('초안 생성 실패'); return; }
+        _showSmsDraftModal(d.answer);
       });
     });
     document.querySelectorAll('[data-kw-focus]').forEach(btn => {
@@ -164,6 +158,78 @@
         out.style.display = 'block';
         out.textContent = (d && d.answer) || '분석 실패';
         btn.disabled = false; btn.textContent = '🤖 오늘 집중할 3가지 받기';
+      });
+    });
+  }
+
+  // SMS 프리필 모달 — 원장님이 직접 기본 메시지 앱에서 발송
+  async function _getAtRiskPhones() {
+    try {
+      const brief = await _fetchBrief();
+      const atRiskNames = (brief?.at_risk || []).map(a => a.name);
+      const res = await fetch(API() + '/customers', { headers: AUTH() });
+      if (!res.ok) return [];
+      const { items = [] } = await res.json();
+      return items.filter(c => atRiskNames.includes(c.name) && c.phone)
+        .map(c => ({ name: c.name, phone: c.phone }));
+    } catch (e) { return []; }
+  }
+
+  function _showSmsDraftModal(draftText) {
+    const id = 'kw-sms-overlay';
+    const existing = document.getElementById(id);
+    if (existing) existing.remove();
+    const o = document.createElement('div');
+    o.id = id;
+    o.style.cssText = `position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px;animation:pvFadeIn 0.2s ease;`;
+    o.innerHTML = `
+      <div style="width:100%;max-width:420px;background:#fff;border-radius:20px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div style="font-size:15px;font-weight:900;">📋 안부 문자 초안</div>
+          <button id="kw-sms-close" style="width:30px;height:30px;border:none;border-radius:10px;background:#eee;cursor:pointer;">✕</button>
+        </div>
+        <textarea id="kw-sms-text" style="width:100%;min-height:120px;padding:12px;border:1px solid #ddd;border-radius:10px;font-size:13px;font-family:inherit;resize:vertical;line-height:1.55;">${draftText.replace(/</g,'&lt;')}</textarea>
+        <div style="margin-top:10px;font-size:11.5px;color:#888;line-height:1.5;">
+          💡 <strong>발송자는 원장님 본인</strong>입니다. 버튼 탭 → 기본 메시지 앱이 열리고 내용이 채워져요. 원장님이 보낼지 선택하세요.
+        </div>
+        <div id="kw-sms-list" style="margin-top:14px;max-height:240px;overflow:auto;"></div>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button id="kw-sms-copy" style="flex:1;padding:10px;border:1px solid #eee;border-radius:10px;background:#fff;font-weight:700;cursor:pointer;font-size:12.5px;">📄 전체 복사</button>
+          <button id="kw-sms-cancel" style="padding:10px 14px;border:1px solid #eee;border-radius:10px;background:#fafafa;cursor:pointer;font-size:12.5px;">닫기</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(o);
+    o.addEventListener('click', (e) => { if (e.target === o) o.remove(); });
+    o.querySelector('#kw-sms-close').addEventListener('click', () => o.remove());
+    o.querySelector('#kw-sms-cancel').addEventListener('click', () => o.remove());
+    o.querySelector('#kw-sms-copy').addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(document.getElementById('kw-sms-text').value); if (window.showToast) window.showToast('✅ 복사됨'); } catch(e) {}
+    });
+
+    // 대상 고객 리스트 로드 → 각 전화번호로 SMS 링크 생성
+    _getAtRiskPhones().then(phones => {
+      const list = o.querySelector('#kw-sms-list');
+      if (!phones.length) {
+        list.innerHTML = `<div style="padding:14px;text-align:center;font-size:12px;color:#aaa;">전화번호 등록된 이탈 위험 고객이 없어요. 전체 복사 후 직접 보내주세요.</div>`;
+        return;
+      }
+      list.innerHTML = `<div style="font-size:11px;color:#888;margin-bottom:8px;font-weight:700;">대상 ${phones.length}명 — 각 버튼 탭 시 해당 번호로 문자 열립니다</div>` +
+        phones.map(p => `
+          <button data-kw-sms-to="${p.phone}" style="display:flex;align-items:center;gap:8px;width:100%;margin-bottom:6px;padding:10px 12px;background:#FEF4F5;border:1px solid #F9D6DC;border-radius:10px;cursor:pointer;font-size:12.5px;color:#333;text-align:left;">
+            <span style="font-weight:800;flex:1;">${p.name}</span>
+            <span style="color:#888;font-size:11px;">${p.phone}</span>
+            <span style="color:#D95F70;font-weight:800;">📨 문자 열기</span>
+          </button>`).join('');
+      list.querySelectorAll('[data-kw-sms-to]').forEach(b => {
+        b.addEventListener('click', () => {
+          const phone = b.getAttribute('data-kw-sms-to');
+          const msg = encodeURIComponent(document.getElementById('kw-sms-text').value);
+          // iOS 는 sms:phone&body, Android 는 sms:phone?body — 둘 다 호환 시도
+          const ua = navigator.userAgent;
+          const url = /iPhone|iPad|iOS/.test(ua) ? `sms:${phone}&body=${msg}` : `sms:${phone}?body=${msg}`;
+          window.location.href = url;
+        });
       });
     });
   }

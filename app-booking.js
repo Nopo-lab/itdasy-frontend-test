@@ -320,6 +320,17 @@
             🎀 시술 완료 · 매출·NPS 한 번에 기록
           </button>
         ` : ''}
+        ${existing ? `
+          <div style="margin-top:12px;padding-top:12px;border-top:1px dashed #eee;">
+            <div style="font-size:11px;color:#888;margin-bottom:8px;font-weight:700;">예약 상태</div>
+            <div style="display:flex;gap:6px;">
+              <button type="button" data-bf-status="confirmed" style="flex:1;padding:8px;border:1px solid ${existing.status==='confirmed'?'#F18091':'#ddd'};background:${existing.status==='confirmed'?'#FEF4F5':'#fff'};color:${existing.status==='confirmed'?'#D95F70':'#666'};border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;">📅 예정</button>
+              <button type="button" data-bf-status="completed" style="flex:1;padding:8px;border:1px solid ${existing.status==='completed'?'#388e3c':'#ddd'};background:${existing.status==='completed'?'#E8F5E9':'#fff'};color:${existing.status==='completed'?'#1B5E20':'#666'};border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;">✅ 완료</button>
+              <button type="button" data-bf-status="no_show" style="flex:1;padding:8px;border:1px solid ${existing.status==='no_show'?'#F57C00':'#ddd'};background:${existing.status==='no_show'?'#FFF3E0':'#fff'};color:${existing.status==='no_show'?'#E65100':'#666'};border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;">🚫 노쇼</button>
+              <button type="button" data-bf-status="cancelled" style="flex:1;padding:8px;border:1px solid ${existing.status==='cancelled'?'#C62828':'#ddd'};background:${existing.status==='cancelled'?'#FFEBEE':'#fff'};color:${existing.status==='cancelled'?'#B71C1C':'#666'};border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;">❌ 취소</button>
+            </div>
+          </div>
+        ` : ''}
       </div>
     `;
 
@@ -392,9 +403,24 @@
           if (window.showToast) window.showToast('완료 모듈 로드 중…');
           return;
         }
-        // 예약 시트 닫지 않고 CompleteFlow 오버레이 위에. CompleteFlow 저장 시 대시보드 리프레시됨.
         if (window.hapticMedium) window.hapticMedium();
         window.CompleteFlow.startFromBooking(existing);
+      });
+      // 예약 상태 빠른 전환
+      grid.querySelectorAll('[data-bf-status]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const newStatus = btn.getAttribute('data-bf-status');
+          if (newStatus === existing.status) return;
+          try {
+            await update(existing.id, { status: newStatus });
+            if (window.hapticLight) window.hapticLight();
+            const label = { confirmed:'예정', completed:'완료', no_show:'노쇼', cancelled:'취소' }[newStatus];
+            if (window.showToast) window.showToast(`✅ 상태를 '${label}'로 변경했어요`);
+            await _loadAndRender();
+          } catch (err) {
+            if (window.showToast) window.showToast('상태 변경 실패');
+          }
+        });
       });
     }
   }
