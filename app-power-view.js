@@ -26,6 +26,7 @@
   let currentTab = 'customer';
   let data = { customer: [], booking: [], revenue: [], inventory: [], nps: [], service: [] };
   let searchKW = '';
+  let pending = { customer: [], booking: [], revenue: [], inventory: [], nps: [], service: [] };
 
   function _esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch])); }
   function _krw(n) { return (n || 0).toLocaleString('ko-KR') + '원'; }
@@ -178,7 +179,7 @@
       empty: { icon: '👥', title: '아직 고객이 없어요', desc: '위 입력 행에 이름·전화만 적고 Enter 로 추가하세요.' },
       qadd: {
         fields: [
-          { name: 'name',  placeholder: '이름', flex: 1.3, required: true },
+          { name: 'name',  placeholder: '이름', flex: 1.3, required: true, auto: 'customer_name' },
           { name: 'phone', placeholder: '전화 010-...', flex: 1.3 },
           { name: 'memo',  placeholder: '메모(선택)', flex: 2 },
         ],
@@ -198,8 +199,8 @@
       empty: { icon: '📅', title: '예정된 예약이 없어요', desc: '시간 형식: 2026-04-22 14:00' },
       qadd: {
         fields: [
-          { name: 'customer_name', placeholder: '고객', flex: 1 },
-          { name: 'service_name',  placeholder: '시술', flex: 1 },
+          { name: 'customer_name', placeholder: '고객', flex: 1, auto: 'customer_name' },
+          { name: 'service_name',  placeholder: '시술', flex: 1, auto: 'service_name' },
           { name: 'starts_at',     placeholder: '2026-04-22 14:00', flex: 1.6, required: true },
           { name: 'minutes',       placeholder: '분', flex: 0.4, type: 'number', default: 60 },
         ],
@@ -231,10 +232,10 @@
       empty: { icon: '💰', title: '매출 기록이 없어요', desc: '카드는 3.4% 수수료가 자동 차감돼서 실 수령액이 바로 보여요.' },
       qadd: {
         fields: [
-          { name: 'customer_name', placeholder: '고객', flex: 1 },
-          { name: 'service_name',  placeholder: '시술', flex: 1 },
+          { name: 'customer_name', placeholder: '고객', flex: 1, auto: 'customer_name' },
+          { name: 'service_name',  placeholder: '시술', flex: 1, auto: 'service_name' },
           { name: 'amount',        placeholder: '금액', flex: 0.9, type: 'number', required: true },
-          { name: 'method',        placeholder: 'card/cash/transfer', flex: 1.1, default: 'card' },
+          { name: 'method',        placeholder: 'card/cash/transfer', flex: 1.1, default: 'card', auto: 'method' },
         ],
         endpoint: '/revenue',
         build: (v) => ({
@@ -263,10 +264,10 @@
       empty: { icon: '📦', title: '재고가 비어있어요', desc: '임계보다 적어지면 자동 부족 경고 뜹니다.' },
       qadd: {
         fields: [
-          { name: 'name',      placeholder: '품목 이름',   flex: 1.8, required: true },
+          { name: 'name',      placeholder: '품목 이름',   flex: 1.8, required: true, auto: 'item_name' },
           { name: 'quantity',  placeholder: '수량',        flex: 0.6, type: 'number' },
           { name: 'threshold', placeholder: '임계',        flex: 0.6, type: 'number', default: 3 },
-          { name: 'category',  placeholder: 'nail|hair|lash|skin|etc', flex: 1.2 },
+          { name: 'category',  placeholder: 'nail|hair|lash|skin|etc', flex: 1.2, auto: 'inv_category' },
         ],
         endpoint: '/inventory',
         build: (v) => ({
@@ -308,10 +309,10 @@
       empty: { icon: '💅', title: '시술 프리셋이 없어요', desc: '자주 하는 시술 등록해두면 원탭 기록 가능.' },
       qadd: {
         fields: [
-          { name: 'name',              placeholder: '시술명',       flex: 1.3, required: true },
+          { name: 'name',              placeholder: '시술명',       flex: 1.3, required: true, auto: 'service_name' },
           { name: 'default_price',     placeholder: '기본 금액',    flex: 0.8, type: 'number' },
           { name: 'default_duration_min', placeholder: '소요(분)', flex: 0.6, type: 'number', default: 60 },
-          { name: 'category',          placeholder: 'hair|nail|eye|skin|etc', flex: 1.2 },
+          { name: 'category',          placeholder: 'hair|nail|eye|skin|etc', flex: 1.2, auto: 'svc_category' },
         ],
         endpoint: '/services',
         build: (v) => ({
@@ -356,6 +357,34 @@
     return list.filter(r => schema.search(r, kw));
   }
 
+  // ── 자동완성 소스 ─────────────────────────────────────
+  function _buildAutoSources() {
+    const out = { customer_name: [], service_name: [], method: ['card','cash','transfer','etc'],
+                  item_name: [], inv_category: ['nail','hair','lash','skin','etc'],
+                  svc_category: ['hair','nail','eye','skin','wax','etc'] };
+    const seen = { customer_name: new Set(), service_name: new Set(), item_name: new Set() };
+    (data.customer || []).forEach(c => {
+      if (c.name && !seen.customer_name.has(c.name)) { seen.customer_name.add(c.name); out.customer_name.push(c.name); }
+    });
+    (data.revenue || []).forEach(r => {
+      if (r.customer_name && !seen.customer_name.has(r.customer_name)) { seen.customer_name.add(r.customer_name); out.customer_name.push(r.customer_name); }
+      if (r.service_name && !seen.service_name.has(r.service_name)) { seen.service_name.add(r.service_name); out.service_name.push(r.service_name); }
+    });
+    (data.booking || []).forEach(b => {
+      if (b.customer_name && !seen.customer_name.has(b.customer_name)) { seen.customer_name.add(b.customer_name); out.customer_name.push(b.customer_name); }
+      if (b.service_name && !seen.service_name.has(b.service_name)) { seen.service_name.add(b.service_name); out.service_name.push(b.service_name); }
+    });
+    (data.service || []).forEach(s => {
+      if (s.name && !seen.service_name.has(s.name)) { seen.service_name.add(s.name); out.service_name.push(s.name); }
+    });
+    (data.inventory || []).forEach(i => {
+      if (i.name && !seen.item_name.has(i.name)) { seen.item_name.add(i.name); out.item_name.push(i.name); }
+    });
+    // 상한
+    Object.keys(out).forEach(k => { if (out[k].length > 100) out[k] = out[k].slice(0, 100); });
+    return out;
+  }
+
   async function _renderTab(skipFetch) {
     const body = document.getElementById('pv-body');
     if (!body) return;
@@ -373,21 +402,46 @@
 
     const list = _applySearch(data[currentTab] || [], schema);
     const qadd = schema.qadd;
-    const fieldsHtml = qadd.fields.map(f => `
+
+    // 자동완성 소스 계산
+    const autoSource = _buildAutoSources();
+    const fieldsHtml = qadd.fields.map(f => {
+      const listId = f.auto ? `pv-dl-${f.auto}` : '';
+      return `
       <input class="pv-input"
         data-field="${f.name}"
         type="${f.type || 'text'}"
         placeholder="${_esc(f.placeholder)}"
         ${f.default !== undefined ? `value="${f.default}"` : ''}
+        ${listId ? `list="${listId}"` : ''}
         style="flex:${f.flex};"
-      />
+      />`;
+    }).join('');
+    const datalistHtml = Object.entries(autoSource).map(([key, items]) => `
+      <datalist id="pv-dl-${key}">${items.map(v => `<option value="${_esc(v)}"></option>`).join('')}</datalist>
     `).join('');
 
-    const headers = schema.headers.map(h => `<th>${_esc(h)}</th>`).join('');
+    const headers = schema.headers.map(h => `<th>${_esc(h)}</th>`).join('') + `<th style="width:56px;"></th>`;
     const rowsHtml = list.map(r => {
       const cells = schema.row(r).map(c => `<td>${c}</td>`).join('');
-      return `<tr data-id="${r.id}">${cells}</tr>`;
+      return `<tr data-id="${r.id}">${cells}<td style="text-align:right;"><button class="pv-row-edit" data-edit-id="${r.id}" title="수정" style="border:none;background:transparent;cursor:pointer;font-size:13px;color:#888;padding:4px 8px;border-radius:6px;transition:all 0.12s;">✎</button></td></tr>`;
     }).join('');
+
+    // 배치 pending 행 영역
+    const pendingList = pending[currentTab] || [];
+    const pendingHtml = pendingList.length ? `
+      <div style="padding:12px 16px;background:#FFFBEB;border-bottom:1px solid #FFE58F;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div style="font-size:12px;font-weight:800;color:#B45309;">⏳ 쌓아둔 행 ${pendingList.length}개</div>
+          <div style="display:flex;gap:6px;">
+            <button id="pv-batch-clear" style="padding:6px 10px;font-size:11px;border:1px solid #EAB308;background:#fff;color:#B45309;border-radius:7px;cursor:pointer;font-weight:700;">비우기</button>
+            <button id="pv-batch-save" style="padding:6px 12px;font-size:11.5px;border:none;background:linear-gradient(135deg,#F18091,#D95F70);color:#fff;border-radius:7px;cursor:pointer;font-weight:800;box-shadow:0 2px 6px rgba(241,128,145,0.3);">⚡ ${pendingList.length}개 한 번에 저장</button>
+          </div>
+        </div>
+        <div style="font-size:11.5px;color:#555;line-height:1.55;max-height:80px;overflow:auto;">
+          ${pendingList.map((p, i) => `<div>${i+1}. ${_esc(JSON.stringify(p).slice(0, 120))}</div>`).join('')}
+        </div>
+      </div>` : '';
 
     const emptyHtml = !rowsHtml ? `
       <tr><td colspan="${schema.headers.length}">
@@ -399,10 +453,13 @@
       </td></tr>` : '';
 
     body.innerHTML = `
+      ${datalistHtml}
       <div class="pv-qadd">
         ${fieldsHtml}
-        <button class="pv-btn-add" id="pv-add-btn">추가 <span class="pv-kbd">↵</span></button>
+        <button class="pv-btn-stack" id="pv-stack-btn" title="목록에 쌓아두고 나중에 일괄 저장" style="padding:11px 12px;background:#fff;border:1.5px solid #F18091;color:#D95F70;border-radius:10px;font-weight:800;font-size:12.5px;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all 0.15s;">⊕ 쌓기</button>
+        <button class="pv-btn-add" id="pv-add-btn">즉시 추가 <span class="pv-kbd">↵</span></button>
       </div>
+      ${pendingHtml}
       <div class="pv-toolbar">
         <input class="pv-search" id="pv-search" placeholder="검색 (⌘K)" value="${_esc(searchKW)}" />
         <label class="pv-excel" for="pv-excel-file" title="엑셀/CSV AI 임포트">
@@ -418,7 +475,7 @@
       </div>
       <div class="pv-footer">
         <div><span class="pv-count">${list.length}</span><span style="color:#999"> / 총 ${(data[currentTab] || []).length}건</span></div>
-        <div class="pv-hotkeys">단축: <kbd>Enter</kbd> 저장 · <kbd>Tab</kbd> 다음칸 · <kbd>⌘K</kbd> 검색 · <kbd>Esc</kbd> 닫기</div>
+        <div class="pv-hotkeys">단축: <kbd>Enter</kbd> 즉시 · <kbd>Shift+Enter</kbd> 쌓기 · <kbd>⌘K</kbd> 검색 · <kbd>Esc</kbd> 닫기</div>
       </div>
     `;
     _bindBody();
@@ -506,13 +563,152 @@
     }
   }
 
+  // ── 배치 쌓기 ───────────────────────────────────────────
+  function _collectQaddValues() {
+    const schema = SCHEMAS[currentTab];
+    const inputs = document.querySelectorAll('#power-view-overlay .pv-qadd input[data-field]');
+    const v = {}; let missing = null;
+    inputs.forEach(i => { v[i.getAttribute('data-field')] = i.value; });
+    schema.qadd.fields.forEach(f => { if (f.required && !v[f.name]?.trim()) missing = f.name; });
+    return { values: v, missing, schema, inputs };
+  }
+
+  function _resetInputs(inputs, schema) {
+    inputs.forEach(i => {
+      const f = schema.qadd.fields.find(x => x.name === i.getAttribute('data-field'));
+      i.value = (f && f.default !== undefined) ? f.default : '';
+    });
+    const first = inputs[0];
+    if (first) first.focus();
+  }
+
+  function _stackRow() {
+    const { values, missing, schema, inputs } = _collectQaddValues();
+    if (missing) {
+      if (window.showToast) window.showToast(`⚠️ 필수: ${missing}`);
+      const el = document.querySelector(`#power-view-overlay .pv-qadd input[data-field="${missing}"]`);
+      if (el) el.focus();
+      return;
+    }
+    let body;
+    try { body = schema.qadd.build(values); } catch (e) {
+      if (window.showToast) window.showToast('형식 오류: ' + e.message); return;
+    }
+    pending[currentTab].push(body);
+    if (window.hapticLight) window.hapticLight();
+    _resetInputs(inputs, schema);
+    _renderTab(true);
+  }
+
+  async function _flushBatch() {
+    const schema = SCHEMAS[currentTab];
+    const items = pending[currentTab] || [];
+    if (!items.length) return;
+    const btn = document.getElementById('pv-batch-save');
+    if (btn) { btn.disabled = true; btn.textContent = '저장 중…'; }
+    let ok = 0, fail = 0;
+    await Promise.all(items.map(async body => {
+      try {
+        const res = await fetch(API() + schema.qadd.endpoint, {
+          method: 'POST',
+          headers: { ...AUTH(), 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        ok++;
+      } catch (e) { fail++; }
+    }));
+    pending[currentTab] = [];
+    if (window.hapticSuccess) window.hapticSuccess();
+    if (window.showToast) window.showToast(`✅ ${ok}건 저장${fail ? ` · 실패 ${fail}` : ''}`);
+    data[currentTab] = await _fetchTab(currentTab);
+    await _renderTab(true);
+    if (window.Dashboard?.refresh) window.Dashboard.refresh(true);
+  }
+
+  // ── 행 인라인 수정 (간이 prompt 기반 — 향후 고도화 예정) ──
+  async function _editRow(rowId) {
+    const row = (data[currentTab] || []).find(r => r.id == rowId);
+    if (!row) return;
+    const schema = SCHEMAS[currentTab];
+    // 편집 가능 필드: qadd.fields 의 name 들 + 기본 추가 필드
+    const editableFields = {
+      customer: [['name','이름'],['phone','전화'],['memo','메모']],
+      booking: [['customer_name','고객'],['service_name','시술'],['starts_at','시작(YYYY-MM-DD HH:MM)'],['memo','메모'],['status','상태(confirmed|completed|cancelled)']],
+      revenue: [['customer_name','고객'],['service_name','시술'],['amount','금액'],['method','결제(card|cash|transfer)'],['memo','메모']],
+      inventory: [['name','품목'],['quantity','수량'],['threshold','임계'],['category','분류']],
+      nps: [['rating','평점'],['comment','코멘트']],
+      service: [['name','시술명'],['default_price','기본 금액'],['default_duration_min','소요(분)'],['category','분류']],
+    }[currentTab] || [];
+    const patch = {};
+    for (const [field, label] of editableFields) {
+      const cur = row[field] ?? '';
+      const v = prompt(`${label} — 수정 (그대로 두려면 Cancel)`, typeof cur === 'string' ? cur : String(cur));
+      if (v == null) continue;
+      if (String(v) !== String(cur)) patch[field] = v;
+    }
+    if (!Object.keys(patch).length) return;
+    const paths = {
+      customer:  `/customers/${row.id}`,
+      booking:   `/bookings/${row.id}`,
+      revenue:   `/revenue/${row.id}`,
+      inventory: `/inventory/${row.id}`,
+      nps:       `/nps/${row.id}`,
+      service:   `/services/${row.id}`,
+    };
+    // 타입 변환
+    if ('amount' in patch) patch.amount = parseInt(patch.amount) || 0;
+    if ('quantity' in patch) patch.quantity = parseInt(patch.quantity) || 0;
+    if ('threshold' in patch) patch.threshold = parseInt(patch.threshold) || 0;
+    if ('rating' in patch) patch.rating = parseInt(patch.rating) || 0;
+    if ('default_price' in patch) patch.default_price = parseInt(patch.default_price) || 0;
+    if ('default_duration_min' in patch) patch.default_duration_min = parseInt(patch.default_duration_min) || 60;
+    if ('starts_at' in patch) {
+      const s = String(patch.starts_at).replace(' ', 'T');
+      const start = new Date(s);
+      if (isNaN(start)) { if (window.showToast) window.showToast('시간 형식 오류'); return; }
+      patch.starts_at = start.toISOString();
+      // booking 은 ends_at 도 맞춰야. 기존 기간 유지
+      if (currentTab === 'booking' && row.starts_at && row.ends_at) {
+        const dur = new Date(row.ends_at) - new Date(row.starts_at);
+        patch.ends_at = new Date(start.getTime() + dur).toISOString();
+      }
+    }
+    try {
+      const res = await fetch(API() + paths[currentTab], {
+        method: 'PATCH',
+        headers: { ...AUTH(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      if (window.hapticSuccess) window.hapticSuccess();
+      if (window.showToast) window.showToast('✅ 수정됨');
+      data[currentTab] = await _fetchTab(currentTab);
+      await _renderTab(true);
+    } catch (e) { if (window.showToast) window.showToast('실패: ' + e.message); }
+  }
+
   // ── 이벤트 바인딩 ───────────────────────────────────────
   function _bindBody() {
     const addBtn = document.getElementById('pv-add-btn');
     if (addBtn) addBtn.addEventListener('click', _submitQuickAdd);
+    const stackBtn = document.getElementById('pv-stack-btn');
+    if (stackBtn) stackBtn.addEventListener('click', _stackRow);
+    const batchSave = document.getElementById('pv-batch-save');
+    if (batchSave) batchSave.addEventListener('click', _flushBatch);
+    const batchClear = document.getElementById('pv-batch-clear');
+    if (batchClear) batchClear.addEventListener('click', () => { pending[currentTab] = []; _renderTab(true); });
+    document.querySelectorAll('.pv-row-edit').forEach(b => {
+      b.addEventListener('click', (e) => { e.stopPropagation(); _editRow(b.getAttribute('data-edit-id')); });
+    });
     document.querySelectorAll('#power-view-overlay .pv-qadd input').forEach(el => {
       el.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); _submitQuickAdd(); }
+        // 한글 IME 조합 중이면 무시 (마지막 글자 중복 진입 방지)
+        if (e.isComposing || e.keyCode === 229) return;
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (e.shiftKey) _stackRow(); else _submitQuickAdd();
+        }
       });
     });
     const search = document.getElementById('pv-search');

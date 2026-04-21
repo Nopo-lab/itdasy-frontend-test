@@ -47,6 +47,8 @@
     sheet.addEventListener('click', (e) => { if (e.target === sheet) closeAssistant(); });
     sheet.querySelector('#asstSend').addEventListener('click', _send);
     sheet.querySelector('#asstInput').addEventListener('keydown', (e) => {
+      // 한글 IME 조합 중 Enter 무시 (마지막 글자 중복/누락 방지)
+      if (e.isComposing || e.keyCode === 229) return;
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _send(); }
     });
     _renderSuggest();
@@ -73,11 +75,16 @@
       }
       if (m.role === 'assistant') {
         const actionHtml = m.action ? _renderActionBubble(m.action, idx, m.action_status) : '';
+        const relatedHtml = (m.related && m.related.length) ? `
+          <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:5px;">
+            ${m.related.map(q => `<button data-suggest="${_esc(q)}" style="padding:5px 10px;border:1px solid #E2D6F7;border-radius:100px;background:#F7F2FD;cursor:pointer;font-size:11px;color:#6B21A8;white-space:nowrap;font-weight:700;transition:all 0.12s;">💬 ${_esc(q)}</button>`).join('')}
+          </div>` : '';
         return `<div style="display:flex;gap:8px;margin-bottom:8px;align-items:flex-start;">
           <div style="width:28px;height:28px;border-radius:50%;background:rgba(139,92,246,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;">🤖</div>
           <div style="max-width:85%;min-width:0;">
             <div style="padding:10px 14px;background:#fff;border:1px solid rgba(0,0,0,0.06);border-radius:16px 16px 16px 4px;font-size:13px;line-height:1.6;color:#222;white-space:pre-wrap;">${_esc(m.text)}</div>
             ${actionHtml}
+            ${relatedHtml}
           </div>
         </div>`;
       }
@@ -104,6 +111,7 @@
       update_booking:  { icon: '✏️', label: '예약 수정', color: '#A78BFA' },
       cancel_booking:  { icon: '🗑', label: '예약 취소', color: '#DC3545' },
       reschedule_booking: { icon: '🔄', label: '예약 시간 변경', color: '#0288D1' },
+      update_customer: { icon: '✏️', label: '고객 정보 수정', color: '#4ECDC4' },
       generate_bulk_message: { icon: '📋', label: '단체 메시지 초안', color: '#FF8A5C' },
     }[action.kind] || { icon: '✓', label: action.kind, color: '#666' };
 
@@ -140,6 +148,14 @@
         const idx = parseInt(btn.dataset.actionCancel, 10);
         if (_history[idx]) { _history[idx].action_status = 'cancelled'; _history[idx].action = null; }
         _renderHistory();
+      });
+    });
+    // 연관 질문 클릭 — 인풋에 넣고 즉시 전송
+    document.querySelectorAll('[data-suggest]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const q = btn.getAttribute('data-suggest');
+        const input = document.getElementById('asstInput');
+        if (input) { input.value = q; _send(); }
       });
     });
   }
@@ -218,6 +234,9 @@
       if (d.action && d.action.kind) {
         msg.action = d.action;
         msg.action_status = 'pending';
+      }
+      if (Array.isArray(d.related_questions) && d.related_questions.length) {
+        msg.related = d.related_questions.slice(0, 3);
       }
       _history.push(msg);
       _renderHistory();

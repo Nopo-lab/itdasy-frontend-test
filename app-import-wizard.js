@@ -99,7 +99,7 @@
       state.mapping = { ...(data.ai_mapping || {}) };
       state.extras = {};
       (data.extras || []).forEach(e => { state.extras[e.column] = e.suggest || 'skip'; });
-      state.dup = { default: 'new_row' };
+      state.dup = { default: 'skip' };
       _showStep2();
     } catch (e) {
       _shell(`
