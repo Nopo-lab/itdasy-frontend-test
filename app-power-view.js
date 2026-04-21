@@ -362,4 +362,15 @@
 
   window.openPowerView = openPowerView;
   window.closePowerView = closePowerView;
+
+  // 전역 이벤트 위임 — 대시보드 재렌더돼도 항상 작동
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-pv-open]');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const tab = btn.getAttribute('data-pv-open');
+    if (window.hapticLight) window.hapticLight();
+    openPowerView(tab);
+  }, true);  // capture phase 로 등록 → 다른 핸들러가 먼저 소비해도 잡힘
 })();
