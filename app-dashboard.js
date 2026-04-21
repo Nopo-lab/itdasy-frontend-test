@@ -375,40 +375,17 @@
   }
 
   function _quickActionsGrid() {
-    const tiles = [
-      { icon: '👥', label: '고객',       fn: 'openCustomers',     pvTab: 'customer' },
-      { icon: '📅', label: '예약',       fn: 'openBooking',       pvTab: 'booking' },
-      { icon: '💰', label: '매출',       fn: 'openRevenue',       pvTab: 'revenue' },
-      { icon: '📦', label: '재고',       fn: 'openInventory',     pvTab: 'inventory' },
-      { icon: '📊', label: 'NPS',        fn: 'openNps',           pvTab: 'nps' },
-      { icon: '💅', label: '시술 프리셋',fn: 'openServiceTemplates', pvTab: 'service' },
-      { icon: '⭐', label: '네이버',     fn: 'openNaverReviews' },
-      { icon: '🎬', label: '영상',       fn: 'openVideo' },
-      { icon: '📥', label: '이전 도우미',fn: 'openMigration' },
-      { icon: '📑', label: '월간 리포트',fn: 'openReport' },
-    ];
+    // T-328: 샵 운영 메뉴 그리드 제거 → 파워뷰 단일 진입점
     return `
       <div style="margin-bottom:14px;">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:0 4px;justify-content:space-between;">
-          <div style="display:flex;align-items:center;gap:6px;">
-            <span style="font-size:14px;">⚡</span>
-            <strong style="font-size:13px;">샵 운영 메뉴</strong>
+        <button data-pv-open="customer" style="width:100%;padding:18px;border:none;border-radius:16px;background:linear-gradient(135deg,#F18091,#D95F70);color:#fff;cursor:pointer;box-shadow:0 6px 20px rgba(241,128,145,0.35);display:flex;align-items:center;gap:14px;text-align:left;transition:transform 0.1s;">
+          <div style="font-size:28px;">⛶</div>
+          <div style="flex:1;">
+            <div style="font-size:15px;font-weight:900;letter-spacing:-0.3px;margin-bottom:2px;">파워뷰 열기</div>
+            <div style="font-size:11px;opacity:0.85;line-height:1.5;">고객 · 예약 · 매출 · 재고 · NPS · 시술 · 기타 전부 한 화면</div>
           </div>
-          <button data-pv-open="customer" style="padding:6px 12px;background:linear-gradient(135deg,#F18091,#D95F70);color:#fff;border:none;border-radius:100px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;box-shadow:0 2px 6px rgba(241,128,145,0.3);">
-            ⛶ 파워뷰 열기
-          </button>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
-          ${tiles.map(t => `
-            <div style="position:relative;">
-              <button data-quick="${t.fn}" style="width:100%;padding:14px 6px;border:none;border-radius:14px;background:#fff;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.04);transition:transform 0.1s;">
-                <div style="font-size:22px;margin-bottom:4px;">${t.icon}</div>
-                <div style="font-size:11px;color:#444;font-weight:700;">${t.label}</div>
-              </button>
-              ${t.pvTab ? `<button data-pv-open="${t.pvTab}" title="크게 보기" aria-label="확대" style="position:absolute;top:4px;right:4px;width:22px;height:22px;border:none;border-radius:6px;background:rgba(241,128,145,0.1);color:#F18091;cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;">⛶</button>` : ''}
-            </div>
-          `).join('')}
-        </div>
+          <div style="font-size:20px;opacity:0.7;">→</div>
+        </button>
       </div>
     `;
   }

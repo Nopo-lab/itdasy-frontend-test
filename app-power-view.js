@@ -38,6 +38,7 @@
     { key: 'inventory', icon: '📦', label: '재고',     hue: 150 },
     { key: 'nps',       icon: '⭐', label: 'NPS',      hue: 45  },
     { key: 'service',   icon: '💅', label: '시술',     hue: 320 },
+    { key: 'more',      icon: '📎', label: '기타',     hue: 200 },
   ];
 
   // ── 스타일 주입 (한 번만) ──────────────────────────────
@@ -385,9 +386,51 @@
     return out;
   }
 
+  function _renderMoreTab() {
+    const body = document.getElementById('pv-body');
+    if (!body) return;
+    const entries = [
+      { icon: '📅', label: '예약 캘린더 뷰', hint: '월/주/일 + 드래그 리스케줄', fn: 'openCalendarView' },
+      { icon: '⭐', label: '네이버 리뷰',    hint: '리뷰 수동 기록·분석',       fn: 'openNaverReviews' },
+      { icon: '🎬', label: '영상 만들기',    hint: '비포/애프터 릴스 자동',       fn: 'openVideo' },
+      { icon: '🎀', label: '스토리 만들기',  hint: 'AI 스토리 1080×1920',         fn: 'openStory' },
+      { icon: '📥', label: '이전 도우미',    hint: '엑셀/사진/카톡 불러오기',     fn: 'openMigration' },
+      { icon: '📑', label: '월간 리포트',    hint: '한 달 요약 + 인사이트',       fn: 'openReport' },
+      { icon: '🤖', label: 'AI 비서',        hint: '말 한 줄로 실행',             fn: 'openAssistant' },
+      { icon: '🎤', label: '음성 기록',      hint: '말하면 자동 저장',            fn: 'openVoice' },
+      { icon: '🔔', label: '알림',           hint: '오늘 브리핑·이탈 위험',       fn: 'openNotifications' },
+      { icon: '⚙️', label: '설정',           hint: '샵 · 인스타 · 사업자 정보',   fn: 'openSettings' },
+    ];
+    body.innerHTML = `
+      <div style="padding:20px;overflow:auto;">
+        <div style="font-size:12px;color:#888;margin-bottom:12px;font-weight:700;">📎 빠른 실행 — 탭으로 바로 열기</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;">
+          ${entries.map(e => `
+            <button data-pv-fn="${e.fn}" style="padding:14px 12px;border:1px solid #eee;border-radius:14px;background:#fff;cursor:pointer;text-align:left;transition:all 0.15s;">
+              <div style="font-size:22px;margin-bottom:6px;">${e.icon}</div>
+              <div style="font-size:13px;font-weight:800;color:#222;margin-bottom:2px;">${e.label}</div>
+              <div style="font-size:11px;color:#888;line-height:1.4;">${e.hint}</div>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+    body.querySelectorAll('[data-pv-fn]').forEach(b => {
+      b.addEventListener('click', () => {
+        const fn = b.getAttribute('data-pv-fn');
+        if (typeof window[fn] === 'function') {
+          if (window.hapticLight) window.hapticLight();
+          closePowerView();
+          setTimeout(() => window[fn](), 120);
+        }
+      });
+    });
+  }
+
   async function _renderTab(skipFetch) {
     const body = document.getElementById('pv-body');
     if (!body) return;
+    if (currentTab === 'more') { _renderMoreTab(); return; }
     const schema = SCHEMAS[currentTab];
 
     // 즉시 스켈레톤 표시 (부드러운 로딩)
