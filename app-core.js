@@ -446,12 +446,46 @@ async function login() {
     document.getElementById('lockOverlay').classList.add('hidden');
     checkCbt1Reset();
     checkOnboarding();
-    checkInstaStatus(true); // 로그인 직후: 서버 shop_name으로 환영 처리
+    checkInstaStatus(true);
+    // T-317 — 생체 인증 등록 제안 (한 번만)
+    _offerBiometricEnroll(data.access_token);
   } catch(e) {
     errEl.textContent = e.message;
     errEl.style.display = 'block';
   }
   btn.textContent = '로그인'; btn.disabled = false;
+}
+
+// T-317 — 생체 인증 등록 제안 (최초 1회만)
+async function _offerBiometricEnroll(token) {
+  try {
+    if (localStorage.getItem('itdasy_biometric_asked') === '1') return;
+    if (!window.Biometric) return;
+    const ok = await window.Biometric.available();
+    if (!ok) return;
+    localStorage.setItem('itdasy_biometric_asked', '1');
+    setTimeout(async () => {
+      const yes = confirm('다음부터 Face ID(또는 지문)로 빠르게 로그인하시겠어요?\n비밀번호 재입력 없이 열립니다.');
+      if (!yes) return;
+      try {
+        await window.Biometric.enable(token);
+        if (window.showToast) window.showToast('✅ 생체 인증 등록됨');
+      } catch (_) {}
+    }, 1200);
+  } catch (_) {}
+}
+
+// T-317 — 앱 실행 시 생체 인증으로 자동 로그인 시도
+async function _tryBiometricLogin() {
+  try {
+    if (!window.Biometric || !window.Biometric.isEnabled()) return false;
+    const ok = await window.Biometric.available();
+    if (!ok) return false;
+    const token = await window.Biometric.verify();
+    if (!token) return false;
+    setToken(token);
+    return true;
+  } catch (_) { return false; }
 }
 
 // 회원가입
@@ -564,6 +598,18 @@ window.addEventListener('load', function() {
     if (t) {
       setToken(decodeURIComponent(t));
       history.replaceState(null, '', window.location.pathname);
+    }
+  })();
+
+  // T-317 — 토큰 없어도 생체 인증 등록돼 있으면 먼저 시도
+  (async () => {
+    if (!getToken() && window.Biometric && window.Biometric.isEnabled()) {
+      const ok = await _tryBiometricLogin();
+      if (ok) {
+        document.getElementById('lockOverlay').classList.add('hidden');
+        checkOnboarding();
+        checkInstaStatus(true);
+      }
     }
   })();
 
