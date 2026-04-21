@@ -516,22 +516,34 @@ window.addEventListener('load', function() {
   // Enter 키 로그인
   document.getElementById('loginPassword').addEventListener('keydown', e => { if(e.key === 'Enter') login(); });
 
-  // 회원가입 전환
-  const goSignup = document.getElementById('goSignup');
-  if (goSignup) goSignup.addEventListener('click', (e) => { e.preventDefault(); _toggleSignup(true); });
-  const goLogin = document.getElementById('goLogin');
-  if (goLogin) goLogin.addEventListener('click', (e) => { e.preventDefault(); _toggleSignup(false); });
+  // 회원가입 전환 — document 위임 (타이밍 무관)
+  document.addEventListener('click', (e) => {
+    const goSignup = e.target.closest('#goSignup');
+    if (goSignup) { e.preventDefault(); _toggleSignup(true); return; }
+    const goLogin = e.target.closest('#goLogin');
+    if (goLogin) { e.preventDefault(); _toggleSignup(false); return; }
+    const signupBtn2 = e.target.closest('#signupBtn');
+    if (signupBtn2) {
+      const a = document.getElementById('signupAgree');
+      if (!a || !a.checked) {
+        const err = document.getElementById('signupError');
+        if (err) { err.textContent = '약관에 동의해주세요.'; err.style.display = 'block'; }
+        return;
+      }
+      signup();
+    }
+  }, false);
 
   // 약관 동의 시 버튼 활성화
-  const agree = document.getElementById('signupAgree');
-  const signupBtn = document.getElementById('signupBtn');
-  if (agree && signupBtn) {
-    agree.addEventListener('change', () => {
-      signupBtn.style.opacity = agree.checked ? '1' : '0.6';
-      signupBtn.style.pointerEvents = agree.checked ? 'auto' : 'none';
-    });
-    signupBtn.addEventListener('click', signup);
-  }
+  document.addEventListener('change', (e) => {
+    if (e.target && e.target.id === 'signupAgree') {
+      const btn = document.getElementById('signupBtn');
+      if (btn) {
+        btn.style.opacity = e.target.checked ? '1' : '0.6';
+        btn.style.pointerEvents = e.target.checked ? 'auto' : 'none';
+      }
+    }
+  }, false);
   // #register 해시로 진입 시 바로 가입 화면
   if ((window.location.hash || '').includes('register') && !getToken()) {
     _toggleSignup(true);
