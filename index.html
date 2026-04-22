@@ -179,6 +179,18 @@
     <line x1="4.22" y1="19.78" x2="7.05" y2="16.95"/>
     <line x1="16.95" y1="7.05" x2="19.78" y2="4.22"/>
   </symbol>
+  <!-- P3.2: 하단 탭바 아이콘 -->
+  <symbol id="ic-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+    <polyline points="2 17 12 22 22 17"/>
+    <polyline points="2 12 12 17 22 12"/>
+  </symbol>
+  <symbol id="ic-bar-chart-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 3v18h18"/>
+    <path d="M18 17V9"/>
+    <path d="M13 17V5"/>
+    <path d="M8 17v-3"/>
+  </symbol>
 </svg>
 
 <!-- ───── 스플래시 스크린 ───── -->
@@ -505,13 +517,33 @@
   </div>
 </div>
 
-<div class="nav" id="nav" role="navigation" aria-label="메인 네비게이션">
-  <button class="nav-btn active" onclick="showTab('home',this)" aria-label="홈 탭">홈</button>
-  <button class="nav-btn" data-haptic="light" onclick="showTab('workshop',this); initWorkshopTab()" aria-label="작업실 탭">작업실</button>
-  <button class="nav-btn" data-haptic="light" onclick="showTab('caption',this); initCaptionSlotPicker(); if(typeof renderCaptionKeywordTags==='function')renderCaptionKeywordTags();" aria-label="글쓰기 탭">글쓰기</button>
-  <button class="nav-btn" data-haptic="light" onclick="showTab('ai-suggest',this); initAiRecommendTab()" aria-label="AI 추천 탭">AI추천</button>
-  <button class="nav-btn" data-haptic="light" onclick="showTab('finish',this); initFinishTab()" aria-label="마무리 탭">마무리</button>
-</div>
+<nav class="tab-bar" id="nav" role="tablist" aria-label="메인 네비게이션">
+  <button type="button" class="tab-bar__btn is-active" data-tab="home" role="tab" aria-selected="true"
+          onclick="showTab('home',this)" aria-label="홈 탭">
+    <svg class="tab-bar__icon" width="24" height="24"><use href="#ic-home"/></svg>
+    <span class="tab-bar__label">홈</span>
+  </button>
+  <button type="button" class="tab-bar__btn" data-tab="workshop" role="tab" data-haptic="light"
+          onclick="showTab('workshop',this); initWorkshopTab()" aria-label="작업실 탭">
+    <svg class="tab-bar__icon" width="24" height="24"><use href="#ic-layers"/></svg>
+    <span class="tab-bar__label">작업실</span>
+  </button>
+  <button type="button" class="tab-bar__fab" data-tab="caption" data-haptic="light"
+          onclick="showTab('caption',this); initCaptionSlotPicker(); if(typeof renderCaptionKeywordTags==='function')renderCaptionKeywordTags();" aria-label="글쓰기">
+    <svg width="26" height="26"><use href="#ic-edit-3"/></svg>
+  </button>
+  <!-- 대시보드: Commit 1~3 동안 임시로 openDashboard() 유지. Commit 4에서 showTab('dashboard', this)로 교체. -->
+  <button type="button" class="tab-bar__btn" data-tab="dashboard" role="tab" data-haptic="light"
+          onclick="openDashboard()" aria-label="대시보드 탭">
+    <svg class="tab-bar__icon" width="24" height="24"><use href="#ic-bar-chart-3"/></svg>
+    <span class="tab-bar__label">대시보드</span>
+  </button>
+  <button type="button" class="tab-bar__btn" data-tab="finish" role="tab" data-haptic="light"
+          onclick="showTab('finish',this); initFinishTab()" aria-label="마무리 탭">
+    <svg class="tab-bar__icon" width="24" height="24"><use href="#ic-check-circle"/></svg>
+    <span class="tab-bar__label">마무리</span>
+  </button>
+</nav>
 
 <!-- 홈 탭 -->
 <div class="tab active" id="tab-home">
@@ -792,7 +824,7 @@
   <!-- initAiRecommendTab()이 이 영역을 렌더링합니다 -->
 </div>
 
-<!-- 포트폴리오 탭 -->
+<!-- 포트폴리오 탭 (P3.3 legacy: 탭바 진입점 없음, 직접 네비게이션 경유만 사용) -->
 <div class="tab" id="tab-portfolio">
   <div class="sec-title">📂 포트폴리오</div>
   <div class="sec-sub">사진 올리기 · 사진 편집 · 작업 묶음 설정까지 한 곳에서</div>
