@@ -90,6 +90,7 @@
           <input id="svc-price" type="number" placeholder="기본 금액" style="padding:10px;border:1px solid #ddd;border-radius:8px;">
           <input id="svc-dur" type="number" value="60" style="padding:10px;border:1px solid #ddd;border-radius:8px;">
         </div>
+        <input id="svc-material" type="number" placeholder="재료비 (선택, 실마진 계산용)" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;margin-bottom:6px;">
         <div style="display:flex;gap:6px;align-items:center;">
           <select id="svc-cat" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;">
             <option value="etc">기타</option><option value="hair">헤어</option>
@@ -109,15 +110,18 @@
         const name = document.getElementById('svc-name').value.trim();
         if (!name) return alert('시술 이름을 입력해주세요.');
         const price = parseInt(document.getElementById('svc-price').value) || 0;
+        const material = parseInt(document.getElementById('svc-material').value) || 0;
         const dur = parseInt(document.getElementById('svc-dur').value) || 60;
         const cat = document.getElementById('svc-cat').value;
         try {
-          await createTemplate({ name, default_price: price, default_duration_min: dur, category: cat });
+          await createTemplate({ name, default_price: price, material_cost: material, default_duration_min: dur, category: cat });
           if (window.hapticLight) window.hapticLight();
           await loadServiceTemplates();
           document.getElementById('svc-list').innerHTML = _renderList(_cache);
           document.getElementById('svc-name').value = '';
           document.getElementById('svc-price').value = '';
+          const mat = document.getElementById('svc-material');
+          if (mat) mat.value = '';
         } catch (e) {
           alert('추가 실패: ' + e.message);
         }

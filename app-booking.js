@@ -318,6 +318,7 @@
           <div style="font-size:11px;color:var(--text-subtle);margin-bottom:8px;font-weight:700;">예약 상태</div>
           <div class="dt-status-row">
             <button type="button" data-bf-status="confirmed" class="dt-status-btn${existing.status==='confirmed'?' dt-status-btn--confirmed':''}">📅 예정</button>
+            <button type="button" data-bf-status="no_show" class="dt-status-btn${existing.status==='no_show'?' dt-status-btn--no-show':''}">🚫 노쇼</button>
             <button type="button" data-bf-status="completed" class="dt-status-btn${existing.status==='completed'?' dt-status-btn--completed':''}">✅ 완료</button>
             <button type="button" data-bf-status="cancelled" class="dt-status-btn${existing.status==='cancelled'?' dt-status-btn--cancelled':''}">❌ 취소</button>
           </div>
@@ -421,7 +422,7 @@
           try {
             await update(existing.id, { status: newStatus });
             if (window.hapticLight) window.hapticLight();
-            const label = { confirmed:'예정', completed:'완료', cancelled:'취소' }[newStatus];
+            const label = { confirmed:'예정', completed:'완료', cancelled:'취소', no_show:'노쇼' }[newStatus];
             if (window.showToast) window.showToast(`✅ 상태를 '${label}'로 변경했어요`);
             await _loadAndRender();
           } catch (err) {

@@ -207,15 +207,20 @@
       box.innerHTML = `<div class="dt-empty">${_cache && _cache.length ? '검색 결과 없음' : '아직 고객이 없어요. 아래 버튼으로 추가해 주세요.'}</div>`;
       return;
     }
-    box.innerHTML = '<div class="dt-list">' + items.map(c => `
+    box.innerHTML = '<div class="dt-list">' + items.map(c => {
+      const nsCount = c.no_show_count || 0;
+      const nsBadge = nsCount >= 3
+        ? `<span title="노쇼 ${nsCount}회 — 예약 전 주의" style="font-size:10px;font-weight:700;color:#fff;background:#dc3545;padding:2px 7px;border-radius:100px;margin-left:6px;">🚩 노쇼 ${nsCount}</span>`
+        : (nsCount > 0 ? `<span title="노쇼 ${nsCount}회" style="font-size:10px;font-weight:600;color:#B45309;background:#FEF3C7;padding:2px 6px;border-radius:100px;margin-left:6px;">노쇼 ${nsCount}</span>` : '');
+      return `
       <button class="dt-list-it customer-row" data-id="${c.id}" type="button">
         <div class="dt-list-it__main">
-          <p class="dt-list-it__title">${_esc(c.name)}${c.visit_count ? ` <span style="font-size:11px;font-weight:400;color:var(--brand);">방문 ${c.visit_count}회</span>` : ''}</p>
+          <p class="dt-list-it__title">${_esc(c.name)}${c.visit_count ? ` <span style="font-size:11px;font-weight:400;color:var(--brand);">방문 ${c.visit_count}회</span>` : ''}${nsBadge}</p>
           <p class="dt-list-it__sub">${[c.phone ? _esc(c.phone) : '', c.memo ? _esc(c.memo).slice(0,40) : ''].filter(Boolean).join(' · ')}</p>
         </div>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-      </button>
-    `).join('') + '</div>';
+      </button>`;
+    }).join('') + '</div>';
     box.querySelectorAll('.customer-row').forEach(row => {
       row.addEventListener('click', () => {
         // 행 클릭 = 대시보드(조회). 편집은 대시보드 안의 '편집' 버튼 또는 _openDetail 직접 호출.

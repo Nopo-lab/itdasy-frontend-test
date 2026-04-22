@@ -855,6 +855,10 @@ function showTab(id, btn) {
   window.scrollTo(0, 0);
   document.body.scrollTop = 0;
   document.documentElement.scrollTop = 0;
+  // Phase 8 A2 — 홈 탭 활성화 시 TodayBrief 위젯 렌더
+  if (id === 'home' && window.TodayBrief && typeof window.TodayBrief.render === 'function') {
+    try { window.TodayBrief.render('home-today-brief'); } catch (_e) { /* ignore */ }
+  }
 }
 
 // 태그 선택 (single)
