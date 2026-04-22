@@ -40,7 +40,6 @@ html[data-theme="dark"] body {
 /* 탭·카드·팝업 전체 강제 어둡게 */
 html[data-theme="dark"] .tab,
 html[data-theme="dark"] .hc-card,
-html[data-theme="dark"] .pf-upload-card,
 html[data-theme="dark"] .input-card,
 html[data-theme="dark"] .insta-frame,
 html[data-theme="dark"] .popup-content,
