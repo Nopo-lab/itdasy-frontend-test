@@ -204,8 +204,28 @@
     },
   };
 
-  // ── API 호출 ──────────────────────────────────────────
-  async function _fetchTab(key) {
+  // ── API 호출 + sessionStorage 캐시 (90초 TTL) ─────────
+  const _CACHE_TTL_MS = 90 * 1000;
+  function _cacheKey(tab) { return `pv_cache::${tab}`; }
+  function _readCache(tab) {
+    try {
+      const raw = sessionStorage.getItem(_cacheKey(tab));
+      if (!raw) return null;
+      const obj = JSON.parse(raw);
+      if (Date.now() - obj.t > _CACHE_TTL_MS) return null;
+      return obj.d;
+    } catch (_e) { return null; }
+  }
+  function _writeCache(tab, items) {
+    try { sessionStorage.setItem(_cacheKey(tab), JSON.stringify({ t: Date.now(), d: items })); }
+    catch (_e) { /* quota exceeded — 조용히 무시 */ }
+  }
+
+  async function _fetchTab(key, useCache = true) {
+    if (useCache) {
+      const cached = _readCache(key);
+      if (cached) return cached;
+    }
     const paths = {
       customer:  '/customers',
       booking:   '/bookings',
@@ -218,7 +238,9 @@
       const res = await fetch(API() + paths[key], { headers: AUTH() });
       if (!res.ok) return [];
       const d = await res.json();
-      return d.items || [];
+      const items = d.items || [];
+      _writeCache(key, items);
+      return items;
     } catch (e) { console.warn('[power-view] fetch', key, e); return []; }
   }
 
@@ -421,20 +443,27 @@
     document.body.style.overflow = 'hidden';
     document.addEventListener('keydown', _escListener);
 
-    TABS.forEach(t => {
-      if (t.key !== _state.currentTab && (!_state.data[t.key] || !_state.data[t.key].length)) {
-        _fetchTab(t.key).then(r => {
-          _state.data[t.key] = r;
-          // 탭 숫자 뱃지 갱신 — 프리페치 완료 즉시 반영
-          const badge = document.querySelector(`[data-pv-tab-badge="${t.key}"]`);
-          if (badge) {
-            const n = (r || []).length;
-            badge.textContent = n > 99 ? '99+' : n;
-            badge.style.display = n > 0 ? '' : 'none';
-          }
-        }).catch(() => { /* ignore */ });
+    // 프리페치 — 동시 6개 호출 시 Railway 큐잉으로 느림 → 2개 동시만 유지 (idle 스로틀)
+    (async () => {
+      const others = TABS.filter(t => t.key !== _state.currentTab);
+      const CONCURRENCY = 2;
+      for (let i = 0; i < others.length; i += CONCURRENCY) {
+        const batch = others.slice(i, i + CONCURRENCY);
+        await Promise.all(batch.map(t => {
+          if (_state.data[t.key] && _state.data[t.key].length) return null;
+          return _fetchTab(t.key).then(r => {
+            _state.data[t.key] = r;
+            // 탭 숫자 뱃지 갱신
+            const badge = document.querySelector(`[data-pv-tab-badge="${t.key}"]`);
+            if (badge) {
+              const n = (r || []).length;
+              badge.textContent = n > 99 ? '99+' : n;
+              badge.style.display = n > 0 ? '' : 'none';
+            }
+          }).catch(() => { /* ignore */ });
+        }));
       }
-    });
+    })();
 
     const pvRender = window._PVRender;
     if (pvRender) {
