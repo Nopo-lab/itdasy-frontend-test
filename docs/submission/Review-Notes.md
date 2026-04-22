@@ -41,9 +41,9 @@ Itdasy is an AI-powered operations assistant for solo beauty salon owners in Kor
 
 ## IAP Products (if subscribed plans are active)
 
-- `itdasy_pro_monthly_19900` — Lite plan (₩19,900/month)
-- `itdasy_premium_monthly_39900` — Pro plan (₩39,900/month)
-- 14-day free trial, no credit card required for trial
+- `itdasy_pro_monthly` — Pro plan (₩3,900 KRW / $2.99 USD per month)
+- `itdasy_premium_monthly` — Premium plan (₩8,900 KRW / $5.99 USD per month)
+- 1-week free trial on first subscription (Introductory Offer), no credit card required
 
 ## Korean law compliance
 

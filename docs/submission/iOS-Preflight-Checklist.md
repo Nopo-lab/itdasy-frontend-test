@@ -15,8 +15,8 @@
   - Capabilities: ☑ Sign in with Apple · ☑ In-App Purchase · ☑ Push Notifications
 - [ ] **App Store Connect 앱 생성**: 이름 "잇데이"
 - [ ] **IAP 상품 2개**
-  - `itdasy_pro_monthly_19900` — ₩19,900 자동갱신 구독
-  - `itdasy_premium_monthly_39900` — ₩39,900
+  - `itdasy_pro_monthly` — ₩3,900 / $2.99 USD 자동갱신 구독 (1주 무료 체험)
+  - `itdasy_premium_monthly` — ₩8,900 / $5.99 USD 자동갱신 구독 (1주 무료 체험)
   - 두 상품 같은 Subscription Group ("Itdasy Subscriptions")
 - [ ] **App-Specific Shared Secret** 발급 → Railway env `APPLE_IAP_SHARED_SECRET=<값>` 주입
 - [ ] **Privacy Policy URL**: `https://itdasy.com/privacy.html`
