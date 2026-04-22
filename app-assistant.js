@@ -260,15 +260,32 @@
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const d = await res.json();
       _history = _history.filter(m => m.role !== 'loading');
+
+      // 복수 액션 지원 — actions[] 우선, 없으면 단일 action 을 배열로
+      const actionsList = (Array.isArray(d.actions) && d.actions.length)
+        ? d.actions
+        : (d.action && d.action.kind ? [d.action] : []);
+
+      // 답변 한 건만 push
       const msg = { role: 'assistant', text: d.answer || '답을 만들지 못했어요.' };
-      if (d.action && d.action.kind) {
-        msg.action = d.action;
-        msg.action_status = 'pending';
-      }
       if (Array.isArray(d.related_questions) && d.related_questions.length) {
         msg.related = d.related_questions.slice(0, 3);
       }
       _history.push(msg);
+
+      // 각 액션을 별도 버블로 push (각각 확인 버튼)
+      actionsList.forEach((act, idx) => {
+        if (act && act.kind) {
+          _history.push({
+            role: 'assistant',
+            text: act.confirmation_text || `${idx + 1}/${actionsList.length} ${act.kind}`,
+            action: act,
+            action_status: 'pending',
+            action_batch_idx: idx,
+            action_batch_total: actionsList.length,
+          });
+        }
+      });
       _renderHistory();
       if (window.hapticLight) window.hapticLight();
     } catch (e) {
