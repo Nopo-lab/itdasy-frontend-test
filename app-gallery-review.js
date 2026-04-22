@@ -65,7 +65,7 @@ function _renderReviewPanel() {
 
   const stickerHtml = _reviewStickerCache.length ? `
     <div class="rv-section">
-      <div class="rv-section-label">📸 업로드된 리뷰 (탭해서 선택)</div>
+      <div class="rv-section-label"><svg class="rv-section-ic" aria-hidden="true"><use href="#ic-image"/></svg> 업로드된 리뷰 (탭해서 선택)</div>
       <div class="rv-sticker-grid">
         ${_reviewStickerCache.map((s, i) => `
           <div class="rv-sticker-card">
@@ -86,9 +86,9 @@ function _renderReviewPanel() {
 
   body.innerHTML = `
     <div class="rv-section">
-      <div class="rv-section-label">📸 리뷰 스크린샷 업로드</div>
+      <div class="rv-section-label"><svg class="rv-section-ic" aria-hidden="true"><use href="#ic-image"/></svg> 리뷰 스크린샷 업로드</div>
       <div class="rv-upload-zone" onclick="document.getElementById('reviewUploadInput').click()">
-        <div class="rv-upload-icon">📱</div>
+        <svg class="rv-upload-icon" aria-hidden="true"><use href="#ic-image"/></svg>
         <div class="rv-upload-text">네이버/카톡 리뷰 캡처 올리기</div>
       </div>
       <input type="file" id="reviewUploadInput" accept="image/*" class="rv-file-input"
