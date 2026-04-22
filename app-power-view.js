@@ -32,7 +32,6 @@
   const MENU_ITEMS = [
     { icon: '📅', label: '예약 캘린더',  hint: '월/주/일 + 드래그',  fn: 'openCalendarView' },
     { icon: '🤖', label: 'AI 비서',      hint: '말 한 줄로 실행',    fn: 'openAssistant' },
-    { icon: '🎤', label: '음성 기록',    hint: '말하면 자동 저장',   fn: 'openVoice' },
     { icon: '📸', label: '영수증·주문 스캔', hint: 'AI OCR 로 자동 기록', fn: 'openReceiptScanChooser' },
     { icon: '📋', label: '대기자 목록',  hint: '취소 시 자동 매칭',  fn: 'openWaitingList' },
     { icon: '🔗', label: '예약 링크',    hint: '인스타·카톡에 공유', fn: 'openPublicBookingSettings' },

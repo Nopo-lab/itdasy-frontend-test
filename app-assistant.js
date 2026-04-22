@@ -266,16 +266,20 @@
         ? d.actions
         : (d.action && d.action.kind ? [d.action] : []);
 
-      // 답변 한 건만 push
       const msg = { role: 'assistant', text: d.answer || '답을 만들지 못했어요.' };
       if (Array.isArray(d.related_questions) && d.related_questions.length) {
         msg.related = d.related_questions.slice(0, 3);
       }
-      _history.push(msg);
 
-      // 각 액션을 별도 버블로 push (각각 확인 버튼)
-      actionsList.forEach((act, idx) => {
-        if (act && act.kind) {
+      if (actionsList.length === 1) {
+        // 단일 액션: 답변 메시지에 '추가하기 ✓' 버튼 직접 붙임 (기존 UX)
+        msg.action = actionsList[0];
+        msg.action_status = 'pending';
+        _history.push(msg);
+      } else if (actionsList.length > 1) {
+        // 복수 액션: 답변 + 각 액션을 별도 버블로
+        _history.push(msg);
+        actionsList.forEach((act, idx) => {
           _history.push({
             role: 'assistant',
             text: act.confirmation_text || `${idx + 1}/${actionsList.length} ${act.kind}`,
@@ -284,8 +288,10 @@
             action_batch_idx: idx,
             action_batch_total: actionsList.length,
           });
-        }
-      });
+        });
+      } else {
+        _history.push(msg);
+      }
       _renderHistory();
       if (window.hapticLight) window.hapticLight();
     } catch (e) {

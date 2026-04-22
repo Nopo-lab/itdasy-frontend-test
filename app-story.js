@@ -72,17 +72,12 @@
         </div>
 
         <label style="display:block;font-size:12px;color:#666;margin-bottom:4px;">짧은 메모</label>
-        <div style="position:relative;">
-          <textarea id="storyInput" rows="4" maxlength="500" placeholder="오늘 시술 이야기를 편하게…" style="width:100%;padding:12px;padding-right:50px;border:1px solid #ddd;border-radius:12px;font-family:inherit;resize:vertical;font-size:14px;"></textarea>
-          <button id="storyMicBtn" aria-label="음성 입력" style="position:absolute;right:10px;bottom:10px;width:36px;height:36px;border:none;border-radius:50%;background:linear-gradient(135deg,#F18091,#D95F70);color:#fff;font-size:16px;cursor:pointer;">🎤</button>
-        </div>
-        <div id="storyMicStatus" style="font-size:11px;color:#888;margin-top:4px;text-align:center;min-height:16px;"></div>
+        <textarea id="storyInput" rows="4" maxlength="500" placeholder="오늘 시술 이야기를 편하게…" style="width:100%;padding:12px;border:1px solid #ddd;border-radius:12px;font-family:inherit;resize:vertical;font-size:14px;"></textarea>
 
         <button id="storyGen" style="width:100%;margin-top:12px;padding:13px;border:none;border-radius:10px;background:linear-gradient(135deg,#F18091,#D95F70);color:#fff;font-weight:800;cursor:pointer;font-size:15px;">✨ AI 스토리 만들기</button>
       </div>
     `;
     document.getElementById('storyGen').addEventListener('click', _generate);
-    document.getElementById('storyMicBtn').addEventListener('click', _toggleMic);
   }
 
   function _hasWebSpeech() {
@@ -126,7 +121,7 @@
   async function _generate() {
     const text = document.getElementById('storyInput').value.trim();
     if (!text) {
-      if (window.showToast) window.showToast('메모를 먼저 입력하거나 🎤 눌러 말해 주세요');
+      if (window.showToast) window.showToast('메모를 먼저 입력해 주세요');
       return;
     }
     const btn = document.getElementById('storyGen');
