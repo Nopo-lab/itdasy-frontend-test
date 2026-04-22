@@ -218,4 +218,36 @@
   window.openReceiptScan = openReceiptScan;
   window.openExpenseScan = () => openReceiptScan('expense');
   window.openInventoryOrderScan = () => openReceiptScan('inventory_order');
+
+  // Phase 8 — 통합 선택 UI: 영수증인지 주문내역인지 먼저 고르기
+  window.openReceiptScanChooser = function () {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `
+      <div style="background:#fff;border-radius:20px;padding:24px;max-width:380px;width:90%;">
+        <strong style="font-size:17px;">📸 무엇을 스캔할까요?</strong>
+        <div style="font-size:12px;color:#888;margin-top:4px;margin-bottom:18px;">AI 가 이미지에서 자동으로 데이터를 추출해요</div>
+        <button class="rs-chooser-exp" style="width:100%;padding:14px;border:1.5px solid #F18091;background:#fff;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+          <span style="font-size:22px;">💳</span>
+          <div style="flex:1;text-align:left;">
+            <div style="color:#D95F70;">영수증 스캔</div>
+            <div style="font-size:11px;color:#888;font-weight:400;margin-top:2px;">카페·마트·재료비 영수증 → 지출 기록</div>
+          </div>
+        </button>
+        <button class="rs-chooser-ord" style="width:100%;padding:14px;border:1.5px solid #F18091;background:#fff;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+          <span style="font-size:22px;">📦</span>
+          <div style="flex:1;text-align:left;">
+            <div style="color:#D95F70;">주문내역 스캔</div>
+            <div style="font-size:11px;color:#888;font-weight:400;margin-top:2px;">쿠팡·네이버 주문 스크린샷 → 재고 입고</div>
+          </div>
+        </button>
+        <button class="rs-chooser-cancel" style="width:100%;padding:10px;border:1px solid #ddd;background:#fff;border-radius:8px;font-weight:700;cursor:pointer;">닫기</button>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    overlay.querySelector('.rs-chooser-cancel').addEventListener('click', () => overlay.remove());
+    overlay.querySelector('.rs-chooser-exp').addEventListener('click', () => { overlay.remove(); openReceiptScan('expense'); });
+    overlay.querySelector('.rs-chooser-ord').addEventListener('click', () => { overlay.remove(); openReceiptScan('inventory_order'); });
+  };
 })();
