@@ -855,9 +855,14 @@ function showTab(id, btn) {
   window.scrollTo(0, 0);
   document.body.scrollTop = 0;
   document.documentElement.scrollTop = 0;
-  // Phase 8 A2 — 홈 탭 활성화 시 TodayBrief 위젯 렌더
-  if (id === 'home' && window.TodayBrief && typeof window.TodayBrief.render === 'function') {
-    try { window.TodayBrief.render('home-today-brief'); } catch (_e) { /* ignore */ }
+  // Phase 8 A2 — 홈 탭 활성화 시 TodayBrief + AI 제안 위젯 렌더
+  if (id === 'home') {
+    if (window.TodayBrief && typeof window.TodayBrief.render === 'function') {
+      try { window.TodayBrief.render('home-today-brief'); } catch (_e) { /* ignore */ }
+    }
+    if (window.AISuggestions && typeof window.AISuggestions.render === 'function') {
+      try { window.AISuggestions.render('home-ai-suggestions'); } catch (_e) { /* ignore */ }
+    }
   }
 }
 

@@ -16,6 +16,10 @@
   ];
 
   let _history = [];  // [{role, text}]
+  // v1.1 Multi-turn — localStorage 에 session_id 유지 (앱 재시작해도 대화 기억)
+  let _sessionId = null;
+  try { _sessionId = parseInt(localStorage.getItem('assistant_session_id') || '', 10) || null; }
+  catch (_e) { _sessionId = null; }
 
   function _esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));
@@ -255,11 +259,17 @@
       const res = await fetch(window.API + '/assistant/ask', {
         method: 'POST',
         headers: { ...window.authHeader(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: q }),
+        body: JSON.stringify({ question: q, session_id: _sessionId || undefined }),
       });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const d = await res.json();
       _history = _history.filter(m => m.role !== 'loading');
+
+      // v1.1 — session_id 저장 (서버가 최초 생성 or 기존 사용)
+      if (d.session_id) {
+        _sessionId = d.session_id;
+        try { localStorage.setItem('assistant_session_id', String(_sessionId)); } catch (_e) { /* ignore */ }
+      }
 
       // 복수 액션 지원 — actions[] 우선, 없으면 단일 action 을 배열로
       const actionsList = (Array.isArray(d.actions) && d.actions.length)
