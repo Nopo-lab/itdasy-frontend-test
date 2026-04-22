@@ -26,6 +26,17 @@ function closeAssignPopup() {
   _selectedIds.clear();
   _renderSlotCards();
   _renderPhotoGrid();
+
+  // UX: 배정 팝업 닫은 뒤 마지막 슬롯 카드로 자동 스크롤
+  requestAnimationFrame(() => {
+    const cards = document.querySelectorAll('.ws-slot-card');
+    const lastCard = cards[cards.length - 1];
+    if (lastCard && typeof lastCard.scrollIntoView === 'function') {
+      lastCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      lastCard.style.boxShadow = '0 0 0 3px var(--accent)';
+      setTimeout(() => { lastCard.style.boxShadow = ''; }, 1500);
+    }
+  });
 }
 
 // ── 팝업 렌더링 ────────────────────────────────────────────────

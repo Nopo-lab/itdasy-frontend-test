@@ -476,10 +476,15 @@ const _CAP_CAT_MAP = {'붙임머리':'extension','네일아트':'nail','네일':
 
 // 400 에러 코드 → 사용자 안내 메시지
 const _CAP_ERR_MSG = {
-  'identity_incomplete': '사장님 프로필(업종·매장명 등)을 먼저 등록해주세요',
-  'consent_missing':     'AI 처리 동의가 필요합니다',
-  'insufficient_posts':  '포스트가 5개 이상 필요합니다. 인스타 연동에서 포스트를 더 불러와주세요.',
-  'fingerprint_missing': '포스트가 5개 이상 필요합니다. 인스타 연동에서 포스트를 더 불러와주세요.',
+  'identity_incomplete':  '사장님 프로필(업종·매장명 등)을 먼저 등록해주세요',
+  'consent_missing':      'AI 처리 동의가 필요합니다',
+  'insufficient_posts':   '포스트가 5개 이상 필요합니다. 인스타 연동에서 포스트를 더 불러와주세요.',
+  'fingerprint_missing':  '포스트가 5개 이상 필요합니다. 인스타 연동에서 포스트를 더 불러와주세요.',
+  'generation_failed':    'AI 캡션 생성이 실패했어요. 시나리오 다시 선택하거나, 1분 후 다시 시도해 주세요.',
+  'content_filtered':     'AI 가 안전 정책상 이 내용을 생성할 수 없어요. 키워드를 바꿔서 다시 시도해 주세요.',
+  'quota_exceeded':       '오늘 캡션 사용량을 다 쓰셨어요. 내일 다시 시도하거나 Pro 로 업그레이드해 주세요.',
+  'gemini_unavailable':   'AI 서버가 잠시 불안정해요. 1~2분 후 다시 시도해 주세요.',
+  'timeout':              'AI 응답이 지연되고 있어요. 네트워크 확인 후 다시 시도해 주세요.',
 };
 
 function generateCaption() {

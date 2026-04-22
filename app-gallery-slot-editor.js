@@ -20,6 +20,13 @@ async function openSlotPopup(slotId) {
   } catch (_e) { _setPopupUsage(null); }
 
   _renderPopupBody(slot);
+
+  // UX: 팝업 스크롤 위치를 상단으로 리셋 + 바디 요소를 뷰포트 내로 이동
+  requestAnimationFrame(() => {
+    const body = document.getElementById('slotPopupBody');
+    if (body) body.scrollTop = 0;
+    popup.scrollTop = 0;
+  });
 }
 
 function closeSlotPopup() {
