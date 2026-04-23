@@ -83,7 +83,7 @@
   };
 
   // ── Hero 카드 ─────────────────────────────────────────
-  function _heroSection(stats, lastMonthAmount, retData, npsStats, custList) {
+  function _heroSection(stats, lastMonthAmount, retData, custList) {
     const momPct = lastMonthAmount > 0
       ? Math.round(((stats.month_amount - lastMonthAmount) / lastMonthAmount) * 100)
       : null;
@@ -102,11 +102,6 @@
     // 재방문: retention rate
     const retRate = retData && retData.summary && retData.summary.retention_rate != null
       ? Math.round(retData.summary.retention_rate) + '%'
-      : '—';
-
-    // NPS 점수
-    const npsScore = npsStats && npsStats.score != null
-      ? (npsStats.score >= 0 ? '+' : '') + npsStats.score
       : '—';
 
     return `
@@ -128,10 +123,6 @@
           <div class="db-hero__mini">
             <p class="db-hero__mini-lbl">재방문</p>
             <p class="db-hero__mini-val">${_esc(retRate)}</p>
-          </div>
-          <div class="db-hero__mini">
-            <p class="db-hero__mini-lbl">NPS</p>
-            <p class="db-hero__mini-val">${_esc(npsScore)}</p>
           </div>
         </div>
       </div>
@@ -189,19 +180,13 @@
   }
 
   // ── 데이터 & 인사이트 리스트 ─────────────────────────────
-  function _insightItems(npsStats, naverData) {
-    const npsCount = npsStats && npsStats.count > 0;
-    const npsBadge = npsCount ? '<span class="db-badge db-badge--ok">활성</span>' : '';
-    const npsSub = npsCount
-      ? `이번달 응답 ${npsStats.count}건 · 점수 ${npsStats.score >= 0 ? '+' : ''}${npsStats.score}`
-      : 'NPS 설문 관리';
+  function _insightItems(naverData) {
     const naverPending = naverData && naverData.pending_reply > 0 ? naverData.pending_reply : null;
     const naverBadge = naverPending ? `<span class="db-badge db-badge--warn">답변 ${naverPending}</span>` : '';
     const naverSub = naverData && naverData.avg_score
       ? `신규 ${naverData.new_count || 0}건 · 평균 ${naverData.avg_score}점`
       : '네이버 리뷰 관리';
     return [
-      { ic: IC.msg,      pink: true,  label: 'NPS 설문',      sub: npsSub,                            badge: npsBadge,                               fn: 'openNps' },
       { ic: IC.star,     pink: true,  label: '네이버 리뷰',   sub: naverSub,                          badge: naverBadge,                              fn: 'openNaverReviews' },
       { ic: IC.video,    pink: false, label: '영상 리포트',   sub: '릴스/쇼츠 분석',                  badge: '',                                     fn: 'openVideo' },
       { ic: IC.upload,   pink: false, label: '데이터 불러오기', sub: '엑셀/CSV · 전자영수증 연동',    badge: '',                                     fn: 'openImport' },
@@ -209,8 +194,8 @@
     ];
   }
 
-  function _dataInsightsList(npsStats, naverData) {
-    const items = _insightItems(npsStats, naverData);
+  function _dataInsightsList(naverData) {
+    const items = _insightItems(naverData);
     return `
       <div class="db-menu">
         ${items.map(it => `
@@ -341,14 +326,13 @@
     _renderLoading();
 
     // 병렬 + 캐시 — 실패는 모두 graceful degrade
-    const [monthRev, lastMonthRev, todayRev, custList, bookList, ret, npsStats, inventory, naverData] = await Promise.all([
+    const [monthRev, lastMonthRev, todayRev, custList, bookList, ret, inventory, naverData] = await Promise.all([
       _cachedGet('/revenue?period=month').catch(() => ({ items: [] })),
       _cachedGet('/revenue?period=lastmonth').catch(() => ({ items: [] })),
       _cachedGet('/revenue?period=today').catch(() => ({ items: [] })),
       _cachedGet('/customers').catch(() => ({ total: 0, items: [] })),
       _cachedGet('/bookings').catch(() => ({ items: [] })),
       _cachedGet('/retention/at-risk').catch(() => null),
-      _cachedGet('/nps/stats').catch(() => null),
       _cachedGet('/inventory').catch(() => null),
       _cachedGet('/naver-reviews/summary').catch(() => null),
     ]);
@@ -374,11 +358,11 @@
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
         </button>
       </div>
-      ${_heroSection(stats, lastMonthAmount, ret, npsStats, custList)}
+      ${_heroSection(stats, lastMonthAmount, ret, custList)}
       <div class="db-sec"><h2>주요 지표</h2><span class="db-sec__hint">탭해서 상세보기</span></div>
       ${_metricsGrid(stats, momPct, inventory)}
       <div class="db-sec"><h2>데이터 &amp; 인사이트</h2></div>
-      ${_dataInsightsList(npsStats, naverData)}
+      ${_dataInsightsList(naverData)}
     `;
 
     _bindEvents();
