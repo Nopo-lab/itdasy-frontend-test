@@ -45,6 +45,9 @@
           <input id="asstInput" placeholder="샵 관련해서 물어보세요…" maxlength="300" style="flex:1;padding:12px;border:1px solid #ddd;border-radius:10px;font-size:14px;" />
           <button id="asstSend" style="padding:12px 18px;border:none;border-radius:10px;background:linear-gradient(135deg,#F18091,#D95F70);color:#fff;cursor:pointer;font-weight:800;">보내기</button>
         </div>
+        <div style="margin-top:6px;font-size:10px;color:#888;text-align:center;line-height:1.4;">
+          ⚠️ AI 답변은 참고용이에요. 의료·세무 관련은 전문가 상담을 권장해요.
+        </div>
       </div>
     `;
     document.body.appendChild(sheet);

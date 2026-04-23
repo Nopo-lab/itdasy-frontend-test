@@ -1147,6 +1147,19 @@ window.API = API;
 window.authHeader = authHeader;
 
 // ──────────────────────────────────────────────
+// 2중 확인 유틸 — 파괴적 액션(삭제/탈퇴/전체초기화)에 사용
+// 첫 확인 → 1.5초 내 재확인 요구 (실수 클릭 방어)
+// ──────────────────────────────────────────────
+window._confirm2 = function (msg, opts) {
+  opts = opts || {};
+  const first = window.confirm((opts.first || msg));
+  if (!first) return false;
+  // 두번째 확인은 "정말 삭제할까요?" 식으로 구체화
+  const second = window.confirm(opts.second || ('한 번 더 확인할게요.\n' + msg + '\n이 작업은 되돌릴 수 없어요.'));
+  return !!second;
+};
+
+// ──────────────────────────────────────────────
 // 보안 민감 버튼은 inline onclick 대신 addEventListener로 연결
 // (CSP strict 대비 + 핸들러 중복 바인딩 방지)
 // ──────────────────────────────────────────────
