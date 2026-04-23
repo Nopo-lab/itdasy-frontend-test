@@ -6,6 +6,62 @@
     return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));
   }
 
+  // Wave B8 — 업로드 전 이미지 리사이즈/압축 (모바일 업로드 속도·비용 절감)
+  async function compressImageForUpload(file, maxEdge = 1024, quality = 0.85) {
+    try {
+      if (!file || !file.type || !file.type.startsWith('image/')) return file;
+      // HEIC/HEIF 등 브라우저에서 디코딩 불가한 포맷은 원본 반환
+      if (/heic|heif/i.test(file.type) || /\.(heic|heif)$/i.test(file.name || '')) return file;
+      // 500KB 미만은 압축 이득이 적어 스킵
+      if (file.size && file.size < 500 * 1024) return file;
+
+      const url = URL.createObjectURL(file);
+      const img = await new Promise((resolve, reject) => {
+        const im = new Image();
+        im.onload = () => resolve(im);
+        im.onerror = () => reject(new Error('decode_failed'));
+        im.src = url;
+      }).catch(() => null);
+      URL.revokeObjectURL(url);
+      if (!img) return file;
+
+      const w = img.naturalWidth || img.width;
+      const h = img.naturalHeight || img.height;
+      if (!w || !h) return file;
+      const longest = Math.max(w, h);
+      const scale = longest > maxEdge ? maxEdge / longest : 1;
+      const tw = Math.round(w * scale);
+      const th = Math.round(h * scale);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = tw;
+      canvas.height = th;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return file;
+      ctx.drawImage(img, 0, 0, tw, th);
+
+      const blob = await new Promise((resolve) => {
+        try { canvas.toBlob((b) => resolve(b), 'image/jpeg', quality); }
+        catch (_e) { resolve(null); }
+      });
+      if (!blob) return file;
+      // 원본보다 크면 의미 없음 → 원본 사용
+      if (blob.size >= file.size) return file;
+
+      const baseName = (file.name || 'upload').replace(/\.[^.]+$/, '') + '.jpg';
+      try {
+        return new File([blob], baseName, { type: 'image/jpeg', lastModified: Date.now() });
+      } catch (_e) {
+        // 일부 iOS Safari 구버전: File 생성자 미지원 → Blob 에 name 유사 속성 부여
+        blob.name = baseName;
+        return blob;
+      }
+    } catch (_e) {
+      return file;
+    }
+  }
+  window.compressImageForUpload = compressImageForUpload;
+
   const KIND_META = {
     expense: {
       title: '💳 영수증 스캔',
@@ -24,8 +80,9 @@
   };
 
   async function _uploadImage(file, kind) {
+    const compressed = await compressImageForUpload(file);
     const fd = new FormData();
-    fd.append('image', file);
+    fd.append('image', compressed);
     fd.append('kind', kind);
     const res = await fetch(window.API + '/imports/smart/image', {
       method: 'POST',
@@ -159,10 +216,15 @@
     body.innerHTML = `
       <div style="padding:60px 20px;text-align:center;">
         <div style="font-size:36px;animation:rs-pulse 1.2s ease-in-out infinite;">🤖</div>
-        <div style="font-size:13px;color:#666;margin-top:10px;">AI 가 이미지를 읽는 중…</div>
+        <div class="rs-progress-label" style="font-size:13px;color:#666;margin-top:10px;">이미지 최적화 중…</div>
         <div style="font-size:11px;color:#aaa;margin-top:4px;">보통 5~15초 걸려요</div>
       </div>
       <style>@keyframes rs-pulse{0%,100%{opacity:.4;}50%{opacity:1;}}</style>`;
+    // 압축 후 라벨 교체 (사용자에게 진행 단계 인지시켜 체감 속도 개선)
+    setTimeout(() => {
+      const lbl = body.querySelector('.rs-progress-label');
+      if (lbl) lbl.textContent = 'AI 가 이미지를 읽는 중…';
+    }, 400);
     try {
       const res = await _uploadImage(file, kind);
       _renderPreview(overlay, kind, res.items || []);
