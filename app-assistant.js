@@ -580,21 +580,44 @@
         }
       } catch (_e) { blob = file; }
 
+      // 이름·확장자는 실제 blob.type 에 맞춰서 (HEIC·압축 결과 대응)
+      const actualType = (blob && blob.type) || 'image/jpeg';
+      const ext = actualType.includes('png') ? '.png'
+        : actualType.includes('webp') ? '.webp'
+        : actualType.includes('heic') ? '.heic'
+        : '.jpg';
+      const safeName = (blob.name && /\.(jpg|jpeg|png|webp|heic|heif)$/i.test(blob.name))
+        ? blob.name
+        : 'photo' + ext;
+
       const fd = new FormData();
-      fd.append('image', blob, blob.name || 'photo.jpg');
-      if (question) fd.append('question', question);
+      fd.append('image', blob, safeName);
+      // 빈 question 도 항상 전송 (백엔드 Form 이 키 존재를 기대)
+      fd.append('question', question || '');
       if (_sessionId) fd.append('session_id', String(_sessionId));
 
-      // multipart 라서 Content-Type 헤더는 브라우저가 자동 세팅 (boundary)
       const auth = (window.authHeader && window.authHeader()) || {};
-      const res = await fetch(window.API + '/assistant/ask/image', {
-        method: 'POST',
-        headers: auth.Authorization ? { Authorization: auth.Authorization } : {},
-        body: fd,
-      });
+      const ctrl = new AbortController();
+      const timeoutId = setTimeout(() => ctrl.abort(), 60000); // Gemini Vision 느림 · 60초
+      let res;
+      try {
+        res = await fetch(window.API + '/assistant/ask/image', {
+          method: 'POST',
+          headers: auth.Authorization ? { Authorization: auth.Authorization } : {},
+          body: fd,
+          signal: ctrl.signal,
+        });
+      } catch (fetchErr) {
+        clearTimeout(timeoutId);
+        if (fetchErr.name === 'AbortError') {
+          throw new Error('분석이 60초 넘게 걸려요. 더 작은 사진으로 다시 시도해주세요');
+        }
+        throw new Error('서버 연결 실패 — 인터넷 확인 후 다시 시도해주세요');
+      }
+      clearTimeout(timeoutId);
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || 'HTTP ' + res.status);
+        throw new Error(err.detail || ('서버 오류 (HTTP ' + res.status + ')'));
       }
       const d = await res.json();
       _history = _history.filter(m => m.role !== 'loading');
