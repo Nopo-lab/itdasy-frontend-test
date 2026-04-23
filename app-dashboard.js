@@ -188,26 +188,6 @@
     `;
   }
 
-  // ── 바로가기 4버튼 ─────────────────────────────────────
-  function _quickActionsRow() {
-    const actions = [
-      { icon: IC.userPlus, label: '고객등록', fn: 'openCustomers' },
-      { icon: IC.calPlus,  label: '예약',     fn: 'openBooking' },
-      { icon: IC.card,     label: '매출입력', fn: 'openRevenue' },
-      { icon: IC.check,    label: '재고체크', fn: 'openInventory' },
-    ];
-    return `
-      <div class="db-qrow">
-        ${actions.map(a => `
-          <button class="db-qa" data-qa="${_esc(a.fn)}">
-            <span class="db-qa__ic">${_ic(a.icon, 20)}</span>
-            <span class="db-qa__t">${_esc(a.label)}</span>
-          </button>
-        `).join('')}
-      </div>
-    `;
-  }
-
   // ── 데이터 & 인사이트 리스트 ─────────────────────────────
   function _insightItems(npsStats, naverData) {
     const npsCount = npsStats && npsStats.count > 0;
@@ -266,9 +246,6 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;">
         ${[0,1,2,3].map(() => '<div class="db-skel" style="height:96px;border-radius:14px;"></div>').join('')}
       </div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:20px;">
-        ${[0,1,2,3].map(() => '<div class="db-skel" style="height:68px;border-radius:8px;"></div>').join('')}
-      </div>
       <div class="db-skel" style="height:280px;border-radius:14px;"></div>
     `;
   }
@@ -304,15 +281,6 @@
         } else {
           if (typeof window.openPowerView === 'function') window.openPowerView(tab);
         }
-      });
-    });
-
-    // 바로가기 4버튼
-    sheet.querySelectorAll('[data-qa]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (window.hapticMedium) window.hapticMedium();
-        const fn = btn.dataset.qa;
-        if (typeof window[fn] === 'function') window[fn]();
       });
     });
 
@@ -409,8 +377,6 @@
       ${_heroSection(stats, lastMonthAmount, ret, npsStats, custList)}
       <div class="db-sec"><h2>주요 지표</h2><span class="db-sec__hint">탭해서 상세보기</span></div>
       ${_metricsGrid(stats, momPct, inventory)}
-      <div class="db-sec"><h2>바로가기</h2></div>
-      ${_quickActionsRow()}
       <div class="db-sec"><h2>데이터 &amp; 인사이트</h2></div>
       ${_dataInsightsList(npsStats, naverData)}
     `;
