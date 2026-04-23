@@ -281,6 +281,7 @@
   color: var(--text); padding: 15px 18px; outline: none; margin-bottom: 10px;
   font-family: Pretendard, sans-serif; font-weight: 400;
   box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+  box-sizing: border-box; /* padding 포함 width 계산 — 눈알 버튼 밀림 방지 */
 }
 .login-input:focus { border-color: var(--accent); }
 .login-error { width: 100%; max-width: 300px; font-size: 13px; color: #E05555; margin-bottom: 10px; display: none; text-align: center; font-weight: 500; }
