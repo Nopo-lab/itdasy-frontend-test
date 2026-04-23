@@ -814,29 +814,23 @@ window.addEventListener('load', function() {
 });
 
 function expandSmartMenu() {
-  openQuickAction();
+  openNavSheet();
 }
 
-function openQuickAction() {
-  const popup = document.getElementById('quickActionPopup');
-  const content = popup ? popup.querySelector('.popup-content') : null;
-  if (!popup || !content) return;
-  popup.style.display = 'flex';
-  setTimeout(() => {
-    content.style.transform = 'scale(1)';
-    content.style.opacity = '1';
-  }, 10);
+function openNavSheet() {
+  const sheet = document.getElementById('navSheet');
+  if (!sheet) return;
+  sheet.style.display = 'flex';
+  requestAnimationFrame(() => {
+    document.getElementById('navSheetInner').style.transform = 'translateY(0)';
+  });
 }
 
-function closeQuickAction() {
-  const popup = document.getElementById('quickActionPopup');
-  const content = popup ? popup.querySelector('.popup-content') : null;
-  if (!popup || !content) return;
-  content.style.transform = 'scale(0.8)';
-  content.style.opacity = '0';
-  setTimeout(() => {
-    popup.style.display = 'none';
-  }, 300);
+function closeNavSheet() {
+  const inner = document.getElementById('navSheetInner');
+  if (!inner) return;
+  inner.style.transform = 'translateY(100%)';
+  setTimeout(() => { document.getElementById('navSheet').style.display = 'none'; }, 280);
 }
 
 // 탭 전환
@@ -1145,102 +1139,6 @@ async function loadStatsCard() {
 // Module에서 접근 가능하도록 window에 노출
 window.API = API;
 window.authHeader = authHeader;
-
-// ──────────────────────────────────────────────
-// 안전 localStorage — iOS Safari private mode / quota exceeded 대응
-// set 실패해도 앱 크래시 안 남 · get 은 JSON 파싱 실패 시 default
-// ──────────────────────────────────────────────
-window.safeStorage = {
-  get(key, fallback = null) {
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw == null) return fallback;
-      // JSON 이면 파싱, 아니면 원본
-      try { return JSON.parse(raw); } catch (_) { return raw; }
-    } catch (_e) { return fallback; }
-  },
-  set(key, value) {
-    try {
-      const s = typeof value === 'string' ? value : JSON.stringify(value);
-      localStorage.setItem(key, s);
-      return true;
-    } catch (e) {
-      // quota exceeded 또는 private mode — 옛 것 제거 후 재시도
-      try {
-        const keys = Object.keys(localStorage);
-        for (const k of keys) {
-          if (k.startsWith('pv_cache::') || k.startsWith('itdasy_debug_')) localStorage.removeItem(k);
-        }
-        localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
-        return true;
-      } catch (_e2) { return false; }
-    }
-  },
-  remove(key) { try { localStorage.removeItem(key); return true; } catch (_e) { return false; } },
-};
-
-// ──────────────────────────────────────────────
-// 안전 fetch — 타임아웃 + AbortController + 친화 에러
-// 기본 15초 타임아웃 · 네트워크 에러 시 _humanError 가 한국어 메시지
-// ──────────────────────────────────────────────
-window.safeFetch = async function (url, opts = {}) {
-  const timeout = opts.timeout || 15000;
-  const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), timeout);
-  try {
-    const res = await fetch(url, { ...opts, signal: ctl.signal });
-    clearTimeout(timer);
-    return res;
-  } catch (e) {
-    clearTimeout(timer);
-    if (e.name === 'AbortError') {
-      const err = new Error('timeout');
-      err.timeout = true;
-      throw err;
-    }
-    throw e;
-  }
-};
-
-// ──────────────────────────────────────────────
-// 2중 확인 유틸 — 파괴적 액션(삭제/탈퇴/전체초기화)에 사용
-// 첫 확인 → 1.5초 내 재확인 요구 (실수 클릭 방어)
-// ──────────────────────────────────────────────
-// 에러 메시지 한글 humanizer — Error / string 모두 받아서 사용자 친화 한글 반환
-window._humanError = function (e) {
-  if (e && e.timeout) return '서버 응답이 너무 느려요. 잠시 후 다시 시도해주세요';
-  const raw = (e && (e.message || e.detail)) || String(e || '');
-  // 일반적 패턴 매핑
-  if (/HTTP\s*5\d\d|Failed to fetch|NetworkError|timeout|aborted/i.test(raw))
-    return '네트워크 연결을 확인해주세요';
-  if (/HTTP\s*401|unauthor/i.test(raw))
-    return '로그인이 만료됐어요. 다시 로그인해주세요';
-  if (/HTTP\s*403|forbidden/i.test(raw))
-    return '이 작업 권한이 없어요';
-  if (/HTTP\s*404|not.found/i.test(raw))
-    return '요청한 데이터를 찾지 못했어요';
-  if (/HTTP\s*409/i.test(raw))
-    return '이미 다른 값이 있어요. 잠시 후 다시 시도해주세요';
-  if (/HTTP\s*413|too large|exceeded/i.test(raw))
-    return '파일이 너무 커요 (최대 10MB)';
-  if (/HTTP\s*422/i.test(raw))
-    return '입력 형식을 확인해주세요';
-  if (/HTTP\s*429|quota|rate.limit/i.test(raw))
-    return '요청이 너무 많아요. 잠시 후 다시 시도해주세요';
-  if (/HTTP\s*402|payment/i.test(raw))
-    return '플랜 한도 초과예요. 업그레이드가 필요해요';
-  if (raw.length > 80) return '일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요';
-  return raw;  // 이미 한글이거나 짧으면 그대로
-};
-
-window._confirm2 = function (msg, opts) {
-  opts = opts || {};
-  const first = window.confirm((opts.first || msg));
-  if (!first) return false;
-  // 두번째 확인은 "정말 삭제할까요?" 식으로 구체화
-  const second = window.confirm(opts.second || ('한 번 더 확인할게요.\n' + msg + '\n이 작업은 되돌릴 수 없어요.'));
-  return !!second;
-};
 
 // ──────────────────────────────────────────────
 // 보안 민감 버튼은 inline onclick 대신 addEventListener로 연결

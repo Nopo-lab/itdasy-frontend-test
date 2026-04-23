@@ -205,3 +205,7 @@ html[data-fontsize="xl"] {
   font-size: 19px;
 }
 html[data-fontsize="xl"] body { font-size: 19px; }
+
+html[data-theme="dark"] .tab-bar {
+  box-shadow: 0 8px 24px rgba(0,0,0,.35);
+}

@@ -68,7 +68,7 @@
       <div style="display:flex;align-items:center;padding:12px;border:1px solid #eee;border-radius:12px;margin-bottom:8px;">
         <div style="flex:1;">
           <div style="font-weight:700;">${_esc(t.name)}</div>
-          <div style="font-size:13px;color:#888;margin-top:3px;">
+          <div style="font-size:11px;color:#888;margin-top:3px;">
             ${t.default_price ? (t.default_price/10000).toFixed(1)+'만원' : '금액 미설정'} · ${t.default_duration_min}분 · ${_catLabel(t.category)}
           </div>
         </div>
@@ -123,13 +123,13 @@
           const mat = document.getElementById('svc-material');
           if (mat) mat.value = '';
         } catch (e) {
-          alert('추가 실패: ' + (window._humanError ? window._humanError(e) : e.message));
+          alert('추가 실패: ' + e.message);
         }
       });
       document.getElementById('svc-list')?.addEventListener('click', async (e) => {
         const id = e.target.getAttribute('data-del');
         if (!id) return;
-        { const _ok = window._confirm2 ? window._confirm2('이 시술을 삭제할까요?') : confirm('이 시술을 삭제할까요?'); if (!_ok) return; }
+        if (!confirm('이 시술을 삭제할까요?')) return;
         try {
           await deleteTemplate(id);
           await loadServiceTemplates();

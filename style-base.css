@@ -78,7 +78,7 @@ p {
 
 .logo span {
   color: var(--text3);
-  font-size: 13px;
+  font-size: 10px;
   display: block;
   font-family: Pretendard, sans-serif;
   font-weight: 400;
@@ -225,7 +225,7 @@ textarea:focus, input[type="text"]:focus {
   background: transparent;
   border: none;
   color: inherit;
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   opacity: 0.6;
   line-height: 1;
