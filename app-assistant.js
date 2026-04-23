@@ -90,7 +90,9 @@
           <div style="width:28px;height:28px;border-radius:50%;background:rgba(139,92,246,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;">🤖</div>
           <div style="max-width:85%;min-width:0;">
             <div style="padding:10px 14px;background:#fff;border:1px solid rgba(0,0,0,0.06);border-radius:16px 16px 16px 4px;font-size:13px;line-height:1.6;color:#222;white-space:pre-wrap;">${_esc(m.text)}</div>
-            <div style="margin-top:3px;padding-left:4px;">
+            <div style="margin-top:3px;padding-left:4px;display:flex;gap:8px;">
+              <button data-tts="${_esc(m.text).replace(/"/g,'&quot;')}" aria-label="답변 읽어주기"
+                style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#888;padding:2px 4px;">🔊 읽어줘</button>
               <button data-report-ai="chat_answer" data-snippet="${_esc(m.text).replace(/"/g,'&quot;')}" data-source="/assistant/chat" aria-label="AI 답변 신고"
                 style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#bbb;padding:2px 4px;">🚩 신고</button>
             </div>
@@ -177,6 +179,23 @@
         const q = sug.getAttribute('data-suggest');
         const input = document.getElementById('asstInput');
         if (input) { input.value = q; _send(); }
+      }
+      // Wave 3d TTS — 브라우저 내장 Web Speech API (60세 페르소나 지원)
+      const tts = e.target.closest('[data-tts]');
+      if (tts && sheet && sheet.contains(tts)) {
+        const text = tts.getAttribute('data-tts') || '';
+        try {
+          if (window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = 'ko-KR';
+            u.rate = 1.0;
+            u.pitch = 1.0;
+            window.speechSynthesis.speak(u);
+          } else {
+            if (window.showToast) window.showToast('이 브라우저는 음성 재생을 지원하지 않아요');
+          }
+        } catch (_e) { /* ignore */ }
       }
     }, false);
   }

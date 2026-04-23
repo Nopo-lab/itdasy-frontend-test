@@ -1150,6 +1150,32 @@ window.authHeader = authHeader;
 // 2중 확인 유틸 — 파괴적 액션(삭제/탈퇴/전체초기화)에 사용
 // 첫 확인 → 1.5초 내 재확인 요구 (실수 클릭 방어)
 // ──────────────────────────────────────────────
+// 에러 메시지 한글 humanizer — Error / string 모두 받아서 사용자 친화 한글 반환
+window._humanError = function (e) {
+  const raw = (e && (e.message || e.detail)) || String(e || '');
+  // 일반적 패턴 매핑
+  if (/HTTP\s*5\d\d|Failed to fetch|NetworkError|timeout/i.test(raw))
+    return '네트워크 연결을 확인해주세요';
+  if (/HTTP\s*401|unauthor/i.test(raw))
+    return '로그인이 만료됐어요. 다시 로그인해주세요';
+  if (/HTTP\s*403|forbidden/i.test(raw))
+    return '이 작업 권한이 없어요';
+  if (/HTTP\s*404|not.found/i.test(raw))
+    return '요청한 데이터를 찾지 못했어요';
+  if (/HTTP\s*409/i.test(raw))
+    return '이미 다른 값이 있어요. 잠시 후 다시 시도해주세요';
+  if (/HTTP\s*413|too large|exceeded/i.test(raw))
+    return '파일이 너무 커요 (최대 10MB)';
+  if (/HTTP\s*422/i.test(raw))
+    return '입력 형식을 확인해주세요';
+  if (/HTTP\s*429|quota|rate.limit/i.test(raw))
+    return '요청이 너무 많아요. 잠시 후 다시 시도해주세요';
+  if (/HTTP\s*402|payment/i.test(raw))
+    return '플랜 한도 초과예요. 업그레이드가 필요해요';
+  if (raw.length > 80) return '일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요';
+  return raw;  // 이미 한글이거나 짧으면 그대로
+};
+
 window._confirm2 = function (msg, opts) {
   opts = opts || {};
   const first = window.confirm((opts.first || msg));
