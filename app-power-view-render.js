@@ -152,50 +152,6 @@
     }
   }
 
-  // ── 전체 메뉴 드로어 (§5.8 Bottom Sheet) ──────────────
-  function _openMenuDrawer() {
-    const { MENU_ITEMS } = window._PVInt;
-    const o = document.createElement('div');
-    o.id = 'pv-menu-drawer';
-    o.className = 'pv-sheet';
-    o.innerHTML = `
-      <div class="pv-sheet-inner">
-        <div style="display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border,#eee);">
-          <div style="font-size:15px;font-weight:900;flex:1;color:var(--text,#222);">메뉴</div>
-          <button id="pv-menu-close" style="width:32px;height:32px;border:none;border-radius:10px;background:var(--surface-raised,#eee);cursor:pointer;font-size:14px;color:var(--text,#555);">✕</button>
-        </div>
-        <div class="list-menu" style="flex:1;overflow:auto;">
-          ${MENU_ITEMS.map(e => `
-            <button class="list-menu__item" data-pv-menu-fn="${e.fn}">
-              <div class="list-menu__icon-box" style="font-size:20px;background:var(--brand-bg,#FEF4F5);">${e.icon}</div>
-              <div class="list-menu__body">
-                <div class="list-menu__title">${e.label}</div>
-                <div class="list-menu__sub">${e.hint}</div>
-              </div>
-              <div class="list-menu__right"><svg class="ic" aria-hidden="true"><use href="#ic-chevron-right"/></svg></div>
-            </button>
-          `).join('')}
-        </div>
-        <div style="padding:12px 20px;border-top:1px solid var(--border,#eee);font-size:11px;color:var(--text-subtle,#aaa);text-align:center;">잇데이 · 와이투두(Y2do)</div>
-      </div>
-    `;
-    document.body.appendChild(o);
-    const close = () => o.remove();
-    o.addEventListener('click', (e) => { if (e.target === o) close(); });
-    o.querySelector('#pv-menu-close').addEventListener('click', close);
-    o.querySelectorAll('[data-pv-menu-fn]').forEach(b => {
-      b.addEventListener('click', () => {
-        const fn = b.getAttribute('data-pv-menu-fn');
-        close();
-        if (typeof window[fn] === 'function') {
-          if (window.hapticLight) window.hapticLight();
-          window.closePowerView();
-          setTimeout(() => window[fn](), 140);
-        }
-      });
-    });
-  }
-
   // ── 탭 콘텐츠 렌더 ────────────────────────────────────
   async function _renderTab(skipFetch) {
     const state = window._PVState;
@@ -471,7 +427,6 @@
   window._PVRender = {
     renderTab: _renderTab,
     bindTabs: _bindTabs,
-    openMenuDrawer: _openMenuDrawer,
     stackRow: _stackRow,
     handleExcelFile: _handleExcelFile,
   };

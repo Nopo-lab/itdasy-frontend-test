@@ -29,24 +29,6 @@
     { key: 'service',   icon: '💅', label: '시술',  hue: 320 },
   ];
 
-  const MENU_ITEMS = [
-    { icon: '📅', label: '예약 캘린더',  hint: '월/주/일 + 드래그',  fn: 'openCalendarView' },
-    { icon: '🤖', label: 'AI 비서',      hint: '말 한 줄로 실행',    fn: 'openAssistant' },
-    { icon: '📸', label: '영수증·주문 스캔', hint: 'AI OCR 로 자동 기록', fn: 'openReceiptScanChooser' },
-    { icon: '📋', label: '대기자 목록',  hint: '취소 시 자동 매칭',  fn: 'openWaitingList' },
-    { icon: '🔗', label: '예약 링크',    hint: '인스타·카톡에 공유', fn: 'openPublicBookingSettings' },
-    { icon: '⏳', label: '입금 대기 예약', hint: '온라인 예약 승인',   fn: 'openBookingApproval' },
-    { icon: '⚙️', label: '자동 워크플로', hint: '정해진 시각 AI 알림', fn: 'openAutomation' },
-    { icon: '🔎', label: '자연어 검색',   hint: '말로 물어 데이터 조회', fn: 'openNLQuery' },
-    { icon: '🎀', label: '스토리 만들기', hint: 'AI 1080×1920',      fn: 'openStory' },
-    { icon: '🎬', label: '영상 만들기',  hint: '비포/애프터 릴스',   fn: 'openVideo' },
-    { icon: '⭐', label: '네이버 리뷰',  hint: '수동 기록·분석',     fn: 'openNaverReviews' },
-    { icon: '📥', label: '이전 도우미',  hint: '엑셀·사진·카톡',     fn: 'openMigration' },
-    { icon: '📑', label: '월간 리포트',  hint: '한 달 요약',         fn: 'openReport' },
-    { icon: '🔔', label: '알림',         hint: '오늘 브리핑·위험',   fn: 'openNotifications' },
-    { icon: '⚙️', label: '설정',         hint: '샵·인스타·사업자',   fn: 'openSettings' },
-  ];
-
   function _injectStyles() { /* CSS → css/screens/power-view.css */ }
 
   // ── 탭 스키마 ──────────────────────────────────────────
@@ -385,7 +367,7 @@
 
   // ── 크로스 파일 인터페이스 ───────────────────────────
   window._PVInt = {
-    SCHEMAS, TABS, MENU_ITEMS,
+    SCHEMAS, TABS,
     esc: _esc, krw: _krw,
     api: API, auth: AUTH,
     fetchTab: _fetchTab,
@@ -436,9 +418,6 @@
             <svg class="ic" width="14" height="14" aria-hidden="true"><use href="#ic-upload"/></svg>
             AI로 가져오기
           </button>
-          <button id="pv-menu-btn" class="pv-close" aria-label="전체 메뉴" title="전체 메뉴" style="margin-left:6px;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
-          </button>
         </div>
         <div class="pv-chip-bar">${chipHtml}</div>
         <div class="pv-body" id="pv-body"></div>
@@ -473,8 +452,6 @@
     const pvRender = window._PVRender;
     if (pvRender) {
       pvRender.bindTabs();
-      const menuBtn = document.getElementById('pv-menu-btn');
-      if (menuBtn) menuBtn.addEventListener('click', pvRender.openMenuDrawer);
       pvRender.renderTab();
     }
   }
