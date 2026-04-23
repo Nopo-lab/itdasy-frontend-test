@@ -1,10 +1,9 @@
 {
   "appId": "com.nopolab.itdasy",
   "appName": "잇데이 스튜디오",
-  "webDir": ".",
-  "bundledWebRuntime": false,
+  "webDir": "www",
   "server": {
-    "url": "https://nopo-lab.github.io/itdasy-frontend-test/",
+    "url": "https://nopo-lab.github.io/itdasy-frontend-test-yeunjun/",
     "androidScheme": "https",
     "iosScheme": "https",
     "allowNavigation": [
@@ -40,6 +39,16 @@
       "style": "LIGHT",
       "backgroundColor": "#1A0C10",
       "overlaysWebView": false
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    },
+    "Camera": {
+      "resultType": "base64",
+      "quality": 85
+    },
+    "App": {
+      "urlScheme": "itdasy"
     }
   }
 }
