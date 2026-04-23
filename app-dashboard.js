@@ -294,12 +294,16 @@
     const sheet = document.getElementById('tab-dashboard');
     if (!sheet) return;
 
-    // 주요 지표 2×2 → 파워뷰
+    // 주요 지표 2×2 → 파워뷰 (예약 위젯은 캘린더 뷰)
     sheet.querySelectorAll('[data-metric]').forEach(btn => {
       btn.addEventListener('click', () => {
         if (window.hapticLight) window.hapticLight();
         const tab = btn.dataset.metric;
-        if (typeof window.openPowerView === 'function') window.openPowerView(tab);
+        if (tab === 'booking') {
+          if (typeof window.openCalendarView === 'function') window.openCalendarView();
+        } else {
+          if (typeof window.openPowerView === 'function') window.openPowerView(tab);
+        }
       });
     });
 
