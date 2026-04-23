@@ -54,13 +54,71 @@
     return res.status === 204 ? null : await res.json();
   }
 
+  // ── Stale-while-revalidate 캐시 — localStorage persistent (앱 재시작 후에도 즉시 렌더)
+  const _SWR_KEY = 'pv_cache::customers';
+  const _SWR_TTL = 120 * 1000;  // 2분 내 캐시는 신선
+  function _readSWR() {
+    try {
+      const raw = localStorage.getItem(_SWR_KEY) || sessionStorage.getItem(_SWR_KEY);
+      if (!raw) return null;
+      const obj = JSON.parse(raw);
+      return { items: obj.d, age: Date.now() - obj.t, fresh: Date.now() - obj.t < _SWR_TTL };
+    } catch (_e) { return null; }
+  }
+  function _writeSWR(items) {
+    const payload = JSON.stringify({ t: Date.now(), d: items });
+    try { localStorage.setItem(_SWR_KEY, payload); } catch (_e) {
+      try { sessionStorage.setItem(_SWR_KEY, payload); } catch (_e2) {}
+    }
+  }
+  function _clearSWR() {
+    try { localStorage.removeItem(_SWR_KEY); } catch (_e) {}
+    try { sessionStorage.removeItem(_SWR_KEY); } catch (_e) {}
+  }
+
+  // 챗봇·다른 소스 데이터 변경 감지 → 오픈된 시트 즉시 새로고침
+  if (typeof window !== 'undefined' && !window._customerDataListenerInit) {
+    window._customerDataListenerInit = true;
+    window.addEventListener('itdasy:data-changed', async (e) => {
+      const k = e.detail && e.detail.kind;
+      if (k === 'create_customer' || k === 'update_customer' || k === 'create_revenue' || k === 'create_booking') {
+        _clearSWR();
+        const sheet = document.getElementById('customerSheet');
+        if (sheet && sheet.style.display === 'flex') {
+          try { await _fetchFresh(); _rerender && _rerender(); } catch (_e) {}
+        }
+      }
+    });
+  }
+
+  async function _fetchFresh() {
+    const d = await _api('GET', '/customers');
+    _isOffline = false;
+    _cache = d.items || [];
+    _writeSWR(_cache);
+    return _cache;
+  }
+
   // ── CRUD ────────────────────────────────────────────────
   async function list() {
-    try {
-      const d = await _api('GET', '/customers');
-      _isOffline = false;
-      _cache = d.items || [];
+    // 1. 캐시 있으면 즉시 반환 (UI 바로 렌더)
+    const swr = _readSWR();
+    if (swr) {
+      _cache = swr.items;
+      // 신선 캐시면 끝. 오래됐으면 백그라운드로 갱신.
+      if (!swr.fresh) {
+        _fetchFresh().then(fresh => {
+          if (JSON.stringify(_cache) !== JSON.stringify(fresh)) {
+            _cache = fresh;
+            _rerender && _rerender();  // UI 자동 갱신
+          }
+        }).catch(() => {});
+      }
       return _cache;
+    }
+    // 2. 첫 진입 — 네트워크 대기 (한 번뿐)
+    try {
+      return await _fetchFresh();
     } catch (e) {
       if (e.message === 'endpoint-missing' || e.message === 'no-token') {
         _isOffline = true;
@@ -115,6 +173,7 @@
     }
     const created = await _api('POST', '/customers', data);
     if (_cache) _cache.unshift(created);
+    _writeSWR(_cache);  // SWR 캐시 동기
     return created;
   }
 
@@ -133,6 +192,7 @@
       const i = _cache.findIndex(c => c.id === id);
       if (i >= 0) _cache[i] = updated;
     }
+    _writeSWR(_cache);  // SWR 캐시 동기
     return updated;
   }
 
@@ -145,6 +205,7 @@
     }
     await _api('DELETE', '/customers/' + id);
     if (_cache) _cache = _cache.filter(c => c.id !== id);
+    _writeSWR(_cache);  // SWR 캐시 동기
     return { ok: true };
   }
 
@@ -288,7 +349,7 @@
   };
 
   window._customerDelete = async function (id) {
-    if (!confirm('이 고객을 삭제할까요?')) return;
+    { const _ok = window._confirm2 ? window._confirm2('이 고객을 삭제할까요?') : confirm('이 고객을 삭제할까요?'); if (!_ok) return; }
     try {
       await remove(id);
       if (window.hapticLight) window.hapticLight();
@@ -305,14 +366,23 @@
     sheet.style.display = 'flex';
     sheet.classList.add('dt-shown');
     document.body.style.overflow = 'hidden';
+    // SWR 캐시 있으면 즉시 렌더, 없으면 first-load 만 placeholder
     const box = sheet.querySelector('#customerList');
-    box.innerHTML = '<div class="dt-loading">불러오는 중…</div>';
-    try {
-      await list();
-      _rerender();
-    } catch (e) {
-      console.warn('[customer] list 실패:', e);
-      box.innerHTML = '<div class="dt-error">불러오기 실패</div>';
+    const swr = _readSWR();
+    if (swr) {
+      _cache = swr.items;
+      _rerender();  // 즉시 표시
+      // 오래된 캐시면 백그라운드 갱신 (list() 내부에서 자동 처리)
+      list().then(() => _rerender()).catch(() => {});
+    } else {
+      box.innerHTML = '<div class="dt-loading">불러오는 중…</div>';
+      try {
+        await list();
+        _rerender();
+      } catch (e) {
+        console.warn('[customer] list 실패:', e);
+        box.innerHTML = '<div class="dt-error">불러오기 실패</div>';
+      }
     }
   };
 

@@ -573,6 +573,8 @@ async function login() {
     checkInstaStatus(true);
     // T-317 — 생체 인증 등록 제안 (한 번만)
     _offerBiometricEnroll(data.access_token);
+    // Wave 2+ — 로그인 직후 주요 데이터 preload (탭 열 때 즉시 표시)
+    _preloadTabs();
   } catch(e) {
     errEl.textContent = _friendlyErr(e, '로그인 실패');
     errEl.style.display = 'block';
@@ -1121,14 +1123,14 @@ async function loadStatsCard() {
       // API 도메인에 한정 (외부 요청 무시)
       if (url.includes('railway.app') || url.startsWith(API)) {
         const now = Date.now();
-        if (now - lastOpened > 3000 && typeof openPlanPopup === 'function') {
+        if (now - lastOpened > 3000 && typeof window.openPlanPopup === 'function') {
           lastOpened = now;
           try {
             const clone = r.clone();
             const j = await clone.json().catch(() => ({}));
             showToast(j.detail || '사용 한도 초과 — 플랜을 확인해주세요');
           } catch (_) { /* ignore */ }
-          setTimeout(() => openPlanPopup(), 600);
+          setTimeout(() => window.openPlanPopup(), 600);
         }
       }
     }
@@ -1164,12 +1166,12 @@ window.authHeader = authHeader;
     });
     on('fullResetBtn', () => typeof fullReset === 'function' && fullReset());
 
-    // 플랜 팝업
-    on('planBadge', openPlanPopup);
-    on('planCloseBtn', closePlanPopup);
-    on('planActionBtn', doPlanAction);
+    // 플랜 팝업 — app-plan.js 에서 window.openPlanPopup 으로 노출됨
+    on('planBadge', () => window.openPlanPopup && window.openPlanPopup());
+    on('planCloseBtn', () => window.closePlanPopup && window.closePlanPopup());
+    on('planActionBtn', () => window.doPlanAction && window.doPlanAction());
     document.querySelectorAll('.plan-card[data-plan]').forEach(card => {
-      card.addEventListener('click', () => selectPlan(card.dataset.plan));
+      card.addEventListener('click', () => window.selectPlan && window.selectPlan(card.dataset.plan));
     });
 
     // 홈의 "샘플 캡션 보기" 버튼 (연동 전 체험)
@@ -1178,7 +1180,7 @@ window.authHeader = authHeader;
     });
 
     // 통계 카드 Pro 업그레이드 버튼
-    on('statsUpgradeBtn', openPlanPopup);
+    on('statsUpgradeBtn', () => window.openPlanPopup && window.openPlanPopup());
 
     // 통계 숫자 로드 (Subscription/usage 에서 가져옴)
     loadStatsCard();
@@ -1195,3 +1197,135 @@ window.authHeader = authHeader;
     ready();
   }
 })();
+
+// ──────────────────────────────────────────────
+// 탭 데이터 preload — 로그인/앱 재오픈 시 백그라운드로 주요 데이터 미리 fetch
+// → 사용자가 탭 열 때 캐시 적중 → 0초 체감 렌더
+// ──────────────────────────────────────────────
+window._preloadTabs = async function () {
+  const auth = window.authHeader && window.authHeader();
+  if (!auth || !auth.Authorization) return;
+  const headers = { ...auth };
+  // 예약은 전체 ±3개월 한 번에 prefetch (날짜 스크롤 0ms)
+  const now = Date.now();
+  const bookingFrom = new Date(now - 3 * 30 * 24 * 3600 * 1000).toISOString();
+  const bookingTo = new Date(now + 3 * 30 * 24 * 3600 * 1000).toISOString();
+  const tabs = [
+    { url: '/customers',            swrKey: 'pv_cache::customers' },
+    { url: `/bookings?from=${encodeURIComponent(bookingFrom)}&to=${encodeURIComponent(bookingTo)}`, swrKey: 'pv_cache::bookings_all' },
+    { url: '/revenue?period=month', swrKey: 'pv_cache::revenue' },
+    { url: '/inventory',            swrKey: 'pv_cache::inventory' },
+    { url: '/services',             swrKey: 'pv_cache::service' },
+    { url: '/today/brief',          swrKey: 'pv_cache::today' },
+  ];
+  // Promise.allSettled → 일부 실패해도 나머지 진행. localStorage persistent
+  await Promise.allSettled(tabs.map(async t => {
+    try {
+      const res = await fetch(window.API + t.url, { headers });
+      if (!res.ok) return;
+      const d = await res.json();
+      const items = d.items || d;
+      const payload = JSON.stringify({ t: Date.now(), d: items });
+      try { localStorage.setItem(t.swrKey, payload); } catch (_) {
+        try { sessionStorage.setItem(t.swrKey, payload); } catch (_) {}
+      }
+    } catch (_) { /* silent */ }
+  }));
+};
+
+// 앱 첫 부팅 시에도 preload (토큰 이미 있으면)
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    if (window._preloadTabs && window.authHeader) {
+      const auth = window.authHeader();
+      if (auth && auth.Authorization) window._preloadTabs();
+    }
+  }, 1500);
+}
+
+// ──────────────────────────────────────────────
+// Wave 1+2+3 유틸 함수 (yeunjun 오늘 적용분 재이식 · 원영 base 위에 얹음)
+// ──────────────────────────────────────────────
+
+// 안전 localStorage — iOS Safari private mode / quota exceeded 대응
+window.safeStorage = {
+  get(key, fallback = null) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw == null) return fallback;
+      try { return JSON.parse(raw); } catch (_) { return raw; }
+    } catch (_e) { return fallback; }
+  },
+  set(key, value) {
+    try {
+      const s = typeof value === 'string' ? value : JSON.stringify(value);
+      localStorage.setItem(key, s);
+      return true;
+    } catch (e) {
+      try {
+        const keys = Object.keys(localStorage);
+        for (const k of keys) {
+          if (k.startsWith('pv_cache::') || k.startsWith('itdasy_debug_')) localStorage.removeItem(k);
+        }
+        localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+        return true;
+      } catch (_e2) { return false; }
+    }
+  },
+  remove(key) { try { localStorage.removeItem(key); return true; } catch (_e) { return false; } },
+};
+
+// 안전 fetch — 15초 타임아웃 + AbortController
+window.safeFetch = async function (url, opts = {}) {
+  const timeout = opts.timeout || 15000;
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), timeout);
+  try {
+    const res = await fetch(url, { ...opts, signal: ctl.signal });
+    clearTimeout(timer);
+    return res;
+  } catch (e) {
+    clearTimeout(timer);
+    if (e.name === 'AbortError') {
+      const err = new Error('timeout');
+      err.timeout = true;
+      throw err;
+    }
+    throw e;
+  }
+};
+
+// 에러 메시지 한글 humanizer
+window._humanError = function (e) {
+  if (e && e.timeout) return '서버 응답이 너무 느려요. 잠시 후 다시 시도해주세요';
+  const raw = (e && (e.message || e.detail)) || String(e || '');
+  if (/HTTP\s*5\d\d|Failed to fetch|NetworkError|timeout|aborted/i.test(raw))
+    return '네트워크 연결을 확인해주세요';
+  if (/HTTP\s*401|unauthor/i.test(raw))
+    return '로그인이 만료됐어요. 다시 로그인해주세요';
+  if (/HTTP\s*403|forbidden/i.test(raw))
+    return '이 작업 권한이 없어요';
+  if (/HTTP\s*404|not.found/i.test(raw))
+    return '요청한 데이터를 찾지 못했어요';
+  if (/HTTP\s*409/i.test(raw))
+    return '이미 다른 값이 있어요. 잠시 후 다시 시도해주세요';
+  if (/HTTP\s*413|too large|exceeded/i.test(raw))
+    return '파일이 너무 커요 (최대 10MB)';
+  if (/HTTP\s*422/i.test(raw))
+    return '입력 형식을 확인해주세요';
+  if (/HTTP\s*429|quota|rate.limit/i.test(raw))
+    return '요청이 너무 많아요. 잠시 후 다시 시도해주세요';
+  if (/HTTP\s*402|payment/i.test(raw))
+    return '플랜 한도 초과예요. 업그레이드가 필요해요';
+  if (raw.length > 80) return '일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요';
+  return raw;
+};
+
+// 2중 확인 유틸 — 파괴적 액션에 사용
+window._confirm2 = function (msg, opts) {
+  opts = opts || {};
+  const first = window.confirm((opts.first || msg));
+  if (!first) return false;
+  const second = window.confirm(opts.second || ('한 번 더 확인할게요.\n' + msg + '\n이 작업은 되돌릴 수 없어요.'));
+  return !!second;
+};
