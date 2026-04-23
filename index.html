@@ -193,6 +193,13 @@
     <path d="M13 17V5"/>
     <path d="M8 17v-3"/>
   </symbol>
+  <symbol id="ic-store" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/>
+    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+    <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/>
+    <path d="M2 7h20"/>
+    <path d="M22 7v3a2 2 0 0 1-2 2a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7"/>
+  </symbol>
   <symbol id="ic-wand-sparkles" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"/>
     <path d="m14 7 3 3"/>
@@ -606,9 +613,9 @@
     <svg width="24" height="24"><use href="#ic-wand-sparkles"/></svg>
   </button>
   <button type="button" class="tab-bar__btn" data-tab="dashboard"
-          onclick="showTab('dashboard',this); if(typeof initDashboardTab==='function')initDashboardTab();" aria-label="대시보드 탭">
-    <svg class="tab-bar__icon"><use href="#ic-bar-chart-3"/></svg>
-    <span class="tab-bar__label">대시보드</span>
+          onclick="showTab('dashboard',this); if(typeof initDashboardTab==='function')initDashboardTab();" aria-label="내 샵 관리 탭">
+    <svg class="tab-bar__icon"><use href="#ic-store"/></svg>
+    <span class="tab-bar__label">내 샵 관리</span>
   </button>
 </nav>
 
@@ -1263,9 +1270,6 @@
 <script src="app-notifications.js"></script>
 <script src="app-assistant.js"></script>
 <script src="app-dm-autoreply.js"></script>
-<!-- Wave C3: Tesseract.js OCR 프리뷰 (영수증 스캔 시 lazy-load 됨 — 초기 로드 시 다운로드 안 함)
-     첫 사용 시 korean .traineddata 약 15MB 다운로드 → 캐시 됨. iOS Safari 16+ 지원, 구버전은 조용히 skip -->
-<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <script src="app-receipt-scan.js"></script>
 <script src="app-waiting-list.js"></script>
 <script src="app-public-link.js"></script>
