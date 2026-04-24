@@ -697,7 +697,8 @@ function _toggleSignup(show) {
 // 완료 후 /oauth-return.html 에서 토큰 저장
 window.startGoogleLogin = async function () {
   try {
-    const returnTo = window.location.origin + '/oauth-return.html';
+    // GitHub Pages 서브패스 (/itdasy-frontend-test-yeunjun/) 대응 — 현재 URL 기준 상대 경로
+    const returnTo = new URL('oauth-return.html', window.location.href).href;
     const res = await fetch(
       `${window.API}/auth/google/authorize?return_to=${encodeURIComponent(returnTo)}`
     );
@@ -718,7 +719,8 @@ window.startGoogleLogin = async function () {
 // ───── 카카오 OAuth 로그인 시작 ─────
 window.startKakaoLogin = async function () {
   try {
-    const returnTo = window.location.origin + '/oauth-return.html';
+    // GitHub Pages 서브패스 (/itdasy-frontend-test-yeunjun/) 대응 — 현재 URL 기준 상대 경로
+    const returnTo = new URL('oauth-return.html', window.location.href).href;
     const res = await fetch(
       `${window.API}/auth/kakao/authorize?return_to=${encodeURIComponent(returnTo)}`
     );
