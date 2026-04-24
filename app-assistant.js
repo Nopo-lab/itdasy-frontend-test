@@ -341,6 +341,15 @@
         <div style="font-size:11px;font-weight:700;color:#dc3545;">실패 — 다시 말씀해 주세요</div>
       </div>`;
     }
+    if (status === 'running') {
+      return `<div style="margin-top:6px;padding:12px;background:#fff;border:1px solid ${kindBadge.color};border-radius:12px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="display:inline-block;width:14px;height:14px;border:2px solid ${kindBadge.color};border-top-color:transparent;border-radius:50%;animation:asst-spin 0.8s linear infinite;"></span>
+          <span style="font-size:12px;font-weight:700;color:${kindBadge.color};">저장 중…</span>
+        </div>
+      </div>
+      <style>@keyframes asst-spin { to { transform: rotate(360deg); } }</style>`;
+    }
 
     // 편집 모드 — 필드 인라인 수정
     if (editing) {
@@ -1146,6 +1155,8 @@
   async function _runAction(idx) {
     const msg = _history[idx];
     if (!msg || !msg.action) return;
+    // 중복 클릭 방지 — 이미 running/done/failed 면 무시
+    if (msg.action_status === 'running' || msg.action_status === 'done') return;
     msg.action_status = 'running';
     _renderHistory();
     try {
