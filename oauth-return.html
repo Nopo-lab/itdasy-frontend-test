@@ -38,11 +38,18 @@
           document.getElementById('msg').textContent = '토큰이 누락됐어요';
           return;
         }
-        // 환경 자동 감지 · prod/staging 토큰 키 구분
-        const host = window.location.hostname;
-        const isStaging = /staging|test-yeunjun/.test(host);
-        const key = 'itdasy_token::' + (isStaging ? 'staging' : 'prod');
+        // 환경 자동 감지 · hostname + pathname 둘 다 검사 (서브패스 포함)
+        // nopo-lab.github.io/itdasy-frontend-test-yeunjun/ → staging
+        // nopo-lab.github.io/itdasy-frontend/ → prod
+        const fullUrl = window.location.hostname + window.location.pathname;
+        const isLocal = /localhost|127\.0\.0\.1/.test(window.location.hostname);
+        const isStaging = /staging|test-yeunjun/.test(fullUrl);
+        const env = isLocal ? 'local' : (isStaging ? 'staging' : 'prod');
+        const key = 'itdasy_token::' + env;
         localStorage.setItem(key, token);
+        // 혹시 모를 legacy 키에도 저장 (prod + staging 둘 다 · 안전망)
+        try { localStorage.setItem('itdasy_token::staging', token); } catch(_e) { void _e; }
+        try { localStorage.setItem('itdasy_token::prod', token); } catch(_e) { void _e; }
         // URL 정리 (토큰이 히스토리에 남지 않도록)
         history.replaceState({}, '', window.location.pathname);
         document.getElementById('title').textContent = '✓ 로그인 완료!';
