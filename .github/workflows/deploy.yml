@@ -17,6 +17,21 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Auto-bump Service Worker CACHE_VERSION to commit SHA
+        # 매 배포마다 CACHE_VERSION 을 자동으로 업데이트 → 개발자가 깜빡해도 옛 캐시 자동 무효화
+        run: |
+          TS=$(date -u +'%Y%m%d-%H%M')
+          SHA=${GITHUB_SHA::7}
+          NEW_VERSION="${TS}-${SHA}"
+          echo "🔄 Bumping CACHE_VERSION → ${NEW_VERSION}"
+          if [ -f sw.js ]; then
+            sed -i.bak -E "s|const CACHE_VERSION = '[^']*';|const CACHE_VERSION = '${NEW_VERSION}';|" sw.js
+            rm -f sw.js.bak
+            echo "✅ sw.js updated"
+            grep -m1 "CACHE_VERSION" sw.js
+          else
+            echo "⚠️ sw.js not found · 스킵"
+          fi
       - uses: actions/configure-pages@v4
       - uses: actions/upload-pages-artifact@v3
         with:
