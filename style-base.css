@@ -102,10 +102,10 @@ p {
 
 /* 탭 네비는 하단 탭바(css/screens/tab-bar.css)로 이관 — P3.2 */
 
-/* 탭 컨텐츠 — 하단 safe-area + 탭바 88px + AI 챗봇 FAB (56+18=74) 여유 */
+/* 탭 컨텐츠 — 하단 safe-area + 탭바 여유 (FAB 는 탭바 옆 빈 공간에 위치해서 콘텐츠 안 겹침) */
 .tab {
   display: none;
-  padding: 24px 20px calc(170px + env(safe-area-inset-bottom));
+  padding: 24px 20px calc(100px + env(safe-area-inset-bottom));
   opacity: 0;
   transform: translateY(6px);
   transition: opacity 0.22s ease-out, transform 0.22s ease-out;
