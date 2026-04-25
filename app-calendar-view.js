@@ -326,7 +326,8 @@ ${isEdit ? `
         if (window.hapticLight) window.hapticLight();
         if (window.showToast) window.showToast(existing ? '수정 완료' : '예약 추가 완료');
         if (window.Dashboard?.refresh) window.Dashboard.refresh(true);
-        _mappedCache = await _loadMonth(_curYear, _curMonth);
+        // 2026-04-24 perf — 쓰기 직후 fresh fetch 강제
+        _mappedCache = await _refreshMonth(_curYear, _curMonth);
         _renderDay(date || _curDate, _mappedCache);
       } catch (err) {
         console.warn('[cal] save 실패:', err);
@@ -343,7 +344,7 @@ ${isEdit ? `
         if (window.hapticLight) window.hapticLight();
         if (window.showToast) window.showToast('삭제 완료');
         if (window.Dashboard?.refresh) window.Dashboard.refresh(true);
-        _mappedCache = await _loadMonth(_curYear, _curMonth);
+        _mappedCache = await _refreshMonth(_curYear, _curMonth);
         _renderDay(date || _curDate, _mappedCache);
       } catch (_) { if (window.showToast) window.showToast('삭제 실패'); }
     });
@@ -365,7 +366,7 @@ ${isEdit ? `
           if (window.hapticLight) window.hapticLight();
           if (window.showToast) window.showToast(`✅ 상태를 '${STATUS_LABEL[newStatus]}'로 변경했어요`);
           if (window.Dashboard?.refresh) window.Dashboard.refresh(true);
-          _mappedCache = await _loadMonth(_curYear, _curMonth);
+          _mappedCache = await _refreshMonth(_curYear, _curMonth);
           _renderDay(date || _curDate, _mappedCache);
         } catch (_) { if (window.showToast) window.showToast('상태 변경 실패'); }
       });
@@ -488,8 +489,23 @@ ${isEdit ? `
     o.addEventListener('click', e => { if (e.target === o) _close(); });
     document.body.appendChild(o);
     document.body.style.overflow = 'hidden';
-    _mappedCache = await _loadMonth(_curYear, _curMonth);
-    _renderMonth(_curYear, _curMonth, _mappedCache);
+    // 2026-04-24 perf — 캐시 적중이면 즉시 그리드 렌더, 아니면 빈 그리드 먼저 그려서 체감 latency 0
+    const cached = _readMonthCache(_curYear, _curMonth);
+    if (cached) {
+      _mappedCache = cached;
+      _renderMonth(_curYear, _curMonth, _mappedCache);
+      _prefetchAdjacent(_curYear, _curMonth);
+      // 백그라운드 갱신
+      _refreshMonth(_curYear, _curMonth).then(fresh => {
+        _mappedCache = fresh;
+        if (_overlay()) _renderMonth(_curYear, _curMonth, fresh);
+      }).catch(() => {});
+    } else {
+      _renderMonth(_curYear, _curMonth, []);
+      _mappedCache = await _refreshMonth(_curYear, _curMonth);
+      if (_overlay()) _renderMonth(_curYear, _curMonth, _mappedCache);
+      _prefetchAdjacent(_curYear, _curMonth);
+    }
   };
 
   // 대시보드 바로가기 · 파워뷰 · 외부 호출 호환
