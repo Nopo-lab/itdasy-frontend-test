@@ -22,11 +22,13 @@
     document.head.appendChild(st);
   }
 
+  // Lucide SVG inline (이모지 금지 — CLAUDE.md UX 철학)
+  const _svg12 = (id) => `<svg width="12" height="12" style="vertical-align:-2px;" aria-hidden="true"><use href="#${id}"/></svg>`;
   const SEGMENT_STYLE = {
-    vip:     { label: 'VIP', icon: '👑', bg: 'linear-gradient(135deg,#FFD700,#FFA500)', color: '#fff' },
-    regular: { label: '단골', icon: '💖', bg: 'linear-gradient(135deg,#F18091,#FF6B9D)', color: '#fff' },
-    new:     { label: '신규', icon: '✨', bg: 'linear-gradient(135deg,#4ECDC4,#44A08D)', color: '#fff' },
-    absent:  { label: '휴면', icon: '💤', bg: 'linear-gradient(135deg,#95A5A6,#7F8C8D)', color: '#fff' },
+    vip:     { label: 'VIP', icon: _svg12('ic-star'), bg: 'linear-gradient(135deg,#FFD700,#FFA500)', color: '#fff' },
+    regular: { label: '단골', icon: _svg12('ic-star'), bg: 'linear-gradient(135deg,#F18091,#FF6B9D)', color: '#fff' },
+    new:     { label: '신규', icon: _svg12('ic-sparkles'), bg: 'linear-gradient(135deg,#4ECDC4,#44A08D)', color: '#fff' },
+    absent:  { label: '휴면', icon: _svg12('ic-moon'), bg: 'linear-gradient(135deg,#95A5A6,#7F8C8D)', color: '#fff' },
   };
 
   const RETENTION_BADGE = {
