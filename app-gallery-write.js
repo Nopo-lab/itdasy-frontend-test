@@ -177,7 +177,11 @@ async function loadSlotForCaption(slotId) {
   if (strip && visPhotos.length > 0) {
     strip.style.display = 'block';
     strip.innerHTML = _buildPeekCarousel(visPhotos, 'cs_carousel');
-    setTimeout(() => _initPeekCarousel('cs_carousel', visPhotos.length), 50);
+    setTimeout(() => {
+      _initPeekCarousel('cs_carousel', visPhotos.length);
+      // 2026-04-24 — 손님 탭 누르면 사진 피크 영역으로 자동 스크롤 (사용자가 안 보일 수 있어서)
+      try { strip.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_e) { /* iOS<14 */ }
+    }, 50);
   } else if (strip) {
     strip.style.display = 'none';
   }

@@ -5,10 +5,13 @@
    ────────────────────────────────────────────────────────────── */
 
 .tab-bar {
+  /* 2026-04-24 — 정중앙 정렬 (안드로이드/iOS 공통). FAB 은 별도 우측 하단(드래그 가능). */
   position: fixed;
-  bottom: 14px;
-  left: 14px;
-  right: 88px;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 28px);   /* 좌우 14px 마진 */
+  max-width: 460px;           /* 가로 화면·태블릿 대응 */
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 999px;
