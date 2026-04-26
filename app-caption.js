@@ -1,7 +1,17 @@
 // Itdasy Studio - 캡션 생성 (슬롯머신, 톤 컨트롤, 해시태그)
 
 // ═══════════════════════════════════════════════════════
-// 업종별 기본 키워드 config
+async function _personaFetch(method, path, body) {
+  const headers = window.authHeader ? window.authHeader() : {};
+  if (body) headers['Content-Type'] = 'application/json';
+  const url = (window.API || '') + path;
+  const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  if (res.status === 401) throw new Error('401');
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+  return data;
+}
+
 // ═══════════════════════════════════════════════════════
 const SHOP_KEYWORDS = {
   '붙임머리': ['14인치','18인치','22인치','24인치','26인치','28인치','30인치','특수인치','옴브레','재시술','볼륨업','자연스러운','롱헤어'],

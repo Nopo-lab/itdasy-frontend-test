@@ -567,9 +567,13 @@ async function login() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || '로그인 실패');
     setToken(data.access_token);
-    // 이전 세션 SWR 캐시 전부 삭제 → 같은 계정이라도 항상 서버 최신 데이터로 시작
+    // 계정이 다를 때만 이전 캐시 삭제 (같은 계정이면 캐시 유지)
     try {
-      Object.keys(localStorage).filter(k => k.startsWith('pv_cache::')).forEach(k => localStorage.removeItem(k));
+      const lastEmail = localStorage.getItem('last_login_email');
+      if (lastEmail !== email) {
+        Object.keys(localStorage).filter(k => k.startsWith('pv_cache::')).forEach(k => localStorage.removeItem(k));
+      }
+      localStorage.setItem('last_login_email', email);
     } catch (_) { /* ignore */ }
     document.getElementById('lockOverlay').classList.add('hidden');
     checkCbt1Reset();
@@ -677,6 +681,11 @@ async function signup() {
     const loginData = await loginRes.json();
     if (!loginRes.ok) throw new Error(loginData.detail || '자동 로그인 실패');
     setToken(loginData.access_token);
+    // 신규 가입이므로 기존 캐시 전부 무효화
+    try {
+      Object.keys(localStorage).filter(k => k.startsWith('pv_cache::')).forEach(k => localStorage.removeItem(k));
+      localStorage.setItem('last_login_email', email);
+    } catch (_) { /* ignore */ }
     document.getElementById('signupOverlay').style.display = 'none';
     document.getElementById('lockOverlay').classList.add('hidden');
     checkOnboarding();
@@ -755,20 +764,29 @@ window.startKakaoLogin = async function () {
   window.addEventListener('orientationchange', () => setTimeout(set, 250));
 })();
 
-// iOS 하단 네비 '도망' 방지 — 키보드 올라갈 때 탭바 숨기기
+// iOS 하단 네비 '도망' 방지 — 키보드 올라갈 때 탭바 숨기기 (input/textarea focus 기반)
 (function _fixTabBarOnKeyboard() {
   const nav = document.getElementById('nav');
   if (!nav) return;
-  // visualViewport가 줄어들면 키보드가 올라간 것으로 간주
-  if (window.visualViewport) {
-    let baseH = window.visualViewport.height;
-    window.visualViewport.addEventListener('resize', () => {
-      const h = window.visualViewport.height;
-      const isKeyboard = h < baseH * 0.75;
-      nav.style.display = isKeyboard ? 'none' : '';
-      if (!isKeyboard) baseH = h; // 회전 등으로 기준 갱신
-    });
-  }
+  
+  const hideNav = () => { nav.style.display = 'none'; };
+  const showNav = () => { nav.style.display = ''; };
+
+  // 포커스 된 엘리먼트가 입력창이면 숨김
+  document.addEventListener('focusin', (e) => {
+    const t = e.target.tagName;
+    if (t === 'INPUT' || t === 'TEXTAREA' || e.target.isContentEditable) hideNav();
+  });
+  
+  document.addEventListener('focusout', (e) => {
+    // 키보드가 내려가면서 focusout될 때 약간의 딜레이 후 복구 (다른 입력창으로 이동할 수 있으므로)
+    setTimeout(() => {
+      const active = document.activeElement;
+      if (!active || (active.tagName !== 'INPUT' && active.tagName !== 'TEXTAREA' && !active.isContentEditable)) {
+        showNav();
+      }
+    }, 100);
+  });
 })();
 
 // ===== 앱 초기화 (모든 모듈 로드 후 실행) =====

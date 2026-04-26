@@ -9,8 +9,8 @@
   position: fixed;
   bottom: calc(14px + env(safe-area-inset-bottom, 0px));
   left: 50%;
-  transform: translateX(-50%);
-  transform: translateX(-50%);  /* iOS Safari 호환 */
+  transform: translate3d(-50%, 0, 0);
+  transform: translate3d(-50%, 0, 0);  /* iOS Safari 호환 */
   width: calc(100% - 28px);   /* 좌우 14px 마진 */
   max-width: 460px;           /* 가로 화면·태블릿 대응 */
   background: var(--surface);
@@ -24,7 +24,6 @@
 
   /* iOS 하단바 도망 방지 — GPU 레이어 분리 + 뷰포트 변화에 안정적 고정 */
   will-change: transform;
-  backface-visibility: hidden;
   backface-visibility: hidden;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
