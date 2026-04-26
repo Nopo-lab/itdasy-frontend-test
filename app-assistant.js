@@ -406,8 +406,17 @@
       </div>`;
     }
     if (status === 'failed') {
+      // 2026-04-26 버그B 픽스 — historyIdx 의 errorMsg 가 있으면 사유 노출
+      let errLine = '';
+      try {
+        const _msg = (Array.isArray(_history) ? _history[historyIdx] : null);
+        if (_msg && _msg.action_error) {
+          errLine = `<div style="font-size:11px;color:hsl(0,60%,35%);margin-top:4px;line-height:1.4;">사유: ${_esc(_msg.action_error)}</div>`;
+        }
+      } catch (_e) { void _e; }
       return `<div style="margin-top:6px;padding:10px 12px;background:rgba(220,53,69,0.08);border-radius:12px;border-left:3px solid #dc3545;">
         <div style="font-size:11px;font-weight:700;color:#dc3545;">실패 — 다시 말씀해 주세요</div>
+        ${errLine}
       </div>`;
     }
     if (status === 'running') {
@@ -521,22 +530,67 @@
   }
 
   // 액션 그룹 내 한 행을 사람이 읽을 수 있게 1줄로 요약
+  // 2026-04-26 버그A·C 픽스 — kind 별 핵심 식별자 우선 노출
+  //   create_expense   → vendor + memo + amount   (가게명 누락 방지)
+  //   upsert_inventory → items[0].name + 수량      (항목명 누락 방지)
+  //   create_revenue   → customer_name + service + amount
+  //   create_customer  → name + phone
+  //   create_booking   → customer_name + service + 시작 시각
   function _summarizeItem(action) {
     const p = (action && action.payload) || {};
+    const kind = (action && action.kind) || '';
     const parts = [];
-    if (p.customer_name || p.name) parts.push(p.customer_name || p.name);
-    if (p.customer_phone || p.phone) parts.push(p.customer_phone || p.phone);
-    if (p.service_name) parts.push(p.service_name);
-    if (p.amount) parts.push(Number(p.amount).toLocaleString() + '원');
-    if (p.starts_at) {
-      try {
-        const d = new Date(p.starts_at);
-        parts.push((d.getMonth() + 1) + '/' + d.getDate() + ' ' + d.getHours() + '시');
-      } catch (_e) { void _e; }
+    const _fmtAmt = (a) => (a == null ? '' : Number(a).toLocaleString() + '원');
+    const _fmtDate = (s) => { try { const d = new Date(s); return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + d.getHours() + '시'; } catch (_e) { return ''; } };
+
+    if (kind === 'create_expense') {
+      // 가게명(vendor) 우선 — 없으면 "지출처 미상"
+      const v = (p.vendor || '').trim();
+      parts.push(v || '지출처 미상');
+      const m = (p.memo || '').trim();
+      if (m) parts.push(m.slice(0, 20));
+      if (p.amount) parts.push(_fmtAmt(p.amount));
+    } else if (kind === 'upsert_inventory') {
+      const items = Array.isArray(p.items) ? p.items : [];
+      if (items.length) {
+        const it0 = items[0] || {};
+        const nm = (it0.name || '').trim();
+        if (nm) parts.push(nm);
+        if (it0.quantity) parts.push(it0.quantity + '개');
+        if (items.length > 1) parts.push('외 ' + (items.length - 1) + '건');
+        const total = items.reduce((s, x) => s + (Number(x && x.total) || 0), 0);
+        if (total > 0) parts.push(_fmtAmt(total));
+      } else if (p.amount) {
+        parts.push('재고 입고');
+        parts.push(_fmtAmt(p.amount));
+      } else {
+        parts.push('재고 항목 미상');
+      }
+    } else if (kind === 'create_customer') {
+      if (p.customer_name || p.name) parts.push(p.customer_name || p.name);
+      if (p.customer_phone || p.phone) parts.push(p.customer_phone || p.phone);
+      if (p.memo) parts.push(String(p.memo).slice(0, 20));
+    } else if (kind === 'create_booking') {
+      if (p.customer_name || p.name) parts.push(p.customer_name || p.name);
+      if (p.service_name) parts.push(p.service_name);
+      if (p.starts_at) { const t = _fmtDate(p.starts_at); if (t) parts.push(t); }
+    } else if (kind === 'create_revenue') {
+      if (p.customer_name || p.name) parts.push(p.customer_name || p.name);
+      else parts.push('고객 미상');
+      if (p.service_name) parts.push(p.service_name);
+      if (p.amount) parts.push(_fmtAmt(p.amount));
+      if (!p.amount && (p.customer_phone || p.phone)) parts.push(p.customer_phone || p.phone);
+    } else {
+      // 기본 — 이름·금액·시술 순
+      if (p.customer_name || p.name) parts.push(p.customer_name || p.name);
+      if (p.customer_phone || p.phone) parts.push(p.customer_phone || p.phone);
+      if (p.service_name) parts.push(p.service_name);
+      if (p.amount) parts.push(_fmtAmt(p.amount));
+      if (p.starts_at) { const t = _fmtDate(p.starts_at); if (t) parts.push(t); }
+      if (p.memo) parts.push(String(p.memo).slice(0, 20));
     }
-    if (p.memo) parts.push(String(p.memo).slice(0, 20));
     if (!parts.length && action && action.confirmation_text) return action.confirmation_text;
-    return parts.join(' · ') || (action && action.kind) || '';
+    return parts.join(' · ') || kind || '';
   }
 
   // 카테고리별로 묶인 액션 카드 렌더 (2건 이상일 때 사용)
@@ -626,12 +680,17 @@
         rowOpacity = 0.45;
         statusRight = `<span style="font-size:10px;color:#999;font-weight:700;flex-shrink:0;">제외</span>`;
       }
+      // 2026-04-26 버그B 픽스 — 실패 행에 사유(it.errorMsg) 함께 노출
+      const errorLine = (f.it.status === 'failed' && f.it.errorMsg)
+        ? `<div style="font-size:10px;color:hsl(0,60%,40%);margin-top:2px;line-height:1.4;">사유: ${_esc(f.it.errorMsg)}</div>`
+        : '';
       return `
         <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:${rowBg};border-radius:10px;opacity:${rowOpacity};">
           ${statusIcon}
           <div style="flex:1;min-width:0;font-size:12px;color:#333;line-height:1.4;">
             <span style="font-weight:700;color:${_catMeta(f.kind).color};">${_esc(_catMeta(f.kind).label)}</span>
             <span style="color:#555;">: ${_esc(summary)}</span>
+            ${errorLine}
           </div>
           ${statusRight}
         </div>`;
@@ -780,8 +839,13 @@
       </div>`;
     }
     if (it.status === 'failed') {
+      // 2026-04-26 버그B 픽스 — 실패 사유(it.errorMsg) 가 있으면 함께 노출
+      const errLine = it.errorMsg
+        ? `<div style="font-size:11px;color:hsl(0,60%,35%);background:hsl(0,70%,98%);padding:6px 8px;border-radius:8px;margin-bottom:6px;line-height:1.4;">사유: ${_esc(it.errorMsg)}</div>`
+        : '';
       return `<div style="padding:9px 10px;border-radius:10px;background:hsl(0,70%,96%);border:1px solid hsl(0,70%,85%);">
         <div style="font-size:12px;color:hsl(0,70%,40%);font-weight:700;margin-bottom:6px;display:inline-flex;align-items:center;gap:5px;">${_svg('ic-x', 12)} <span>실패 — ${_esc(_summarizeItem(it.action))}</span></div>
+        ${errLine}
         <button data-row-run="${key}" style="padding:6px 10px;border:1px solid ${meta.color};border-radius:8px;background:#fff;color:${meta.color};font-size:11px;font-weight:700;cursor:pointer;">다시 시도</button>
       </div>`;
     }
@@ -1510,8 +1574,10 @@
       if (window.Dashboard?.refresh) window.Dashboard.refresh(true);
     } catch (e) {
       msg.action_status = 'failed';
+      // 2026-04-26 버그B 픽스 — 실패 사유 저장 (UI 카드에 표시)
+      msg.action_error = window._humanError ? window._humanError(e) : (e && e.message) || '알 수 없는 오류';
       _renderHistory();
-      _history.push({ role: 'assistant', text: '실패: ' + (window._humanError ? window._humanError(e) : e.message) });
+      _history.push({ role: 'assistant', text: '실패: ' + msg.action_error });
       _renderHistory();
     }
   }
