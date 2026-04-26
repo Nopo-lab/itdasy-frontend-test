@@ -484,8 +484,12 @@
 
     <!-- 메뉴 -->
     <!-- 대시보드 진입점은 하단 탭바로 이관 — P3.2 -->
-    <button class="sheet-row" onclick="closeSettings(); connectInstagram();">인스타 연동하기 / 다시 연결</button>
-    <button class="sheet-row" onclick="closeSettings(); disconnectInstagram();" style="color:var(--danger);">인스타 연동 해제</button>
+    <!-- [2026-04-26] 인스타 = 콘텐츠 발행/말투 분석용. 잇데이 로그인 계정과 별개임을 명시 -->
+    <div style="padding:12px 16px 4px; font-size:11px; color:var(--text-subtle); line-height:1.5;">
+      인스타 연결은 <strong style="color:var(--text-muted);">콘텐츠 발행 · 말투 분석용</strong>이에요.<br>잇데이 로그인 계정과는 별개로, 언제든 해제할 수 있어요.
+    </div>
+    <button class="sheet-row" onclick="closeSettings(); connectInstagram();">인스타 연결하기 / 다시 연결</button>
+    <button class="sheet-row" onclick="closeSettings(); disconnectInstagram();" style="color:var(--danger);">인스타 연결 해제</button>
     <!-- [2026-04-24] 디바이스 간 데이터 동기화 (Task 3 · 전략 C) -->
     <button class="sheet-row" data-haptic="light" onclick="closeSettings(); window.forceSync && window.forceSync();">
       <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style="flex-shrink:0;margin-right:10px;"><use href="#ic-refresh-cw"/></svg>
@@ -834,10 +838,14 @@
   <div id="homePreConnect" class="hc-section">
 
     <div class="hc-step1">
-      <div class="hc-step-label">인스타 연동</div>
-      <div class="hc-title">연동 한 번이면<br>말투까지 학습해요</div>
-      <div class="hc-desc">연동 없이도 AI 캡션·사진 편집은 전부 사용 가능해요<br><span style="font-size:12px; color:var(--text-subtle);">연동하면 내 말투 그대로 글이 나와요</span></div>
-      <button class="hc-btn-primary" onclick="connectInstagram()" data-haptic="light" style="min-height:48px;">연동하고 시작해요</button>
+      <div class="hc-step-label">인스타 연결 (선택)</div>
+      <div class="hc-title">연결 한 번이면<br>말투까지 학습해요</div>
+      <div class="hc-desc">연결 없이도 AI 캡션·사진 편집은 전부 사용 가능해요<br><span style="font-size:12px; color:var(--text-subtle);">연결하면 내 말투 그대로 글이 나와요</span></div>
+      <!-- [2026-04-26] 인스타 = 콘텐츠 발행/말투 분석용. 잇데이 로그인 계정과 별개임을 명시 -->
+      <div style="margin:6px 0 10px; padding:8px 10px; background:rgba(241,128,145,0.06); border-radius:8px; font-size:11px; color:var(--text-subtle); line-height:1.55;">
+        이 연결은 <strong style="color:var(--text-muted);">잇데이 로그인 계정과 별개</strong>예요. 콘텐츠 발행 · 말투 분석용으로만 쓰여요.
+      </div>
+      <button class="hc-btn-primary" onclick="connectInstagram()" data-haptic="light" style="min-height:48px;">연결하고 시작해요</button>
       <button class="hc-btn-ghost" id="sampleBtn" style="min-height:44px; display:flex; align-items:center; justify-content:center; gap:6px;">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
         샘플 캡션 먼저 볼게요

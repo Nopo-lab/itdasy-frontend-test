@@ -81,13 +81,37 @@
   }
 
   // === 데이터 ===
+  // 2026-04-26 — 시술 카탈로그 가격 자동 매핑 (booking.amount 없을 때 폴백)
+  function _catalogPriceFor(svc) {
+    if (!svc) return null;
+    const list = window._serviceTemplatesCache || [];
+    if (!list.length) return null;
+    const k = String(svc).trim().toLowerCase();
+    if (!k) return null;
+    let hit = list.find(t => (t.name || '').trim().toLowerCase() === k);
+    if (!hit) hit = list.find(t => k.includes((t.name || '').trim().toLowerCase()) || (t.name || '').trim().toLowerCase().includes(k));
+    return hit && hit.default_price ? hit.default_price : null;
+  }
+  // 50000 → "5만", 35000 → "3.5만", 5000 → "5천"
+  function _krwShort(n) {
+    if (!n || n <= 0) return '';
+    if (n >= 10000) {
+      const v = n / 10000;
+      const fixed = (Math.round(v * 10) / 10);
+      return (fixed % 1 === 0 ? fixed.toFixed(0) : fixed.toFixed(1)) + '만';
+    }
+    if (n >= 1000) return Math.round(n / 1000) + '천';
+    return n + '원';
+  }
   function _mapItems(items) {
     return items.map(b => {
       const s = new Date(b.starts_at), e = new Date(b.ends_at);
+      const amt = (b.amount && b.amount > 0) ? b.amount : _catalogPriceFor(b.service_name);
       return {
         d: s.getDate(), t: s.toTimeString().slice(0, 5),
         cust: b.customer_name || '이름 없음', svc: b.service_name || '',
         dur: Math.round((e - s) / 60000), id: b.id, status: b.status,
+        amount: amt || null,
         _raw: b,
       };
     });
@@ -221,11 +245,15 @@
     const clr = _colorForService(it.svc);
     const isDim = it.status === 'cancelled' || it.status === 'no_show';
     const timeStr = _fmt(s) + '~' + _fmt(e);
+    // 2026-04-26 — 가격 표시. 블록 높이가 충분할 때만 (>= 40px)
+    const priceShort = (it.amount && height >= 40) ? _krwShort(it.amount) : '';
+    const priceHtml = priceShort ? `<span class="cv-tt-price">${_esc(priceShort)}</span>` : '';
     return `<button class="cv-tt-block${isDim ? ' is-dim' : ''}" data-booking-id="${_esc(it.id)}"
       style="top:${top}px;height:${height}px;background:${clr.bg};border-left-color:${clr.border};">
       <strong>${_esc(it.cust)}</strong>
       ${it.svc ? `<span class="cv-tt-svc">${_esc(it.svc)}</span>` : ''}
       <span class="cv-tt-time">${timeStr}</span>
+      ${priceHtml}
     </button>`;
   }
 
@@ -660,6 +688,10 @@ ${isEdit ? `
     document.body.appendChild(o);
     document.body.style.overflow = 'hidden';
     o.querySelector('.cal-body').innerHTML = _skeletonMonth();
+    // 2026-04-26 — 시술 카탈로그 가격 표시 위해 캐시 워밍 (조용히 병행 호출)
+    if (typeof window.loadServiceTemplates === 'function' && !(window._serviceTemplatesCache || []).length) {
+      window.loadServiceTemplates().catch(() => {});
+    }
     _mappedCache = await _loadMonth(_curYear, _curMonth);
     _renderMonth(_curYear, _curMonth, _mappedCache);
     _prefetchNeighbors();

@@ -469,9 +469,27 @@
   color: #999;
   margin-top: auto;
 }
+/* 2026-04-26 — 시술 가격 (우하단 작은 라벨) */
+.cv-tt-block .cv-tt-price {
+  position: absolute;
+  right: 5px;
+  bottom: 3px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #B8385A;
+  letter-spacing: -0.3px;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.6);
+  padding: 1px 4px;
+  border-radius: 6px;
+  pointer-events: none;
+}
 .cv-tt-block.is-dim {
   opacity: 0.5;
   text-decoration: line-through;
+}
+.cv-tt-block.is-dim .cv-tt-price {
+  text-decoration: none;
 }
 
 /* 주간 뷰 — 요일 헤더 */
