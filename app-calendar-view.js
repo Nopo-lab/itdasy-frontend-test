@@ -206,19 +206,167 @@
 
   function _renderDay(date, mapped) {
     const body = _body(); if (!body) return;
-    body.innerHTML = _buildChipStrip(date) + _buildDaySlots(date, mapped);
-    body.querySelectorAll('[data-booking-id]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const item = _mappedCache.find(m => m.id === btn.dataset.bookingId);
-        if (item) _openForm(date, item._raw);
+    body.innerHTML = _buildChipStrip(date) + _buildTimetableDay(date, mapped);
+    _bindTimetable(body, date);
+    setTimeout(() => {
+      const strip  = document.getElementById('cv-day-strip');
+      const active = strip?.querySelector('.active');
+      if (active) active.scrollIntoView({ inline: 'center', behavior: 'smooth' });
+      // 시간표를 영업 시작 시간으로 스크롤
+      const wrap = body.querySelector('.cv-tt-scroll');
+      if (wrap) wrap.scrollTop = 0;
+    }, 50);
+  }
+
+  // === 시간표 (Timetable) 뷰 ===
+  function _ttHours() {
+    const h = window.Booking?.shopHours ? window.Booking.shopHours() : { start: 10, end: 22, slotMin: 30 };
+    // 영업시간 9~22시 보장 (시간표 가독성)
+    const start = Math.max(0, Math.min(23, h.start ?? 10));
+    const end   = Math.max(start + 1, Math.min(24, h.end ?? 22));
+    return { start, end };
+  }
+
+  function _ttBuildTimeAxis(startH, endH) {
+    let h = '<div class="cv-tt-axis">';
+    for (let i = startH; i < endH; i++) {
+      h += '<div class="cv-tt-hr">' + i + '시</div>';
+    }
+    return h + '</div>';
+  }
+
+  function _ttBookingBlock(it, startH) {
+    const s = new Date(it._raw.starts_at);
+    const e = new Date(it._raw.ends_at);
+    const top = (s.getHours() - startH) * TT_HOUR_PX + s.getMinutes();
+    let height = Math.max(20, Math.round((e - s) / 60000));
+    // 너무 짧은 블록도 텍스트 보이게 최소 높이
+    const clr = _colorForService(it.svc);
+    const isDim = it.status === 'cancelled' || it.status === 'no_show';
+    const timeStr = _fmt(s) + '~' + _fmt(e);
+    return `<button class="cv-tt-block${isDim ? ' is-dim' : ''}" data-booking-id="${_esc(it.id)}"
+      style="top:${top}px;height:${height}px;background:${clr.bg};border-left-color:${clr.border};">
+      <strong>${_esc(it.cust)}</strong>
+      ${it.svc ? `<span class="cv-tt-svc">${_esc(it.svc)}</span>` : ''}
+      <span class="cv-tt-time">${timeStr}</span>
+    </button>`;
+  }
+
+  function _buildTimetableDay(date, mapped) {
+    const { start, end } = _ttHours();
+    const totalH = (end - start) * TT_HOUR_PX;
+    const dayItems = mapped.filter(m => m.d === date.getDate());
+    const dayLabel = date.getFullYear() + '년 ' + (date.getMonth() + 1) + '월 ' + date.getDate() + '일';
+    let h = '<div class="cv-d-hd">'
+      + '<span style="font-size:14px;font-weight:700">' + dayLabel + '</span>'
+      + '<span style="font-size:12px;color:var(--text-subtle)">' + dayItems.length + '건</span>'
+      + '</div>';
+    h += '<div class="cv-tt-scroll"><div class="cv-tt-grid cv-tt-grid--day">';
+    h += _ttBuildTimeAxis(start, end);
+    // 시간 행 그리드 라인을 위한 배경
+    h += '<div class="cv-tt-col" data-date="' + _ds(date) + '" style="height:' + totalH + 'px">';
+    // 클릭 가능한 빈 슬롯 (1시간 단위)
+    for (let i = 0; i < end - start; i++) {
+      h += '<div class="cv-tt-slot" data-hour="' + (start + i) + '" style="top:' + (i * TT_HOUR_PX) + 'px;height:' + TT_HOUR_PX + 'px"></div>';
+    }
+    dayItems.forEach(it => { h += _ttBookingBlock(it, start); });
+    h += '</div></div></div>';
+    h += '<button class="cv-d-add" id="cv-add-btn">+ 예약 추가</button>';
+    return h;
+  }
+
+  function _buildTimetableWeek(baseDate, mapped) {
+    const { start, end } = _ttHours();
+    const totalH = (end - start) * TT_HOUR_PX;
+    const DOW = ['일', '월', '화', '수', '목', '금', '토'];
+    // 주의 시작 = 일요일
+    const ws = new Date(baseDate);
+    ws.setHours(0, 0, 0, 0);
+    ws.setDate(ws.getDate() - ws.getDay());
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+
+    let dayHeaders = '<div class="cv-tt-day-hdr-spacer"></div>';
+    const colsHtml = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(ws); d.setDate(ws.getDate() + i);
+      const isToday = d.getTime() === today.getTime();
+      const isSun = d.getDay() === 0;
+      const isSat = d.getDay() === 6;
+      let hdrCls = 'cv-tt-day-hdr';
+      if (isToday) hdrCls += ' today';
+      if (isSun) hdrCls += ' sun';
+      if (isSat) hdrCls += ' sat';
+      dayHeaders += `<div class="${hdrCls}">
+        <span class="cv-tt-dow">${DOW[d.getDay()]}</span>
+        <span class="cv-tt-dnum">${d.getDate()}</span>
+      </div>`;
+      // 해당 날짜 booking 필터 (월 캐시 기준이므로 같은 달만 매칭)
+      const ymd = _ds(d);
+      const items = mapped.filter(m => {
+        const sd = new Date(m._raw.starts_at);
+        return _ds(sd) === ymd;
       });
-    });
-    body.querySelector('#cv-add-btn')?.addEventListener('click', () => _openForm(date, null));
+      let col = `<div class="cv-tt-col${isToday ? ' is-today' : ''}" data-date="${ymd}" style="height:${totalH}px">`;
+      for (let j = 0; j < end - start; j++) {
+        col += '<div class="cv-tt-slot" data-hour="' + (start + j) + '" style="top:' + (j * TT_HOUR_PX) + 'px;height:' + TT_HOUR_PX + 'px"></div>';
+      }
+      items.forEach(it => { col += _ttBookingBlock(it, start); });
+      col += '</div>';
+      colsHtml.push(col);
+    }
+
+    const wkLabel = (ws.getMonth() + 1) + '월 ' + ws.getDate() + '일 주';
+    let h = '<div class="cv-d-hd">'
+      + '<span style="font-size:14px;font-weight:700">' + wkLabel + '</span>'
+      + '<span style="font-size:12px;color:var(--text-subtle)">주간</span>'
+      + '</div>';
+    h += '<div class="cv-tt-scroll">';
+    h += '<div class="cv-tt-day-hdrs cv-tt-day-hdrs--week">' + dayHeaders + '</div>';
+    h += '<div class="cv-tt-grid cv-tt-grid--week">';
+    h += _ttBuildTimeAxis(start, end);
+    h += colsHtml.join('');
+    h += '</div></div>';
+    return h;
+  }
+
+  function _renderWeek(date, mapped) {
+    const body = _body(); if (!body) return;
+    body.innerHTML = _buildChipStrip(date) + _buildTimetableWeek(date, mapped);
+    _bindTimetable(body, date);
     setTimeout(() => {
       const strip  = document.getElementById('cv-day-strip');
       const active = strip?.querySelector('.active');
       if (active) active.scrollIntoView({ inline: 'center', behavior: 'smooth' });
     }, 50);
+  }
+
+  function _bindTimetable(body, date) {
+    // 예약 블록 클릭 → 편집
+    body.querySelectorAll('.cv-tt-block[data-booking-id]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const item = _mappedCache.find(m => m.id === btn.dataset.bookingId);
+        if (item) _openForm(new Date(item._raw.starts_at), item._raw);
+      });
+    });
+    // 빈 슬롯 클릭 → 새 예약 (시작시간 prefill)
+    body.querySelectorAll('.cv-tt-slot').forEach(slot => {
+      slot.addEventListener('click', () => {
+        const col = slot.closest('.cv-tt-col');
+        const ymd = col?.getAttribute('data-date');
+        const hr = parseInt(slot.getAttribute('data-hour'), 10);
+        if (!ymd || isNaN(hr)) return;
+        const startD = new Date(ymd + 'T00:00:00');
+        startD.setHours(hr, 0, 0, 0);
+        const endD = new Date(startD.getTime() + 60 * 60000); // 기본 1시간
+        window._pendingBookingSlot = {
+          starts_at: startD.toISOString(),
+          ends_at:   endD.toISOString(),
+        };
+        _openForm(startD, null);
+      });
+    });
+    body.querySelector('#cv-add-btn')?.addEventListener('click', () => _openForm(date, null));
   }
 
   // === 예약 폼 ===
@@ -435,8 +583,9 @@ ${isEdit ? `
     o.querySelectorAll('.cal-view-toggle button').forEach(b => {
       b.classList.toggle('active', b.dataset.view === view);
     });
-    if (view === 'month') _renderMonth(_curYear, _curMonth, _mappedCache);
-    else                  _renderDay(_curDate, _mappedCache);
+    if (view === 'month')      _renderMonth(_curYear, _curMonth, _mappedCache);
+    else if (view === 'week')  _renderWeek(_curDate, _mappedCache);
+    else                       _renderDay(_curDate, _mappedCache);
   }
 
   // === 인접 월 미리 캐싱 ===
@@ -481,7 +630,8 @@ ${isEdit ? `
   };
   window._calSelectDayChip = function (dateStr) {
     _curDate = new Date(dateStr + 'T00:00:00');
-    _renderDay(_curDate, _mappedCache);
+    if (_curView === 'week') _renderWeek(_curDate, _mappedCache);
+    else                     _renderDay(_curDate, _mappedCache);
   };
   window._calSwitchView = _switchView;
   window._calPrevMonth  = _prevMonth;
@@ -522,6 +672,7 @@ ${isEdit ? `
           <span id="cal-offline-badge" style="display:none;font-size:10px;font-weight:700;color:var(--danger);background:rgba(220,53,69,.1);padding:2px 8px;border-radius:999px;">오프라인</span>
           <div class="cal-view-toggle">
             <button class="active" data-view="month" onclick="_calSwitchView('month')">월</button>
+            <button data-view="week" onclick="_calSwitchView('week')">주</button>
             <button data-view="day" onclick="_calSwitchView('day')">일</button>
           </div>
           <button class="cal-close-btn" onclick="(function(){var o=document.getElementById('${OVERLAY}');if(o)o.remove();document.body.style.overflow=''})()">✕</button>
