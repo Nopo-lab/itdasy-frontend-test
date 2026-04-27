@@ -281,7 +281,8 @@
         <div id="asstTypeahead" style="display:none;gap:6px;overflow-x:auto;margin-top:6px;padding:2px 0;"></div>
         <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
           <button id="asstPhoto" aria-label="사진 업로드" title="사진 업로드" style="flex-shrink:0;width:44px;height:44px;border:1px solid hsl(340,78%,85%);border-radius:14px;background:hsl(340,100%,98%);color:hsl(350,60%,40%);cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center;transition:background 0.15s;">${_svg('ic-camera', 20)}</button>
-          <input id="asstInput" placeholder="샵 관련해서 물어보세요…" maxlength="300" style="flex:1;padding:12px;border:1px solid #ddd;border-radius:14px;font-size:14px;min-width:0;" />
+          <input id="asstInput" placeholder="샵 관련해서 물어보세요…" maxlength="300" data-no-voice style="flex:1;padding:12px;border:1px solid #ddd;border-radius:14px;font-size:14px;min-width:0;" />
+          <button id="asstMicBtn" type="button" aria-label="음성 입력" title="음성 입력" style="flex-shrink:0;width:44px;height:44px;border:1px solid hsl(340,78%,85%);border-radius:14px;background:hsl(340,100%,98%);color:hsl(350,60%,40%);cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center;transition:background 0.15s, color 0.15s;">${_svg('ic-mic', 20)}</button>
           <button id="asstSend" style="flex-shrink:0;padding:12px 18px;border:none;border-radius:14px;background:linear-gradient(135deg,#F18091,#D95F70);color:#fff;cursor:pointer;font-weight:800;display:inline-flex;align-items:center;gap:6px;">${_svg('ic-send', 14)} 보내기</button>
         </div>
         <input id="asstCamera" type="file" accept="image/*" capture="environment" multiple style="display:none;" />
@@ -316,8 +317,117 @@
       const v = (e.target.value || '').trim();
       _typeTimer = setTimeout(() => _renderTypeahead(v), 200);
     });
+    // 2026-04-26 — 음성 입력 버튼 (Web Speech API)
+    const _micBtn = sheet.querySelector('#asstMicBtn');
+    if (_micBtn) _micBtn.addEventListener('click', _startVoiceInput);
     _renderSuggest();
     return sheet;
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // 음성 입력 (2026-04-26)
+  //   1인샵 사장님은 시술 중 손이 바쁨 → 마이크로 자연어 입력.
+  //   결과는 입력창에 채우기만 하고 자동 전송 X (사용자 검토 후 직접 전송).
+  //   iOS Safari / Android Chrome / 데스크톱 Chrome 지원. Capacitor WebView
+  //   는 폴백 미지원 — 별도 PR 에서 SpeechRecognizer 플러그인 통합.
+  // ─────────────────────────────────────────────────────────────
+  let _voiceRec = null;  // 현재 동작 중 SpeechRecognition 인스턴스
+  function _startVoiceInput() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const input = document.getElementById('asstInput');
+    const btn = document.getElementById('asstMicBtn');
+    if (!SR) {
+      // Capacitor / 미지원 브라우저 폴백
+      if (typeof window.showToast === 'function') {
+        window.showToast('이 환경은 음성 입력을 지원하지 않아요. 키보드로 입력해주세요.');
+      } else {
+        alert('이 환경은 음성 입력을 지원하지 않아요.');
+      }
+      return;
+    }
+    // 이미 녹음 중이면 토글로 중지
+    if (_voiceRec) {
+      try { _voiceRec.stop(); } catch (_e) { void _e; }
+      _voiceRec = null;
+      _voiceUiReset(btn);
+      return;
+    }
+    const rec = new SR();
+    rec.lang = 'ko-KR';
+    rec.continuous = false;
+    rec.interimResults = true;
+    let _base = (input && input.value) || '';
+    if (_base && !_base.endsWith(' ')) _base += ' ';
+
+    rec.onresult = (e) => {
+      let finalTxt = '';
+      let interimTxt = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) finalTxt += t;
+        else interimTxt += t;
+      }
+      if (!input) return;
+      if (finalTxt) {
+        input.value = _base + finalTxt;
+        _base = input.value;
+      } else if (interimTxt) {
+        input.value = _base + interimTxt;
+      }
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    rec.onerror = (ev) => {
+      _voiceUiReset(btn);
+      _voiceRec = null;
+      const code = ev && ev.error;
+      let msg = '음성 인식 실패 - 다시 시도해주세요';
+      if (code === 'not-allowed' || code === 'service-not-allowed') {
+        msg = '마이크 권한이 필요해요. 브라우저 설정을 확인해주세요.';
+      } else if (code === 'no-speech') {
+        msg = '음성이 감지되지 않았어요. 다시 시도해주세요.';
+      }
+      if (typeof window.showToast === 'function') window.showToast(msg);
+    };
+    rec.onend = () => {
+      _voiceUiReset(btn);
+      _voiceRec = null;
+      if (input && input.value && input.value !== _base.trimEnd()) {
+        if (typeof window.showToast === 'function') window.showToast('음성 인식 완료');
+      }
+      try { input && input.focus(); } catch (_e) { void _e; }
+    };
+
+    try {
+      rec.start();
+      _voiceRec = rec;
+      _voiceUiActive(btn);
+      if (typeof window.showToast === 'function') window.showToast('듣고 있어요…');
+    } catch (e) {
+      _voiceUiReset(btn);
+      _voiceRec = null;
+      if (typeof window.showToast === 'function') window.showToast('음성 시작 실패 - 잠시 후 다시 시도');
+    }
+  }
+  function _voiceUiActive(btn) {
+    if (!btn) return;
+    btn.style.background = 'rgba(220,53,69,0.92)';
+    btn.style.color = '#fff';
+    btn.style.borderColor = 'rgba(220,53,69,1)';
+    btn.style.animation = 'asst-mic-pulse 1s infinite';
+  }
+  function _voiceUiReset(btn) {
+    if (!btn) return;
+    btn.style.background = 'hsl(340,100%,98%)';
+    btn.style.color = 'hsl(350,60%,40%)';
+    btn.style.borderColor = 'hsl(340,78%,85%)';
+    btn.style.animation = '';
+  }
+  // 펄스 애니메이션 1회 주입 (중복 방지)
+  if (!document.getElementById('asst-mic-pulse-style')) {
+    const _st = document.createElement('style');
+    _st.id = 'asst-mic-pulse-style';
+    _st.textContent = '@keyframes asst-mic-pulse{0%{box-shadow:0 0 0 0 rgba(220,53,69,0.55)}70%{box-shadow:0 0 0 12px rgba(220,53,69,0)}100%{box-shadow:0 0 0 0 rgba(220,53,69,0)}}';
+    document.head.appendChild(_st);
   }
 
   // Wave B5 — 의도 예측 chips 렌더
