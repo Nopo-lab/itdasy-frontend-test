@@ -92,6 +92,8 @@
     const created = await _api('POST', '/nps', data);
     _items.unshift(created);
     try { _stats = await _api('GET', '/nps/stats'); } catch (_) { /* ignore */ }
+    // [2026-04-26 A7] 멀티 디바이스 — 다른 화면(인사이트·홈) 갱신 트리거
+    try { window.dispatchEvent(new CustomEvent('itdasy:data-changed', { detail: { kind: 'create_nps' } })); } catch (_e) { void _e; }
     return created;
   }
 
@@ -106,6 +108,8 @@
     await _api('DELETE', '/nps/' + id);
     _items = _items.filter(i => i.id !== id);
     try { _stats = await _api('GET', '/nps/stats'); } catch (_) { /* ignore */ }
+    // [2026-04-26 A7] 멀티 디바이스 — 삭제도 다른 화면 갱신 트리거
+    try { window.dispatchEvent(new CustomEvent('itdasy:data-changed', { detail: { kind: 'delete_nps' } })); } catch (_e) { void _e; }
     return { ok: true };
   }
 
@@ -253,12 +257,18 @@
     } catch (e) {
       listEl.innerHTML = '<div class="dt-error">불러오기 실패</div>';
     }
+    // [2026-04-26 A5] popstate 등록
+    try {
+      if (typeof window._registerSheet === 'function') window._registerSheet('nps', window.closeNps);
+      if (typeof window._markSheetOpen === 'function') window._markSheetOpen('nps');
+    } catch (_e) { void _e; }
   };
 
   window.closeNps = function () {
     const sheet = document.getElementById('npsSheet');
     if (sheet) { sheet.style.display = 'none'; sheet.classList.remove('dt-shown'); }
     document.body.style.overflow = '';
+    try { if (typeof window._markSheetClosed === 'function') window._markSheetClosed('nps'); } catch (_e) { void _e; }
   };
 
   window.Nps = {

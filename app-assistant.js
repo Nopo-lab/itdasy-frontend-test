@@ -108,6 +108,95 @@
   try { _sessionId = parseInt(localStorage.getItem('assistant_session_id') || '', 10) || null; }
   catch (_e) { _sessionId = null; }
 
+  // [2026-04-26 백그라운드 픽스] in-flight 메시지 직렬화 / 미확인 답변 알림
+  // 사진 업로드·답변 대기 중에 챗봇 닫고 딴 일 해도, 다시 열었을 때 보낸 내역과 답변이 보이도록.
+  const PENDING_KEY = 'chat_pending';
+  const PENDING_TIMEOUT_MS = 60 * 1000;  // 60초 후 자동 정리
+  let _pendingTimer = null;
+  let _inflightCtrl = null;     // 진행 중 fetch AbortController (페이지 언로드 시 abort)
+  let _pendingTickTimer = null; // 진행 시간 표시용 1초 인터벌
+  let _hasUnreadAnswer = false; // 챗봇 닫혀있는데 답변 도착 → FAB 빨간 점
+
+  function _savePending(payload) {
+    try {
+      const data = Object.assign({ started_at: Date.now() }, payload || {});
+      localStorage.setItem(PENDING_KEY, JSON.stringify(data));
+    } catch (_e) { void _e; }
+    // 진행 시간 1초마다 갱신 (sheet 열려있을 때만 의미 있음)
+    if (_pendingTickTimer) { clearInterval(_pendingTickTimer); _pendingTickTimer = null; }
+    _pendingTickTimer = setInterval(() => {
+      const sheet = document.getElementById('assistantSheet');
+      if (sheet && sheet.style.display !== 'none') _renderHistory();
+    }, 1000);
+    // 60초 timeout
+    if (_pendingTimer) { clearTimeout(_pendingTimer); _pendingTimer = null; }
+    _pendingTimer = setTimeout(() => {
+      try {
+        if (_inflightCtrl) { try { _inflightCtrl.abort(); } catch (_e) { void _e; } }
+        _clearPending();
+        _history = _history.filter(m => m.role !== 'loading');
+        _history.push({ role: 'assistant', text: '응답이 너무 늦어요. 다시 시도해 주세요.' });
+        _renderHistory();
+        if (typeof window.toast === 'function') {
+          window.toast('AI 비서 응답이 너무 늦어요. 다시 시도해 주세요.');
+        }
+      } catch (_e) { void _e; }
+    }, PENDING_TIMEOUT_MS);
+  }
+  function _clearPending() {
+    try { localStorage.removeItem(PENDING_KEY); } catch (_e) { void _e; }
+    if (_pendingTimer) { clearTimeout(_pendingTimer); _pendingTimer = null; }
+    if (_pendingTickTimer) { clearInterval(_pendingTickTimer); _pendingTickTimer = null; }
+  }
+  function _readPending() {
+    try {
+      const raw = localStorage.getItem(PENDING_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch (_e) { return null; }
+  }
+  function _setUnreadAnswer(on) {
+    _hasUnreadAnswer = !!on;
+    try {
+      const fab = document.getElementById('assistantFab');
+      if (!fab) return;
+      let dot = fab.querySelector('.asst-unread-dot');
+      if (on) {
+        if (!dot) {
+          dot = document.createElement('span');
+          dot.className = 'asst-unread-dot';
+          dot.style.cssText = 'position:absolute;top:6px;right:6px;width:12px;height:12px;border-radius:50%;background:#FF3B30;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.1);pointer-events:none;';
+          // FAB 자체가 position:fixed 라 자식 absolute 가 바로 잡힘
+          fab.style.position = fab.style.position || 'fixed';
+          fab.appendChild(dot);
+        }
+      } else if (dot) {
+        dot.remove();
+      }
+    } catch (_e) { void _e; }
+  }
+  function _notifyAnswerArrived() {
+    const sheet = document.getElementById('assistantSheet');
+    const isOpen = !!(sheet && sheet.style.display !== 'none' && sheet.style.opacity !== '0');
+    if (isOpen) return;  // 보고있으면 알림 불필요
+    _setUnreadAnswer(true);
+    try {
+      if (typeof window.toast === 'function') {
+        // 토스트 클릭 → 챗봇 열기. window.toast 가 클릭 콜백을 지원 안 하면 메시지만.
+        try {
+          window.toast('AI 비서 답변 도착 — 탭해서 확인', { onClick: () => window.openAssistant && window.openAssistant() });
+        } catch (_e) {
+          window.toast('AI 비서 답변 도착 — 챗봇 버튼을 눌러주세요');
+        }
+      }
+    } catch (_e) { void _e; }
+  }
+
+  // 페이지 언로드 시 in-flight fetch abort. chat_pending 은 유지(다시 들어오면 보임).
+  window.addEventListener('pagehide', () => {
+    try { if (_inflightCtrl) _inflightCtrl.abort(); } catch (_e) { void _e; }
+  });
+
   // Wave B5 — 고객 이름 캐시 (keystroke 마다 localStorage 접근 방지)
   let _customerCache = null;
   let _customerCacheAt = 0;
@@ -176,10 +265,11 @@
     if (sheet) return sheet;
     sheet = document.createElement('div');
     sheet.id = 'assistantSheet';
-    // 2026-04-24 perf — opacity 트랜지션 추가 (display:none → opacity 페이드 0.10s)
-    sheet.style.cssText = 'position:fixed;inset:0;z-index:9999;display:none;background:rgba(0,0,0,0.5);opacity:0;pointer-events:none;transition:opacity 0.10s ease-out;';
+    // 2026-04-24 perf — opacity 트랜지션. [2026-04-26 A10] 0.10s → 0.05s 단축.
+    sheet.style.cssText = 'position:fixed;inset:0;z-index:9999;display:none;background:rgba(0,0,0,0.5);opacity:0;pointer-events:none;transition:opacity 0.05s ease-out;';
+    // [2026-04-26 A5] 시트 내부 패널: safe-area-inset-top 추가 (노치 회피)
     sheet.innerHTML = `
-      <div style="position:absolute;inset:auto 0 0 0;background:var(--bg,#fff);border-radius:20px 20px 0 0;height:88vh;display:flex;flex-direction:column;padding:16px;padding-bottom:max(12px,env(safe-area-inset-bottom));">
+      <div id="assistantSheetPanel" style="position:absolute;inset:auto 0 0 0;background:var(--bg,#fff);border-radius:20px 20px 0 0;height:88vh;display:flex;flex-direction:column;padding:max(8px,env(safe-area-inset-top)) 16px max(12px,env(safe-area-inset-bottom));">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
           <span style="display:inline-flex;align-items:center;color:#7C3AED;">${_svg('ic-bot', 22)}</span>
           <strong style="font-size:17px;">AI 비서</strong>
@@ -320,11 +410,21 @@
           </div>
         </div>`;
       }
-      // loading
+      // loading — chat_pending 있으면 진행 시간 표시
+      let elapsedHtml = '';
+      try {
+        const pending = _readPending();
+        if (pending && pending.started_at) {
+          const sec = Math.max(0, Math.floor((Date.now() - pending.started_at) / 1000));
+          const label = pending.kind === 'images' ? '사진 분석 중' : '답변 생성 중';
+          elapsedHtml = `<div style="font-size:11px;color:#888;margin-top:4px;">${label}… (${sec}초 경과)</div>`;
+        }
+      } catch (_e) { void _e; }
       return `<div style="display:flex;gap:8px;margin-bottom:8px;align-items:flex-start;">
         <div style="width:28px;height:28px;border-radius:50%;background:rgba(139,92,246,0.15);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;color:#7C3AED;">${_svg('ic-bot', 16)}</div>
         <div style="padding:10px 14px;background:#fff;border:1px solid rgba(0,0,0,0.06);border-radius:16px;">
           <span style="display:inline-block;animation:asstDots 1.4s infinite;font-size:20px;color:#bbb;">···</span>
+          ${elapsedHtml}
         </div>
       </div>
       <style>@keyframes asstDots { 0%,20% { opacity:0.2; } 50% { opacity:1; } 100% { opacity:0.2; } }</style>`;
@@ -1937,6 +2037,15 @@
     _history.push({ role: 'loading', text: '' });
     _renderHistory();
 
+    // [2026-04-26] in-flight 직렬화 — 챗봇 닫고 딴 일 해도 보낸 내역 유지
+    _savePending({
+      kind: 'images',
+      user_msg: placeholderText,
+      photos_thumbs: photoUrls,  // 이미 800px·0.75 압축된 dataURL
+      question: question || '',
+      n: N,
+    });
+
     try {
       // 각 파일 압축 (병렬). helper 없거나 실패하면 원본
       const compressed = await Promise.all(files.map(async (f) => {
@@ -1966,6 +2075,7 @@
 
       const auth = (window.authHeader && window.authHeader()) || {};
       const ctrl = new AbortController();
+      _inflightCtrl = ctrl;  // pagehide 시 abort 용 등록
       // 다중 이미지: 장당 60초 + 여유 버퍼. 최대 180초.
       const timeoutMs = Math.min(60000 + 30000 * Math.max(0, N - 1), 180000);
       const timeoutId = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -2023,13 +2133,18 @@
       }
       _renderHistory();
       if (window.hapticLight) window.hapticLight();
+      // [2026-04-26] 답변 도착 — pending 정리 + 챗봇 닫혀있으면 알림
+      _clearPending();
+      _notifyAnswerArrived();
     } catch (e) {
       _history = _history.filter(m => m.role !== 'loading');
       const human = window._humanError ? window._humanError(e) : (e && e.message) || '알 수 없는 오류';
       _history.push({ role: 'assistant', text: '사진을 못 읽었어요: ' + human });
       _renderHistory();
+      _clearPending();
     } finally {
       _sendInFlight = false;
+      _inflightCtrl = null;
     }
   }
 
@@ -2049,11 +2164,17 @@
     _history.push({ role: 'loading', text: '' });
     _renderHistory();
 
+    // [2026-04-26] in-flight 직렬화 — 챗봇 닫고 다시 들어와도 메시지·답변 유지
+    _savePending({ kind: 'text', user_msg: q });
+
+    const ctrl = new AbortController();
+    _inflightCtrl = ctrl;
     try {
       const res = await fetch(window.API + '/assistant/ask', {
         method: 'POST',
         headers: { ...window.authHeader(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: q, session_id: _sessionId || undefined }),
+        signal: ctrl.signal,
       });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const d = await res.json();
@@ -2081,6 +2202,8 @@
         });
         _renderHistory();
         if (window.hapticLight) window.hapticLight();
+        _clearPending();
+        _notifyAnswerArrived();
         return;
       }
 
@@ -2109,12 +2232,20 @@
       }
       _renderHistory();
       if (window.hapticLight) window.hapticLight();
+      // [2026-04-26] 답변 도착 — pending 정리 + 챗봇 닫혀있으면 알림
+      _clearPending();
+      _notifyAnswerArrived();
     } catch (e) {
       _history = _history.filter(m => m.role !== 'loading');
-      _history.push({ role: 'assistant', text: '잠시 연결이 불안정해요. 다시 시도해 주세요. (' + (window._humanError ? window._humanError(e) : e.message) + ')' });
+      const isAbort = e && (e.name === 'AbortError');
+      _history.push({ role: 'assistant', text: isAbort
+        ? '응답이 중단됐어요. 다시 시도해 주세요.'
+        : ('잠시 연결이 불안정해요. 다시 시도해 주세요. (' + (window._humanError ? window._humanError(e) : e.message) + ')') });
       _renderHistory();
+      _clearPending();
     } finally {
       _sendInFlight = false;
+      _inflightCtrl = null;
     }
   }
 
@@ -2149,6 +2280,19 @@
           const key = (m.role || 'assistant') + '::' + m.text;
           if (!localByText.has(key)) localByText.set(key, m);
         }
+        // [2026-04-26 백그라운드 픽스] in-flight (pending) 의 user 메시지가 server messages 에
+        // 아직 없으면 (서버 저장 전) _history 끝에 보존. loading 메시지도 마찬가지.
+        const serverTextSet = new Set(
+          data.messages.map(m => ((m.role || 'assistant') + '::' + (m.text || '')))
+        );
+        const survivors = [];
+        for (const m of _history) {
+          if (!m) continue;
+          if (m.role === 'loading') { survivors.push(m); continue; }
+          const key = (m.role || 'assistant') + '::' + (m.text || '');
+          // server 에 없는 user 메시지 = in-flight pending → 유지
+          if (m.role === 'user' && !serverTextSet.has(key)) survivors.push(m);
+        }
         _history = data.messages.map(m => {
           const role = m.role || 'assistant';
           const text = m.text || '';
@@ -2173,6 +2317,7 @@
           }
           return merged;
         });
+        if (survivors.length) _history = _history.concat(survivors);
       }
       _historyLoadedFromServer = true;
       _renderHistory();
@@ -2200,19 +2345,69 @@
       sheet.style.pointerEvents = 'auto';
     }));
     document.body.style.overflow = 'hidden';
+
+    // [2026-04-26 백그라운드 픽스] chat_pending 복원
+    // 챗봇 닫고 딴 일 하다가 다시 들어왔을 때, in-flight 사용자 메시지 + loading 표시.
+    // 이미 _sendInFlight 로 진행 중이면 _history 에 이미 push 돼있으므로 중복 방지.
+    try {
+      const pending = _readPending();
+      if (pending && pending.user_msg && !_sendInFlight) {
+        const ageMs = Date.now() - (pending.started_at || 0);
+        if (ageMs < PENDING_TIMEOUT_MS) {
+          // 이미 같은 텍스트의 user 메시지가 _history 에 있으면 skip
+          const dup = _history.some(m => m && m.role === 'user' && m.text === pending.user_msg);
+          if (!dup) {
+            const userMsg = { role: 'user', text: pending.user_msg };
+            if (Array.isArray(pending.photos_thumbs) && pending.photos_thumbs.length) {
+              userMsg.photos = pending.photos_thumbs;
+              userMsg.thumb = pending.photos_thumbs[0] || '';
+            }
+            _history.push(userMsg);
+            _history.push({ role: 'loading', text: '' });
+          }
+          // 진행 시간 tick 재가동 (1초마다 loading 메시지 갱신)
+          if (!_pendingTickTimer) {
+            _pendingTickTimer = setInterval(() => {
+              const sh = document.getElementById('assistantSheet');
+              if (sh && sh.style.display !== 'none') _renderHistory();
+            }, 1000);
+          }
+        } else {
+          // 타임아웃 지난 stale pending → 정리
+          _clearPending();
+        }
+      }
+    } catch (_e) { void _e; }
+
     _renderHistory();
+    // 챗봇 열었으니 unread 점 제거
+    _setUnreadAnswer(false);
     // 첫 오픈 시 서버 history 동기화 (백그라운드, 즉시 렌더에 영향 X)
     _loadServerHistory();
     setTimeout(() => document.getElementById('asstInput')?.focus(), 60);
+    // [2026-04-26 A5] popstate 등록 + 스와이프 다운 닫기
+    try {
+      if (typeof window._registerSheet === 'function') {
+        window._registerSheet('assistant', window.closeAssistant);
+      }
+      if (typeof window._markSheetOpen === 'function') window._markSheetOpen('assistant');
+      const panel = document.getElementById('assistantSheetPanel');
+      if (panel && typeof window._attachSwipeDownClose === 'function') {
+        window._attachSwipeDownClose(panel, window.closeAssistant);
+      }
+    } catch (_e) { void _e; }
   };
   window.closeAssistant = function () {
     const sheet = document.getElementById('assistantSheet');
     if (sheet) {
       sheet.style.opacity = '0';
       sheet.style.pointerEvents = 'none';
-      setTimeout(() => { sheet.style.display = 'none'; }, 90);
+      // [2026-04-26 A10] 90ms → 50ms 단축
+      setTimeout(() => { sheet.style.display = 'none'; }, 50);
     }
     document.body.style.overflow = '';
+    // [2026-04-26 A5] hash 정리
+    try { if (typeof window._markSheetClosed === 'function') window._markSheetClosed('assistant'); } catch (_e) { void _e; }
   };
 
   // 2026-04-24 perf — 앱 idle 시 시트 DOM 미리 생성. 첫 탭 latency 0.3s+ → ~0.05s
@@ -2221,4 +2416,21 @@
   } else {
     setTimeout(() => { try { _ensureSheet(); } catch (_e) { /* ignore */ } }, 1500);
   }
+
+  // [2026-04-26 백그라운드 픽스] 앱 시작 시 chat_pending 검사 → 미확인 답변 가능성 알림
+  // 사용자가 앱 완전히 닫았다가 다시 켰는데 pending 이 남아있다면, 답변이 이미 도착했을 수도 있음.
+  // FAB 에 빨간 점 띄워서 챗봇 한번 열어보라고 유도. (실제 답변은 _loadServerHistory 가 가져옴)
+  setTimeout(() => {
+    try {
+      const pending = _readPending();
+      if (!pending) return;
+      const ageMs = Date.now() - (pending.started_at || 0);
+      if (ageMs < PENDING_TIMEOUT_MS) {
+        _setUnreadAnswer(true);
+      } else {
+        // stale → 정리
+        _clearPending();
+      }
+    } catch (_e) { void _e; }
+  }, 800);
 })();

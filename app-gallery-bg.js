@@ -181,9 +181,44 @@ async function applySelectedBg() {
   }
 }
 
+// [2026-04-26] 누끼 합성 시 인물 축소 버그 픽스 헬퍼
+// 누끼 PNG 의 알파(투명도) 데이터를 스캔해서 실제 인물(불투명) 영역의 사각 bbox 를 구한다.
+// rembg 가 원본 사이즈를 유지하더라도 인물 외 영역은 다 투명이라, 이걸 잘라내지 않으면
+// drawImage 시 "빈 투명 영역까지 포함된 큰 박스"를 캔버스에 맞춰 줄여서 인물이 작아 보임.
+function _alphaBBox(srcImg) {
+  try {
+    const w = srcImg.naturalWidth || srcImg.width;
+    const h = srcImg.naturalHeight || srcImg.height;
+    if (!w || !h) return null;
+    const cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    const cx = cv.getContext('2d');
+    cx.drawImage(srcImg, 0, 0);
+    const data = cx.getImageData(0, 0, w, h).data;
+    let minX = w, minY = h, maxX = -1, maxY = -1;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const a = data[(y * w + x) * 4 + 3];
+        if (a > 8) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (maxX < 0 || maxY < 0) return null; // 모두 투명 = 실패
+    return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+  } catch (_e) {
+    // CORS taint 등으로 getImageData 실패 시 null
+    return null;
+  }
+}
+
 async function _applyBgToPhoto(photo, bg, slot) {
   // 누끼 이미지가 있으면 사용, 없으면 API 호출
   let personImg;
+  let serverOrigW = 0, serverOrigH = 0; // [2026-04-26] 백엔드가 알려주는 원본 사이즈
   if (photo.removedBgUrl) {
     personImg = await _loadImageSrc(photo.removedBgUrl);
   } else {
@@ -195,6 +230,9 @@ async function _applyBgToPhoto(photo, bg, slot) {
       const res = await fetch(API + '/image/remove-bg', { method: 'POST', headers: authHeader(), body: fd });
       if (res.status === 429) throw new Error('오늘 누끼따기 한도를 다 썼어요');
       if (!res.ok) throw new Error('서버 누끼 실패');
+      // [2026-04-26] 응답 헤더에서 원본 사이즈 회수 (CORS Expose-Headers 로 노출)
+      serverOrigW = parseInt(res.headers.get('X-Original-Width') || '0', 10) || 0;
+      serverOrigH = parseInt(res.headers.get('X-Original-Height') || '0', 10) || 0;
       removedBlob = await res.blob();
     } catch(serverErr) {
       console.warn('서버 누끼 실패, 클라이언트 폴백:', serverErr);
@@ -255,11 +293,30 @@ async function _applyBgToPhoto(photo, bg, slot) {
   const fCtx = finalCanvas.getContext('2d');
   fCtx.drawImage(bgCanvas, 0, 0);
 
-  // 인물 중앙 배치 (비율 유지)
-  const scale = Math.min(1080 / personImg.width, 1080 / personImg.height) * 0.9;
-  const pw = personImg.width * scale;
-  const ph = personImg.height * scale;
-  fCtx.drawImage(personImg, (1080 - pw) / 2, (1080 - ph) / 2, pw, ph);
+  // [2026-04-26] 인물 축소 버그 픽스
+  // (1) 알파 bbox 계산 — 인물 실제 영역만 잘라서 캔버스에 그림
+  // (2) 캔버스의 85% 차지하도록 스케일 — 기존 0.9 보다 살짝 작지만 실 인물 비율 기준이라 더 큼
+  // (3) bbox 실패 시 (CORS 등) 기존 방식 폴백
+  const personW = personImg.naturalWidth || personImg.width;
+  const personH = personImg.naturalHeight || personImg.height;
+  const bbox = _alphaBBox(personImg);
+  if (bbox && bbox.w > 0 && bbox.h > 0) {
+    const TARGET = 0.85;
+    const scale = Math.min((1080 * TARGET) / bbox.w, (1080 * TARGET) / bbox.h);
+    const pw = bbox.w * scale;
+    const ph = bbox.h * scale;
+    // drawImage(src, sx, sy, sw, sh, dx, dy, dw, dh) — bbox 만 잘라서 그림
+    fCtx.drawImage(personImg, bbox.x, bbox.y, bbox.w, bbox.h,
+                   (1080 - pw) / 2, (1080 - ph) / 2, pw, ph);
+  } else {
+    // 폴백: 기존 로직 + 서버가 알려준 원본 사이즈가 있으면 그걸 기준으로 스케일
+    const refW = serverOrigW || personW;
+    const refH = serverOrigH || personH;
+    const scale = Math.min(1080 / refW, 1080 / refH) * 0.9;
+    const pw = personW * scale;
+    const ph = personH * scale;
+    fCtx.drawImage(personImg, (1080 - pw) / 2, (1080 - ph) / 2, pw, ph);
+  }
 
   photo.editedDataUrl = finalCanvas.toDataURL('image/jpeg', 0.9);
   photo.mode = 'bg_' + bg.id;

@@ -469,12 +469,18 @@
     sheet.style.display = 'block';
     document.body.style.overflow = 'hidden';
     await _loadAndRender();
+    // [2026-04-26 A5] popstate 등록
+    try {
+      if (typeof window._registerSheet === 'function') window._registerSheet('revenue', window.closeRevenue);
+      if (typeof window._markSheetOpen === 'function') window._markSheetOpen('revenue');
+    } catch (_e) { void _e; }
   };
 
   window.closeRevenue = function () {
     const sheet = document.getElementById('revenueSheet');
     if (sheet) sheet.style.display = 'none';
     document.body.style.overflow = '';
+    try { if (typeof window._markSheetClosed === 'function') window._markSheetClosed('revenue'); } catch (_e) { void _e; }
   };
 
   window.Revenue = {

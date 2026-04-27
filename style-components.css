@@ -213,13 +213,15 @@
 #settingsCard {
   position: relative; z-index: 1;
   width: 100%; max-width: 480px;
-  max-height: 88vh;            /* 상단 잘림 방지 */
+  /* [2026-04-26 A5] 노치 회피 — max-height 에서 safe-area-inset-top 만큼 여유,
+     padding-top 에 safe-area 로 핸들 영역이 노치/상단 카메라 침범 안 하게 */
+  max-height: calc(88vh - env(safe-area-inset-top));
   overflow-y: auto;            /* 내부 스크롤 */
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   background: #fff;
   border-radius: 28px 28px 0 0;
-  padding: 12px 0 calc(24px + env(safe-area-inset-bottom));
+  padding: max(12px, env(safe-area-inset-top)) 0 calc(24px + env(safe-area-inset-bottom));
   box-shadow: 0 -4px 24px rgba(0,0,0,0.10);
   transform: translateY(100%);
   transition: transform 0.26s cubic-bezier(0.22, 1, 0.36, 1);

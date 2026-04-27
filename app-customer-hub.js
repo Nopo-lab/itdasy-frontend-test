@@ -266,6 +266,11 @@
     _state.rows = []; _state.enriched = []; _state.searchKW = ''; _state.addPanelOpen = false;
     _render();
     _load().then(() => _render()).catch(() => {});
+    // [2026-04-26 A5] popstate 등록
+    try {
+      if (typeof window._registerSheet === 'function') window._registerSheet('customers', closeCustomerHub);
+      if (typeof window._markSheetOpen === 'function') window._markSheetOpen('customers');
+    } catch (_e) { void _e; }
   }
 
   function closeCustomerHub() {
@@ -273,6 +278,7 @@
     const o = document.getElementById(OID);
     if (!o) return;
     o.remove(); document.body.style.overflow = '';
+    try { if (typeof window._markSheetClosed === 'function') window._markSheetClosed('customers'); } catch (_e) { void _e; }
   }
 
   window.openCustomerHub  = openCustomerHub;

@@ -299,29 +299,36 @@ const _USER_KEY_KEEP = new Set([
   'itdasy_biometric_asked',
 ]);
 
+// [2026-04-26 A10] 사용자 데이터 정리 — localStorage 전수 순회는 큰 객체일 때
+// UI 블로킹 가능. 즉시 효과 필요한 캐시 부분(_clearAllSWRCache)은 동기 유지하고
+// prefix-match 삭제는 requestIdleCallback 으로 양보 (가능 시).
 function _purgeUserScopedStorage() {
-  try {
-    Object.keys(localStorage).forEach(k => {
-      if (_USER_KEY_KEEP.has(k)) return;
-      if (k === _TOKEN_KEY) return; // 토큰은 setToken 이 별도 관리
-      const matchPrefix = _USER_KEY_PREFIXES.some(p => k.startsWith(p));
-      const matchExact = _USER_KEY_EXACT.includes(k);
-      if (matchPrefix || matchExact) {
-        try { localStorage.removeItem(k); } catch (_e) { void _e; }
-      }
-    });
-  } catch (_e) { void _e; }
-  try {
-    Object.keys(sessionStorage).forEach(k => {
-      if (_USER_KEY_KEEP.has(k)) return;
-      const matchPrefix = _USER_KEY_PREFIXES.some(p => k.startsWith(p));
-      const matchExact = _USER_KEY_EXACT.includes(k);
-      if (matchPrefix || matchExact) {
-        try { sessionStorage.removeItem(k); } catch (_e) { void _e; }
-      }
-    });
-  } catch (_e) { void _e; }
+  function _doPurgeStorage(storage) {
+    try {
+      Object.keys(storage).forEach(k => {
+        if (_USER_KEY_KEEP.has(k)) return;
+        if (storage === localStorage && k === _TOKEN_KEY) return; // 토큰은 setToken 이 별도 관리
+        const matchPrefix = _USER_KEY_PREFIXES.some(p => k.startsWith(p));
+        const matchExact = _USER_KEY_EXACT.includes(k);
+        if (matchPrefix || matchExact) {
+          try { storage.removeItem(k); } catch (_e) { void _e; }
+        }
+      });
+    } catch (_e) { void _e; }
+  }
+  // SWR 캐시는 즉시 (동기) — 직후 fetch 가 stale 보지 않게
   _clearAllSWRCache();
+  // 사용자 prefix 키 정리는 idle 시점에 수행 (UI 안 막힘)
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(() => {
+      _doPurgeStorage(localStorage);
+      _doPurgeStorage(sessionStorage);
+    }, { timeout: 1500 });
+  } else {
+    // rIC 미지원 브라우저는 즉시 동기 (구버전 사파리)
+    _doPurgeStorage(localStorage);
+    _doPurgeStorage(sessionStorage);
+  }
 }
 window._purgeUserScopedStorage = _purgeUserScopedStorage;
 
@@ -524,6 +531,14 @@ function getMyUserId() {
 function openSettings() {
   const sheet = document.getElementById('settingsSheet');
   const card  = document.getElementById('settingsCard');
+  // [2026-04-26 A5] popstate 등록 + 스와이프 다운 닫기 부착
+  try {
+    if (typeof window._registerSheet === 'function') window._registerSheet('settings', closeSettings);
+    if (typeof window._markSheetOpen === 'function') window._markSheetOpen('settings');
+    if (card && typeof window._attachSwipeDownClose === 'function') {
+      window._attachSwipeDownClose(card, closeSettings);
+    }
+  } catch (_e) { void _e; }
 
   // 프로필 카드 업데이트
   const shopName = localStorage.getItem('shop_name') || document.getElementById('headerShopName')?.textContent || '사장님';
@@ -555,8 +570,11 @@ function openSettings() {
 function closeSettings() {
   const sheet = document.getElementById('settingsSheet');
   const card  = document.getElementById('settingsCard');
+  if (!sheet || !card) return;
   card.classList.remove('open');
   setTimeout(() => { sheet.style.display = 'none'; }, 280);
+  // [2026-04-26 A5] hash 정리
+  try { if (typeof window._markSheetClosed === 'function') window._markSheetClosed('settings'); } catch (_e) { void _e; }
 }
 
 async function resetShopSetup() {
@@ -1112,9 +1130,18 @@ function openNavSheet() {
   const sheet = document.getElementById('navSheet');
   if (!sheet) return;
   sheet.style.display = 'flex';
+  const inner = document.getElementById('navSheetInner');
   requestAnimationFrame(() => {
-    document.getElementById('navSheetInner').style.transform = 'translateY(0)';
+    inner.style.transform = 'translateY(0)';
   });
+  // [2026-04-26 A5] popstate + 스와이프
+  try {
+    if (typeof window._registerSheet === 'function') window._registerSheet('nav', closeNavSheet);
+    if (typeof window._markSheetOpen === 'function') window._markSheetOpen('nav');
+    if (inner && typeof window._attachSwipeDownClose === 'function') {
+      window._attachSwipeDownClose(inner, closeNavSheet);
+    }
+  } catch (_e) { void _e; }
 }
 
 function closeNavSheet() {
@@ -1122,6 +1149,7 @@ function closeNavSheet() {
   if (!inner) return;
   inner.style.transform = 'translateY(100%)';
   setTimeout(() => { document.getElementById('navSheet').style.display = 'none'; }, 280);
+  try { if (typeof window._markSheetClosed === 'function') window._markSheetClosed('nav'); } catch (_e) { void _e; }
 }
 
 // 탭 전환
@@ -1645,11 +1673,13 @@ window.forceSync = async function () {
   }
 };
 
-// 앱이 백그라운드 → 포커스 복귀 시 5분 이상 비활성이었으면 캐시 무효화 + data-changed 발사
+// 앱이 백그라운드 → 포커스 복귀 시 캐시 무효화 + data-changed 발사
+// [2026-04-26 A7] 멀티 디바이스 강화 — 5분 → 60초로 대폭 단축. 다른 디바이스에서
+// 매출/예약 추가하면 60초 안에 보이도록.
 (function _installFocusSyncHandler() {
   if (window._focusSyncInstalled) return;
   window._focusSyncInstalled = true;
-  const STALE_MS = 5 * 60 * 1000;
+  const STALE_MS = 60 * 1000;  // 60초 (이전 5분)
   function _onFocus() {
     try {
       const lastFocus = sessionStorage.getItem('itdasy:last_focus_at');
@@ -1666,5 +1696,161 @@ window.forceSync = async function () {
   window.addEventListener('focus', _onFocus);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') _onFocus();
+  });
+})();
+
+// ─────────────────────────────────────────────────────────────
+// [2026-04-26 A7] 멀티 디바이스 강화 — itdasy:data-changed 글로벌 핸들러
+// 어떤 모듈이 mutation 발사 → 즉시 SWR 캐시 클리어. 다른 디바이스에서
+// 갱신된 데이터가 다음 fetch 에서 무조건 fresh 로 나오도록.
+// (개별 모듈 listener 는 이미 자기 도메인 캐시는 클리어하지만,
+//  교차 도메인 — 매출 추가 후 인사이트 — 이 누락되는 케이스 방어.)
+// ─────────────────────────────────────────────────────────────
+(function _installGlobalDataChangedSync() {
+  if (window._globalDataChangedInstalled) return;
+  window._globalDataChangedInstalled = true;
+  window.addEventListener('itdasy:data-changed', (e) => {
+    try {
+      // force_sync / focus_sync 는 이미 _clearAllSWRCache 를 호출함 — 중복 방지
+      const kind = e && e.detail && e.detail.kind;
+      if (kind === 'force_sync' || kind === 'focus_sync') return;
+      if (typeof window._clearAllSWRCache === 'function') window._clearAllSWRCache();
+    } catch (_e) { void _e; }
+  });
+})();
+
+// ─────────────────────────────────────────────────────────────
+// [2026-04-26 A5] 시트 popstate + 스와이프 다운 닫기 공통 유틸
+// 모든 모달 시트에서 재사용. 안드로이드 뒤로가기 / iOS 스와이프 닫기 통일.
+// 사용:  _attachSheetBackHandling('settings', closeSettings, openSettings)
+//        — open 시 history.pushState({sheet:'settings'}), close 시 history.back()
+//        — popstate 로 hash 사라지면 close 호출
+// ─────────────────────────────────────────────────────────────
+(function _initSheetBackRegistry() {
+  if (window._sheetBackRegistry) return;
+  const registry = new Map();   // hash -> { close, open }
+  const stack = [];              // 현재 열려있는 시트 hash 스택
+  window._sheetBackRegistry = registry;
+  window._sheetBackStack = stack;
+
+  // 단일 popstate 리스너 — 모든 시트 통합
+  window.addEventListener('popstate', () => {
+    if (!stack.length) return;
+    const top = stack[stack.length - 1];
+    const meta = registry.get(top);
+    // 현재 hash 가 더 이상 #top 이 아니면 → 사용자가 뒤로가기 → close 호출
+    if (!meta) return;
+    const hash = (window.location.hash || '').replace(/^#/, '');
+    if (hash !== top) {
+      try { meta.close && meta.close(); } catch (_e) { void _e; }
+      // 스택에서 pop (close 함수가 이미 _markSheetClosed 호출했으면 중복 pop 안됨)
+      const idx = stack.lastIndexOf(top);
+      if (idx >= 0) stack.splice(idx, 1);
+    }
+  });
+
+  // 시트 open 시 호출 — history.pushState
+  window._markSheetOpen = function (name) {
+    try {
+      const hash = '#' + name;
+      // 이미 같은 hash 면 push 안 함 (중복 방지)
+      if (window.location.hash !== hash) {
+        history.pushState({ sheet: name }, '', hash);
+      }
+      stack.push(name);
+    } catch (_e) { void _e; }
+  };
+
+  // 시트 close 시 호출 — history.back (현재 hash 가 자기 hash 인 경우만)
+  window._markSheetClosed = function (name) {
+    try {
+      const hash = (window.location.hash || '').replace(/^#/, '');
+      const idx = stack.lastIndexOf(name);
+      if (idx >= 0) stack.splice(idx, 1);
+      if (hash === name) {
+        // popstate 가 다시 _markSheetClosed 호출 안 하도록 그냥 replaceState 로 hash 제거
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+    } catch (_e) { void _e; }
+  };
+
+  // 시트 등록 — close 함수만 필요. open 은 wrapping 하지 않음 (각 모듈이 직접 _markSheetOpen 호출)
+  window._registerSheet = function (name, closeFn) {
+    if (typeof closeFn !== 'function') return;
+    registry.set(name, { close: closeFn });
+  };
+
+  // 스와이프 다운 닫기 — sheet 컨테이너에 부착. 핸들 영역(상단 60px) 에서만 트리거.
+  // close 함수를 인자로 받음. threshold deltaY > 50px.
+  window._attachSwipeDownClose = function (containerEl, closeFn) {
+    if (!containerEl || typeof closeFn !== 'function') return;
+    if (containerEl._swipeAttached) return;
+    containerEl._swipeAttached = true;
+    let startY = 0;
+    let startTime = 0;
+    let dragging = false;
+    let inHandleZone = false;
+
+    containerEl.addEventListener('touchstart', (e) => {
+      if (!e.touches || e.touches.length !== 1) return;
+      const t = e.touches[0];
+      const rect = containerEl.getBoundingClientRect();
+      // 핸들 영역 = 시트 상단 60px 이내
+      inHandleZone = (t.clientY - rect.top) < 60;
+      if (!inHandleZone) return;
+      startY = t.clientY;
+      startTime = Date.now();
+      dragging = true;
+    }, { passive: true });
+
+    containerEl.addEventListener('touchmove', (e) => {
+      if (!dragging || !e.touches || e.touches.length !== 1) return;
+      const dy = e.touches[0].clientY - startY;
+      if (dy > 0 && dy < 200) {
+        containerEl.style.transform = `translateY(${dy}px)`;
+      }
+    }, { passive: true });
+
+    containerEl.addEventListener('touchend', (e) => {
+      if (!dragging) return;
+      dragging = false;
+      const endY = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0].clientY : startY;
+      const dy = endY - startY;
+      const elapsed = Date.now() - startTime;
+      // 50px 이상 또는 100ms 이내 빠른 swipe + 30px+
+      const shouldClose = dy > 50 || (elapsed < 200 && dy > 30);
+      containerEl.style.transform = '';
+      if (shouldClose) {
+        try { closeFn(); } catch (_e) { void _e; }
+      }
+    });
+  };
+})();
+
+// ─────────────────────────────────────────────────────────────
+// [2026-04-26 A5] PWA standalone 모드 — 모달 열려있을 때 새로고침 차단
+// 일반 웹은 영향 없음 (display-mode standalone 일 때만 동작).
+// ─────────────────────────────────────────────────────────────
+(function _installPwaReloadGuard() {
+  if (window._pwaReloadGuardInstalled) return;
+  window._pwaReloadGuardInstalled = true;
+  function _isStandalone() {
+    try {
+      return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+             (window.navigator && window.navigator.standalone === true);
+    } catch (_e) { return false; }
+  }
+  function _hasOpenSheet() {
+    try {
+      const stack = window._sheetBackStack;
+      return Array.isArray(stack) && stack.length > 0;
+    } catch (_e) { return false; }
+  }
+  window.addEventListener('beforeunload', (e) => {
+    if (!_isStandalone()) return;        // 일반 웹은 그대로
+    if (!_hasOpenSheet()) return;        // 시트 안 열려있으면 그대로
+    e.preventDefault();
+    e.returnValue = '';
+    return '';
   });
 })();

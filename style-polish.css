@@ -219,7 +219,8 @@ body.splashing > *:not(#splashScreen) {
    active 시 스케일 다운 + 트랜지션 짧게. 단, 입력창/텍스트 영역 제외.
    ═══════════════════════════════════════════════════════ */
 button, [role="button"], .btn, a.btn, .chip {
-  transition: transform 0.1s cubic-bezier(0.3,0,0.2,1), box-shadow 0.12s ease, background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  /* [2026-04-26 A10] 0.10s/0.12s → 0.05s/0.08s — 즉각 반응성 향상 */
+  transition: transform 0.05s cubic-bezier(0.3,0,0.2,1), box-shadow 0.08s ease, background-color 0.08s ease, color 0.08s ease, border-color 0.08s ease;
   -webkit-tap-highlight-color: transparent;
 }
 button:active:not(:disabled),

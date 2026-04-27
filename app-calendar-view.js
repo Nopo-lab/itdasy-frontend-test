@@ -78,6 +78,8 @@
   function _close() {
     const o = _overlay(); if (o) o.remove();
     document.body.style.overflow = '';
+    // [2026-04-26 A5] hash 정리
+    try { if (typeof window._markSheetClosed === 'function') window._markSheetClosed('booking'); } catch (_e) { void _e; }
   }
 
   // === 데이터 ===
@@ -687,6 +689,11 @@ ${isEdit ? `
     o.addEventListener('click', e => { if (e.target === o) _close(); });
     document.body.appendChild(o);
     document.body.style.overflow = 'hidden';
+    // [2026-04-26 A5] popstate 등록
+    try {
+      if (typeof window._registerSheet === 'function') window._registerSheet('booking', _close);
+      if (typeof window._markSheetOpen === 'function') window._markSheetOpen('booking');
+    } catch (_e) { void _e; }
     o.querySelector('.cal-body').innerHTML = _skeletonMonth();
     // 2026-04-26 — 시술 카탈로그 가격 표시 위해 캐시 워밍 (조용히 병행 호출)
     if (typeof window.loadServiceTemplates === 'function' && !(window._serviceTemplatesCache || []).length) {
