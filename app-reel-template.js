@@ -202,22 +202,27 @@
     if (progress)  progress.style.display = 'block';
 
     try {
-      // 영상 presigned 업로드 (키프레임 포함)
-      var videoUrls = [];
-      var keyframeUrlsPerVideo = [];
+      var kfu = window.reelKeyframe;
+      if (!kfu) throw new Error('reelKeyframe 모듈 로드 실패');
+
+      var videoS3Keys = [];
+      var kfS3KeysPerVideo = [];
 
       for (var i = 0; i < files.length; i++) {
-        // TODO: 영상 자체 업로드 presigned URL 연동 (명령서 #4 확정 후)
-        console.warn('[reelTemplate] 영상 업로드 presigned 미연동 — 스킵');
-        videoUrls.push('placeholder_video_url_' + i);
+        var f = files[i];
+        var ext = kfu.fileExt(f.name);
+        var p = await kfu.presigned('reference_video', ext);
+        await kfu.putToS3(p.url, f, kfu.contentType(ext));
+        videoS3Keys.push(p.s3_key);
 
-        if (window.reelKeyframe) {
-          var blobs = await window.reelKeyframe.extract(files[i]);
-          var kfUrls = await window.reelKeyframe.uploadKeyframes(blobs, 'learn_' + Date.now());
-          keyframeUrlsPerVideo.push(kfUrls);
-        } else {
-          keyframeUrlsPerVideo.push([]);
+        var kfKeys = [];
+        try {
+          var blobs = await kfu.extract(f);
+          kfKeys = await kfu.uploadKeyframes(blobs, 'reference_video');
+        } catch (kfe) {
+          console.warn('[reelTemplate] keyframe upload failed', kfe.message);
         }
+        kfS3KeysPerVideo.push(kfKeys);
       }
 
       var res = await fetch(window.API + '/reel/templates', {
@@ -225,9 +230,9 @@
         headers: Object.assign({ 'Content-Type': 'application/json' }, _authHeader()),
         body: JSON.stringify({
           name: name,
-          reference_video_urls: videoUrls,
+          reference_video_s3_keys: videoS3Keys,
           caption_samples: captions,
-          keyframe_urls_per_video: keyframeUrlsPerVideo,
+          keyframe_s3_keys_per_video: kfS3KeysPerVideo,
         }),
       });
 

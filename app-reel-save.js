@@ -1,10 +1,9 @@
-/* app-reel-save.js — 릴스 결과 영상 갤러리 저장 (≤80줄) */
+/* app-reel-save.js — 릴스 결과 영상 갤러리 저장 */
 (function () {
   'use strict';
 
   function _toast(msg) {
-    if (typeof showToast === 'function') showToast(msg);
-    else console.warn('[reelSave]', msg);
+    if (typeof showToast === 'function') showToast(msg); else console.warn('[reelSave]', msg);
   }
 
   async function saveToGallery(videoUrl) {
@@ -15,9 +14,8 @@
         var plugins = window.Capacitor.Plugins || {};
         var Filesystem = plugins.Filesystem;
         var Media = plugins.Media;
-        var Directory = (plugins.Filesystem && plugins.Filesystem.Directory) || { Cache: 'CACHE' };
 
-        if (!Filesystem || !Media) throw new Error('플러그인 미설치 — npx cap sync 후 재빌드 필요');
+        if (!Filesystem || !Media) throw new Error('플러그인 미설치 — 앱을 최신 버전으로 업데이트해주세요');
 
         _toast('저장 중…');
         var blob = await (await fetch(videoUrl)).blob();
@@ -30,17 +28,20 @@
         var written = await Filesystem.writeFile({
           path: 'itdasy-reel-' + Date.now() + '.mp4',
           data: base64,
-          directory: Directory.Cache,
+          directory: 'CACHE',
         });
 
-        await Media.savePhoto({ path: written.uri, album: '잇데이' });
+        // @capacitor-community/media v6: saveVideo for MP4 files
+        var saveFn = typeof Media.saveVideo === 'function' ? Media.saveVideo : Media.savePhoto;
+        await saveFn({ path: written.uri, album: '잇데이' });
+
         typeof hapticSuccess === 'function' && hapticSuccess();
         _toast('사진 앱에 저장됐어요 🎉');
       } catch (e) {
         console.warn('[reelSave] native error', e);
         var msg = (e.message || '').toLowerCase().indexOf('denied') !== -1
           ? '사진 앱 접근 권한을 허용해주세요 (설정 → 잇데이 → 사진)'
-          : '저장 실패: ' + (e.message || '');
+          : '저장 실패: ' + (e.message || '알 수 없는 오류');
         _toast(msg);
       }
     } else {

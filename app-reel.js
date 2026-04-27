@@ -69,7 +69,7 @@
       if (window.reelKeyframe) {
         try { thumbBlob = (await window.reelKeyframe.extract(f, [0.0]))[0]; } catch (e) { /* ignore */ }
       }
-      state.sourceVideos.push({ file: f, url: null, thumbBlob: thumbBlob, keyframeUrls: [], label: f.name });
+      state.sourceVideos.push({ file: f, url: null, duration: dur, thumbBlob: thumbBlob, s3Key: null, keyframeS3Keys: [], label: f.name });
     }
     _renderVideoList(); _toggleInfo();
   }
@@ -195,29 +195,46 @@
   }
 
   async function start() {
-    _step('영상 분석 중…', 20);
+    _step('영상 업로드 중…', 10);
     typeof hapticMedium === 'function' && hapticMedium();
     try {
-      // TODO: 영상 presigned 업로드 연동 (BE 명령서 #4 확정 후)
-      console.warn('[reelApp] 영상 업로드 presigned 미연동');
-      var videoUrls = state.sourceVideos.map(function (_, i) { return 'placeholder_' + i; });
+      var kfu = window.reelKeyframe;
+      if (!kfu) throw new Error('reelKeyframe 모듈 로드 실패');
 
-      _step('키프레임 추출 중…', 35);
-      var allKf = [];
+      var sourceVideos = [];
       for (var i = 0; i < state.sourceVideos.length; i++) {
-        if (window.reelKeyframe) {
-          try { await window.reelKeyframe.extract(state.sourceVideos[i].file); } catch(e) { /* ignore */ }
+        var sv = state.sourceVideos[i];
+        var pct = 10 + Math.round(i / state.sourceVideos.length * 30);
+        _step('영상 ' + (i + 1) + '/' + state.sourceVideos.length + ' 업로드 중…', pct);
+
+        var ext = kfu.fileExt(sv.file.name);
+        var p = await kfu.presigned('source_video', ext);
+        if (p === 'AUTH_401' || p.err === 'AUTH_401') { close(); return; }
+        await kfu.putToS3(p.url, sv.file, kfu.contentType(ext));
+        sv.s3Key = p.s3_key;
+
+        _step('키프레임 추출 중…', pct + 10);
+        try {
+          var blobs = await kfu.extract(sv.file);
+          sv.keyframeS3Keys = await kfu.uploadKeyframes(blobs, 'source_video');
+        } catch (kfe) {
+          console.warn('[reelApp] keyframe upload failed', kfe.message);
+          sv.keyframeS3Keys = [];
         }
-        allKf.push([]);
+        sourceVideos.push({ s3_key: sv.s3Key, duration: sv.duration || 0 });
       }
 
       _step('자막 만드는 중…', 55);
       var res = await fetch(window.API + '/reel/generations', {
         method: 'POST',
         headers: Object.assign({ 'Content-Type': 'application/json' }, _ah()),
-        body: JSON.stringify({ template_id: state.templateId, video_urls: videoUrls, keyframe_urls: allKf,
-          service_name: state.serviceInfo.service_name, customer_handle: state.serviceInfo.customer_handle || null,
-          customer_consent: state.serviceInfo.customer_consent }),
+        body: JSON.stringify({
+          template_id: state.templateId,
+          source_videos: sourceVideos,
+          service_name: state.serviceInfo.service_name,
+          customer_handle: state.serviceInfo.customer_handle || null,
+          customer_consent: state.serviceInfo.customer_consent,
+        }),
       });
       if (res.status === 401) { close(); return; }
       if (res.status === 402) { _toast('이번달 한도에 도달했어요. 플랜을 업그레이드해보세요'); _step('한도 초과', 0); return; }

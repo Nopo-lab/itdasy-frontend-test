@@ -38,7 +38,7 @@
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Use microphone for voice-based quick recording of customers, revenue, and bookings.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Save AI-generated story images to your photo library.</string>
+	<string>저장한 릴스 영상과 AI 생성 이미지를 사진 앱에 보관합니다.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Access your photo library to select treatment photos for portfolio and Instagram posts.</string>
 	<key>NSUserTrackingUsageDescription</key>
