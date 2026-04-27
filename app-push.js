@@ -68,6 +68,30 @@
     if (window.showToast) {
       window.showToast(notification.title || '새 알림', notification.body || '');
     }
+    // 고객센터·신고 답변이면 미읽음 배지 즉시 갱신 (모달 안 열려도 빨간 점 보이도록)
+    const t = notification?.data?.type;
+    if (t === 'support_reply' || t === 'moderation_reply') {
+      try {
+        const badge = document.getElementById('supportUnreadBadge');
+        if (badge) {
+          const cur = parseInt(badge.textContent || '0', 10) || 0;
+          badge.textContent = String(cur + 1);
+          badge.style.display = 'inline-block';
+        }
+      } catch (_e) { void _e; }
+    }
+  });
+
+  // 푸시 탭(클릭) → 알림 종류에 따라 적절한 화면으로 이동
+  PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+    const data = action?.notification?.data || {};
+    const type = data.type;
+    if (type === 'support_reply' || type === 'moderation_reply') {
+      // 고객센터 채팅 모달 자동 열기
+      if (typeof window.openSupportChat === 'function') {
+        try { window.openSupportChat(); } catch (_e) { void _e; }
+      }
+    }
   });
 
   async function unregisterPush() {

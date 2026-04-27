@@ -84,13 +84,21 @@ function updateHeaderProfile(handle, tone, picUrl) {
   if (publishLabel) publishLabel.textContent = `${shopName} 피드에 바로 올리기`;
 
   // 헤더 아바타: 이미지 있으면 img, 없으면 이니셜
+  // (가입 방법 배지 #headerProviderBadge 는 보존)
   const avatarEl = document.getElementById('headerAvatar');
   if (avatarEl) {
+    const badge = document.getElementById('headerProviderBadge');
     if (picUrl) {
       avatarEl.innerHTML = `<img src="${picUrl}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
     } else {
       const letter = (shopName || '사장님')[0]?.toUpperCase() || '✨';
-      avatarEl.textContent = letter;
+      avatarEl.innerHTML = `<span class="profile-avatar__initial">${letter}</span>`;
+    }
+    // 배지 다시 붙이기 (innerHTML 로 날아갔으므로)
+    if (badge) avatarEl.appendChild(badge);
+    // 현재 저장된 가입 방법 즉시 반영
+    if (typeof window.applyOAuthProviderBadge === 'function') {
+      window.applyOAuthProviderBadge();
     }
   }
 
@@ -256,8 +264,144 @@ function getToken() {
     return t;
   } catch (_) { return null; }  // iOS Private 모드 SecurityError 방어
 }
+// [2026-04-24] 디바이스 간 데이터 불일치 방어 — 토큰 변경 감지 시 SWR 캐시 일괄 클리어.
+// 폰·노트북·태블릿 같은 계정으로 들어왔을 때 다른 디바이스의 stale 스냅샷이 보이는 문제 해결.
+function _clearAllSWRCache() {
+  try {
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith('pv_cache::') || k.startsWith('itdasy:cache')) {
+        try { localStorage.removeItem(k); } catch (_e) { void _e; }
+      }
+    });
+  } catch (_e) { void _e; }
+  try {
+    Object.keys(sessionStorage).forEach(k => {
+      if (k.startsWith('pv_cache::') || k.startsWith('itdasy:cache')) {
+        try { sessionStorage.removeItem(k); } catch (_e) { void _e; }
+      }
+    });
+  } catch (_e) { void _e; }
+}
+window._clearAllSWRCache = _clearAllSWRCache;
+
+// ──────────────────────────────────────────────
+// 사용자별 캐시·세션 격리 (T-2026-04-26)
+//   다른 계정 로그인 / 신규 가입 시 이전 사용자의 잔존 데이터가 화면에
+//   남는 문제 해결. 토큰 변경만으로는 same-user 토큰 갱신 vs other-user
+//   새 토큰을 구분 못 하므로 user_id 기준으로 비교.
+// ──────────────────────────────────────────────
+const _USER_KEY_PREFIXES = ['itdasy_', 'pv_cache::', 'persona_'];
+const _USER_KEY_EXACT = ['last_login_email', 'user_oauth_provider', 'last_user_id'];
+// 디바이스/UI 설정처럼 사용자 변경 시 보존할 키 (온보딩·테마·언어)
+const _USER_KEY_KEEP = new Set([
+  'onboarding_done', 'shop_type', 'shop_name',
+  'theme', 'itdasy_theme', 'lang', 'i18n_lang',
+  'itdasy_biometric_asked',
+]);
+
+function _purgeUserScopedStorage() {
+  try {
+    Object.keys(localStorage).forEach(k => {
+      if (_USER_KEY_KEEP.has(k)) return;
+      if (k === _TOKEN_KEY) return; // 토큰은 setToken 이 별도 관리
+      const matchPrefix = _USER_KEY_PREFIXES.some(p => k.startsWith(p));
+      const matchExact = _USER_KEY_EXACT.includes(k);
+      if (matchPrefix || matchExact) {
+        try { localStorage.removeItem(k); } catch (_e) { void _e; }
+      }
+    });
+  } catch (_e) { void _e; }
+  try {
+    Object.keys(sessionStorage).forEach(k => {
+      if (_USER_KEY_KEEP.has(k)) return;
+      const matchPrefix = _USER_KEY_PREFIXES.some(p => k.startsWith(p));
+      const matchExact = _USER_KEY_EXACT.includes(k);
+      if (matchPrefix || matchExact) {
+        try { sessionStorage.removeItem(k); } catch (_e) { void _e; }
+      }
+    });
+  } catch (_e) { void _e; }
+  _clearAllSWRCache();
+}
+window._purgeUserScopedStorage = _purgeUserScopedStorage;
+
+// 토큰에서 user_id 추출 (JWT payload.sub)
+function _userIdFromToken(t) {
+  try {
+    if (!t) return null;
+    const payload = JSON.parse(atob(t.split('.')[1]));
+    const sub = payload && payload.sub;
+    return sub != null ? String(sub) : null;
+  } catch (_) { return null; }
+}
+
+// 새 토큰을 받았을 때 호출. 이전 user 와 다르면 캐시 일괄 클리어.
+// 백엔드 /auth/me 호출해서 oauth_provider 도 함께 저장.
+async function applyNewSession(newToken, opts) {
+  opts = opts || {};
+  const prevUserId = (() => { try { return localStorage.getItem('last_user_id'); } catch (_) { return null; } })();
+  const newUserId = _userIdFromToken(newToken);
+
+  // user 가 바뀌면 사용자 범위 데이터 전부 정리
+  if (newUserId && prevUserId && newUserId !== prevUserId) {
+    _purgeUserScopedStorage();
+  } else if (opts.forcePurge) {
+    _purgeUserScopedStorage();
+  }
+
+  if (newUserId) {
+    try { localStorage.setItem('last_user_id', newUserId); } catch (_) { /* ignore */ }
+  }
+
+  // /auth/me 로 가입방법·이메일 동기화 (실패는 무시)
+  try {
+    const res = await fetch(API + '/auth/me', {
+      headers: { 'Authorization': 'Bearer ' + newToken, 'ngrok-skip-browser-warning': 'true' },
+    });
+    if (res && res.ok) {
+      const me = await res.json();
+      if (me) {
+        try { if (me.email) localStorage.setItem('last_login_email', me.email); } catch (_) {}
+        try { if (me.oauth_provider) localStorage.setItem('user_oauth_provider', me.oauth_provider); } catch (_) {}
+        if (typeof window.applyOAuthProviderBadge === 'function') {
+          window.applyOAuthProviderBadge();
+        }
+      }
+    }
+  } catch (_) { /* network error → 무시 */ }
+}
+window.applyNewSession = applyNewSession;
+
+// 헤더 아바타에 가입방법 배지 색·툴팁 적용
+function applyOAuthProviderBadge() {
+  let prov = 'email';
+  try { prov = localStorage.getItem('user_oauth_provider') || 'email'; } catch (_) {}
+  const allow = new Set(['email', 'google', 'kakao', 'apple']);
+  if (!allow.has(prov)) prov = 'email';
+  const el = document.getElementById('headerProviderBadge');
+  if (!el) return;
+  el.dataset.provider = prov;
+  const labels = {
+    email: '잇데이 계정으로 가입',
+    google: '구글 계정으로 가입',
+    kakao: '카카오 계정으로 가입',
+    apple: 'Apple 계정으로 가입',
+  };
+  el.title = labels[prov];
+  el.setAttribute('aria-label', '가입 방법: ' + (
+    prov === 'email' ? '잇데이' : prov === 'google' ? '구글' : prov === 'kakao' ? '카카오' : 'Apple'
+  ));
+}
+window.applyOAuthProviderBadge = applyOAuthProviderBadge;
+
 function setToken(t) {
   try {
+    // 토큰 값이 바뀌면 (다른 계정·재로그인·로그아웃) 모든 SWR 캐시 무효화.
+    let prev = null;
+    try { prev = localStorage.getItem(_TOKEN_KEY); } catch (_e) { void _e; }
+    if (prev !== t) {
+      _clearAllSWRCache();
+    }
     if (t === null || t === undefined) {
       localStorage.removeItem(_TOKEN_KEY);
     } else {
@@ -390,14 +534,15 @@ function openSettings() {
   if (profileNameEl)   profileNameEl.textContent  = shopName;
   if (profileHandleEl) profileHandleEl.textContent = _instaHandle ? `@${_instaHandle}` : '인스타 미연동';
 
-  // 헤더 아바타 복사
+  // 헤더 아바타 복사 (이니셜 span 만 가져오기 — 배지 span 제외)
   const headerAvatarEl = document.getElementById('headerAvatar');
   if (settingsAvatarEl && headerAvatarEl) {
     const img = headerAvatarEl.querySelector('img');
     if (img) {
       settingsAvatarEl.innerHTML = `<img src="${img.src}" alt="">`;
     } else {
-      settingsAvatarEl.textContent = headerAvatarEl.textContent || shopName[0] || '잇';
+      const initialEl = headerAvatarEl.querySelector('.profile-avatar__initial');
+      settingsAvatarEl.textContent = (initialEl ? initialEl.textContent : '') || shopName[0] || '잇';
     }
   }
 
@@ -528,10 +673,15 @@ async function confirmDeleteAccount() {
 async function logout() {
   if (!(await nativeConfirm("확인", "로그아웃 하시겠습니까? 세션과 캐시가 모두 초기화됩니다."))) return;
 
-  // 1. 토큰 및 로컬 스토리지 삭제
+  // 1. 토큰 및 사용자 범위 스토리지 광범위 삭제
   setToken(null);
-  // 세션 관련 키만 삭제 (온보딩 등 설정 유지)
-  [_TOKEN_KEY, 'itdasy_token', 'itdasy_consented', 'itdasy_consented_at', 'itdasy_latest_analysis'].forEach(k => localStorage.removeItem(k));
+  // 사용자 식별 / 캐시 / 페르소나·일정·세션 컨텍스트 일괄 정리
+  // (온보딩·테마·생체등록 같은 디바이스 설정은 _USER_KEY_KEEP 가 보존)
+  try { _purgeUserScopedStorage(); } catch (_e) { void _e; }
+  // 호환성 — 옛 단일 키도 함께 제거
+  ['itdasy_token', 'itdasy_consented', 'itdasy_consented_at', 'itdasy_latest_analysis'].forEach(k => {
+    try { localStorage.removeItem(k); } catch (_e) { void _e; }
+  });
 
   // [2026-04-26] 갤러리 IndexedDB 도 같이 비움 — 다음 사용자한테 새는 거 차단 (Meta 심사 블로커)
   try {
@@ -574,12 +724,13 @@ async function login() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || '로그인 실패');
     setToken(data.access_token);
-    // 계정이 다를 때만 이전 캐시 삭제 (같은 계정이면 캐시 유지)
+    // 계정이 다를 때 이전 사용자 데이터 정리 + /me 로 가입방법 동기화
     try {
       const lastEmail = localStorage.getItem('last_login_email');
-      if (lastEmail !== email) {
-        Object.keys(localStorage).filter(k => k.startsWith('pv_cache::')).forEach(k => localStorage.removeItem(k));
-      }
+      const sameEmail = (lastEmail === email);
+      // user_id 기준 비교 + 가입방법 배지 갱신
+      await applyNewSession(data.access_token, { forcePurge: !sameEmail });
+      // 보조: 이메일도 갱신 (applyNewSession 안에서 /me 응답 기준으로 덮어씀)
       localStorage.setItem('last_login_email', email);
     } catch (_) { /* ignore */ }
     document.getElementById('lockOverlay').classList.add('hidden');
@@ -647,6 +798,7 @@ async function _tryBiometricLogin() {
     const token = await window.Biometric.verify();
     if (!token) return false;
     setToken(token);
+    try { await applyNewSession(token); } catch (_) { /* ignore */ }
     return true;
   } catch (_) { return false; }
 }
@@ -688,9 +840,9 @@ async function signup() {
     const loginData = await loginRes.json();
     if (!loginRes.ok) throw new Error(loginData.detail || '자동 로그인 실패');
     setToken(loginData.access_token);
-    // 신규 가입이므로 기존 캐시 전부 무효화
+    // 신규 가입 → 무조건 이전 사용자 잔존 데이터 정리 + /me 로 가입방법 동기화
     try {
-      Object.keys(localStorage).filter(k => k.startsWith('pv_cache::')).forEach(k => localStorage.removeItem(k));
+      await applyNewSession(loginData.access_token, { forcePurge: true });
       localStorage.setItem('last_login_email', email);
     } catch (_) { /* ignore */ }
     document.getElementById('signupOverlay').style.display = 'none';
@@ -775,7 +927,7 @@ window.startKakaoLogin = async function () {
 (function _fixTabBarOnKeyboard() {
   const nav = document.getElementById('nav');
   if (!nav) return;
-  
+
   const hideNav = () => { nav.style.display = 'none'; };
   const showNav = () => { nav.style.display = ''; };
 
@@ -784,7 +936,7 @@ window.startKakaoLogin = async function () {
     const t = e.target.tagName;
     if (t === 'INPUT' || t === 'TEXTAREA' || e.target.isContentEditable) hideNav();
   });
-  
+
   document.addEventListener('focusout', (e) => {
     // 키보드가 내려가면서 focusout될 때 약간의 딜레이 후 복구 (다른 입력창으로 이동할 수 있으므로)
     setTimeout(() => {
@@ -794,6 +946,35 @@ window.startKakaoLogin = async function () {
       }
     }, 100);
   });
+})();
+
+// 2026-04-24 — iOS Safari 하단 탭바 jump 방지 (Task 5)
+//   원인: URL 바 자동숨김 + 키보드로 visual viewport 가 변할 때 position:fixed bottom
+//         이 layout viewport 와 visual viewport 차이로 점프함. 클릭 시 좌표가 틀어져
+//         재클릭이 빗나간다는 사용자 보고.
+//   해법: visualViewport 변화량을 --tab-bar-bottom CSS var 로 실시간 보정.
+//         지원되지 않는 브라우저는 CSS 폴백(safe-area + 14px) 사용.
+(function _stabilizeTabBarOnIOS() {
+  if (!window.visualViewport) return;  // 안드로이드 Chrome 도 대부분 지원
+  const vv = window.visualViewport;
+  const root = document.documentElement;
+  const BASE = 14;  // px — CSS 와 동일
+  let raf = 0;
+  const update = () => {
+    raf = 0;
+    // visual viewport 가 layout viewport 보다 작아진 만큼(키보드/URL바) 보정
+    const offset = (window.innerHeight - vv.height - vv.offsetTop) | 0;
+    // 안전영역 + 기본 14px + 보정값
+    root.style.setProperty(
+      '--tab-bar-bottom',
+      `calc(${BASE}px + env(safe-area-inset-bottom, 0px) + ${Math.max(0, offset)}px)`
+    );
+  };
+  const schedule = () => { if (!raf) raf = requestAnimationFrame(update); };
+  vv.addEventListener('resize', schedule, { passive: true });
+  vv.addEventListener('scroll', schedule, { passive: true });
+  window.addEventListener('orientationchange', () => setTimeout(update, 250), { passive: true });
+  update();
 })();
 
 // ===== 앱 초기화 (모든 모듈 로드 후 실행) =====
@@ -860,7 +1041,10 @@ window.addEventListener('load', function() {
     const params = new URLSearchParams(window.location.search);
     const t = params.get('_t');
     if (t) {
-      setToken(decodeURIComponent(t));
+      const tok = decodeURIComponent(t);
+      setToken(tok);
+      // 다른 사용자 토큰일 수 있으니 사용자 범위 캐시 정리 + 배지 동기화
+      try { window.applyNewSession && window.applyNewSession(tok); } catch (_) { /* ignore */ }
       history.replaceState(null, '', window.location.pathname);
     }
   })();
@@ -880,6 +1064,9 @@ window.addEventListener('load', function() {
   // 토큰 있으면 자동 로그인
   if(getToken()) {
     document.getElementById('lockOverlay').classList.add('hidden');
+    // 가입방법 배지 + last_user_id 보정 (기존 캐시값으로 즉시 + /me 로 갱신)
+    try { applyOAuthProviderBadge(); } catch (_) { /* ignore */ }
+    try { applyNewSession(getToken()); } catch (_) { /* ignore */ }
     checkCbt1Reset();
     checkOnboarding();
     checkInstaStatus().then(() => {
@@ -1434,3 +1621,50 @@ window._confirm2 = function (msg, opts) {
   const second = window.confirm(opts.second || ('한 번 더 확인할게요.\n' + msg + '\n이 작업은 되돌릴 수 없어요.'));
   return !!second;
 };
+
+// ─────────────────────────────────────────────────────────────
+// [2026-04-24] 디바이스 간 데이터 동기화 (Task 3)
+// 같은 계정 폰·노트북·태블릿에서 캐시 차이로 다르게 보이는 문제 해결.
+//
+// 전략 적용:
+//   A. 토큰 변경 감지 → 캐시 자동 클리어 (위 setToken 안에 구현)
+//   C. 명시적 동기화 버튼 (window.forceSync — 설정 시트 등에서 호출 가능)
+//   E. 앱 포커스 복귀 시 5분 이상 백그라운드였으면 자동 갱신 신호
+// ─────────────────────────────────────────────────────────────
+window.forceSync = async function () {
+  try {
+    if (typeof window._clearAllSWRCache === 'function') window._clearAllSWRCache();
+    if (typeof window.showToast === 'function') window.showToast('동기화 중…');
+    // data-changed 신호 한 번 — TodayBrief / 인사이트 등이 즉시 재렌더
+    try {
+      window.dispatchEvent(new CustomEvent('itdasy:data-changed', { detail: { kind: 'force_sync' } }));
+    } catch (_e) { void _e; }
+    setTimeout(() => { try { location.reload(); } catch (_e) { void _e; } }, 800);
+  } catch (e) {
+    if (typeof window.showToast === 'function') window.showToast('동기화 실패 — 잠시 후 다시 시도해주세요');
+  }
+};
+
+// 앱이 백그라운드 → 포커스 복귀 시 5분 이상 비활성이었으면 캐시 무효화 + data-changed 발사
+(function _installFocusSyncHandler() {
+  if (window._focusSyncInstalled) return;
+  window._focusSyncInstalled = true;
+  const STALE_MS = 5 * 60 * 1000;
+  function _onFocus() {
+    try {
+      const lastFocus = sessionStorage.getItem('itdasy:last_focus_at');
+      const elapsed = lastFocus ? (Date.now() - Number(lastFocus)) : Infinity;
+      if (elapsed > STALE_MS) {
+        if (typeof window._clearAllSWRCache === 'function') window._clearAllSWRCache();
+        try {
+          window.dispatchEvent(new CustomEvent('itdasy:data-changed', { detail: { kind: 'focus_sync' } }));
+        } catch (_e) { void _e; }
+      }
+      sessionStorage.setItem('itdasy:last_focus_at', String(Date.now()));
+    } catch (_e) { void _e; }
+  }
+  window.addEventListener('focus', _onFocus);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') _onFocus();
+  });
+})();

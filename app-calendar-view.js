@@ -27,8 +27,37 @@
     cancelled: 'var(--text-subtle)',
   };
 
+  // === 시술별 컬러 팔레트 (Pastel pink 톤 — 잇데이 정체성) ===
+  // 키워드 매칭 기반. 시술명에 키워드가 포함되면 해당 색상 사용.
+  const SERVICE_COLORS = {
+    eyelash: { bg: '#FFE4E9', border: '#F18091' }, // 속눈썹 — 연핑크
+    nail:    { bg: '#FFD7BA', border: '#E89B6E' }, // 네일 — 살구
+    hair:    { bg: '#FFCFE2', border: '#E78AB1' }, // 붙임머리 — 분홍
+    perm:    { bg: '#E8D5F2', border: '#A87BC8' }, // 펌 — 라일락
+    cut:     { bg: '#D4F1E0', border: '#7ABF95' }, // 커트 — 민트
+    makeup:  { bg: '#FFF4D6', border: '#D9B95A' }, // 메이크업 — 연노랑
+    skin:    { bg: '#D6ECFF', border: '#6FA8D9' }, // 피부/관리 — 연파랑
+    _default:{ bg: '#FFE0E6', border: '#F18091' }, // 기본 — 잇데이 핑크
+  };
+
+  function _colorForService(svc) {
+    if (!svc) return SERVICE_COLORS._default;
+    const s = String(svc).toLowerCase();
+    if (s.includes('속눈썹') || s.includes('래쉬') || s.includes('lash') || s.includes('연장')) return SERVICE_COLORS.eyelash;
+    if (s.includes('네일') || s.includes('젤') || s.includes('nail') || s.includes('패디')) return SERVICE_COLORS.nail;
+    if (s.includes('붙임') || s.includes('익스텐션') || s.includes('extension')) return SERVICE_COLORS.hair;
+    if (s.includes('펌') || s.includes('perm')) return SERVICE_COLORS.perm;
+    if (s.includes('커트') || s.includes('컷') || s.includes('cut')) return SERVICE_COLORS.cut;
+    if (s.includes('메이크') || s.includes('makeup') || s.includes('mua')) return SERVICE_COLORS.makeup;
+    if (s.includes('피부') || s.includes('관리') || s.includes('스킨') || s.includes('skin') || s.includes('왁싱')) return SERVICE_COLORS.skin;
+    return SERVICE_COLORS._default;
+  }
+
   let _curYear, _curMonth, _curView = 'month', _curDate = new Date();
   let _mappedCache = [];
+
+  // 시간표 픽셀 단위
+  const TT_HOUR_PX = 60;
 
   // === 헬퍼 ===
   function _esc(s) {
@@ -52,13 +81,37 @@
   }
 
   // === 데이터 ===
+  // 2026-04-26 — 시술 카탈로그 가격 자동 매핑 (booking.amount 없을 때 폴백)
+  function _catalogPriceFor(svc) {
+    if (!svc) return null;
+    const list = window._serviceTemplatesCache || [];
+    if (!list.length) return null;
+    const k = String(svc).trim().toLowerCase();
+    if (!k) return null;
+    let hit = list.find(t => (t.name || '').trim().toLowerCase() === k);
+    if (!hit) hit = list.find(t => k.includes((t.name || '').trim().toLowerCase()) || (t.name || '').trim().toLowerCase().includes(k));
+    return hit && hit.default_price ? hit.default_price : null;
+  }
+  // 50000 → "5만", 35000 → "3.5만", 5000 → "5천"
+  function _krwShort(n) {
+    if (!n || n <= 0) return '';
+    if (n >= 10000) {
+      const v = n / 10000;
+      const fixed = (Math.round(v * 10) / 10);
+      return (fixed % 1 === 0 ? fixed.toFixed(0) : fixed.toFixed(1)) + '만';
+    }
+    if (n >= 1000) return Math.round(n / 1000) + '천';
+    return n + '원';
+  }
   function _mapItems(items) {
     return items.map(b => {
       const s = new Date(b.starts_at), e = new Date(b.ends_at);
+      const amt = (b.amount && b.amount > 0) ? b.amount : _catalogPriceFor(b.service_name);
       return {
         d: s.getDate(), t: s.toTimeString().slice(0, 5),
         cust: b.customer_name || '이름 없음', svc: b.service_name || '',
         dur: Math.round((e - s) / 60000), id: b.id, status: b.status,
+        amount: amt || null,
         _raw: b,
       };
     });
@@ -152,44 +205,173 @@
     return h + '</div>';
   }
 
-  function _buildDaySlots(date, mapped) {
+  function _renderDay(date, mapped) {
+    const body = _body(); if (!body) return;
+    body.innerHTML = _buildChipStrip(date) + _buildTimetableDay(date, mapped);
+    _bindTimetable(body, date);
+    setTimeout(() => {
+      const strip  = document.getElementById('cv-day-strip');
+      const active = strip?.querySelector('.active');
+      if (active) active.scrollIntoView({ inline: 'center', behavior: 'smooth' });
+      // 시간표를 영업 시작 시간으로 스크롤
+      const wrap = body.querySelector('.cv-tt-scroll');
+      if (wrap) wrap.scrollTop = 0;
+    }, 50);
+  }
+
+  // === 시간표 (Timetable) 뷰 ===
+  function _ttHours() {
+    const h = window.Booking?.shopHours ? window.Booking.shopHours() : { start: 10, end: 22, slotMin: 30 };
+    // 영업시간 9~22시 보장 (시간표 가독성)
+    const start = Math.max(0, Math.min(23, h.start ?? 10));
+    const end   = Math.max(start + 1, Math.min(24, h.end ?? 22));
+    return { start, end };
+  }
+
+  function _ttBuildTimeAxis(startH, endH) {
+    let h = '<div class="cv-tt-axis">';
+    for (let i = startH; i < endH; i++) {
+      h += '<div class="cv-tt-hr">' + i + '시</div>';
+    }
+    return h + '</div>';
+  }
+
+  function _ttBookingBlock(it, startH) {
+    const s = new Date(it._raw.starts_at);
+    const e = new Date(it._raw.ends_at);
+    const top = (s.getHours() - startH) * TT_HOUR_PX + s.getMinutes();
+    let height = Math.max(20, Math.round((e - s) / 60000));
+    // 너무 짧은 블록도 텍스트 보이게 최소 높이
+    const clr = _colorForService(it.svc);
+    const isDim = it.status === 'cancelled' || it.status === 'no_show';
+    const timeStr = _fmt(s) + '~' + _fmt(e);
+    // 2026-04-26 — 가격 표시. 블록 높이가 충분할 때만 (>= 40px)
+    const priceShort = (it.amount && height >= 40) ? _krwShort(it.amount) : '';
+    const priceHtml = priceShort ? `<span class="cv-tt-price">${_esc(priceShort)}</span>` : '';
+    return `<button class="cv-tt-block${isDim ? ' is-dim' : ''}" data-booking-id="${_esc(it.id)}"
+      style="top:${top}px;height:${height}px;background:${clr.bg};border-left-color:${clr.border};">
+      <strong>${_esc(it.cust)}</strong>
+      ${it.svc ? `<span class="cv-tt-svc">${_esc(it.svc)}</span>` : ''}
+      <span class="cv-tt-time">${timeStr}</span>
+      ${priceHtml}
+    </button>`;
+  }
+
+  function _buildTimetableDay(date, mapped) {
+    const { start, end } = _ttHours();
+    const totalH = (end - start) * TT_HOUR_PX;
     const dayItems = mapped.filter(m => m.d === date.getDate());
-    const dayLabel  = date.getFullYear() + '년 ' + (date.getMonth() + 1) + '월 ' + date.getDate() + '일';
+    const dayLabel = date.getFullYear() + '년 ' + (date.getMonth() + 1) + '월 ' + date.getDate() + '일';
     let h = '<div class="cv-d-hd">'
       + '<span style="font-size:14px;font-weight:700">' + dayLabel + '</span>'
       + '<span style="font-size:12px;color:var(--text-subtle)">' + dayItems.length + '건</span>'
       + '</div>';
-    if (!dayItems.length) {
-      h += '<div class="cv-d-empty">예약이 없어요</div>';
-    } else {
-      dayItems.forEach(it => {
-        const clr = STATUS_CLR[it.status] || 'var(--brand)';
-        h += '<button class="cv-d-slot cv-d-slot--btn" data-booking-id="' + _esc(it.id) + '">';
-        h += '<div class="cv-d-time">' + it.t + ' · ' + it.dur + '분</div>';
-        h += '<div class="cv-d-card" style="--card-clr:' + clr + '">'
-          + '<div style="font-size:13px;font-weight:700">' + _esc(it.cust) + '</div>';
-        if (it.svc) h += '<div style="font-size:11px;color:var(--text-subtle)">' + _esc(it.svc) + '</div>';
-        h += '</div></button>';
-      });
+    h += '<div class="cv-tt-scroll"><div class="cv-tt-grid cv-tt-grid--day">';
+    h += _ttBuildTimeAxis(start, end);
+    // 시간 행 그리드 라인을 위한 배경
+    h += '<div class="cv-tt-col" data-date="' + _ds(date) + '" style="height:' + totalH + 'px">';
+    // 클릭 가능한 빈 슬롯 (1시간 단위)
+    for (let i = 0; i < end - start; i++) {
+      h += '<div class="cv-tt-slot" data-hour="' + (start + i) + '" style="top:' + (i * TT_HOUR_PX) + 'px;height:' + TT_HOUR_PX + 'px"></div>';
     }
-    return h + '<button class="cv-d-add" id="cv-add-btn">+ 예약 추가</button>';
+    dayItems.forEach(it => { h += _ttBookingBlock(it, start); });
+    h += '</div></div></div>';
+    h += '<button class="cv-d-add" id="cv-add-btn">+ 예약 추가</button>';
+    return h;
   }
 
-  function _renderDay(date, mapped) {
-    const body = _body(); if (!body) return;
-    body.innerHTML = _buildChipStrip(date) + _buildDaySlots(date, mapped);
-    body.querySelectorAll('[data-booking-id]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const item = _mappedCache.find(m => m.id === btn.dataset.bookingId);
-        if (item) _openForm(date, item._raw);
+  function _buildTimetableWeek(baseDate, mapped) {
+    const { start, end } = _ttHours();
+    const totalH = (end - start) * TT_HOUR_PX;
+    const DOW = ['일', '월', '화', '수', '목', '금', '토'];
+    // 주의 시작 = 일요일
+    const ws = new Date(baseDate);
+    ws.setHours(0, 0, 0, 0);
+    ws.setDate(ws.getDate() - ws.getDay());
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+
+    let dayHeaders = '<div class="cv-tt-day-hdr-spacer"></div>';
+    const colsHtml = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(ws); d.setDate(ws.getDate() + i);
+      const isToday = d.getTime() === today.getTime();
+      const isSun = d.getDay() === 0;
+      const isSat = d.getDay() === 6;
+      let hdrCls = 'cv-tt-day-hdr';
+      if (isToday) hdrCls += ' today';
+      if (isSun) hdrCls += ' sun';
+      if (isSat) hdrCls += ' sat';
+      dayHeaders += `<div class="${hdrCls}">
+        <span class="cv-tt-dow">${DOW[d.getDay()]}</span>
+        <span class="cv-tt-dnum">${d.getDate()}</span>
+      </div>`;
+      // 해당 날짜 booking 필터 (월 캐시 기준이므로 같은 달만 매칭)
+      const ymd = _ds(d);
+      const items = mapped.filter(m => {
+        const sd = new Date(m._raw.starts_at);
+        return _ds(sd) === ymd;
       });
-    });
-    body.querySelector('#cv-add-btn')?.addEventListener('click', () => _openForm(date, null));
+      let col = `<div class="cv-tt-col${isToday ? ' is-today' : ''}" data-date="${ymd}" style="height:${totalH}px">`;
+      for (let j = 0; j < end - start; j++) {
+        col += '<div class="cv-tt-slot" data-hour="' + (start + j) + '" style="top:' + (j * TT_HOUR_PX) + 'px;height:' + TT_HOUR_PX + 'px"></div>';
+      }
+      items.forEach(it => { col += _ttBookingBlock(it, start); });
+      col += '</div>';
+      colsHtml.push(col);
+    }
+
+    const wkLabel = (ws.getMonth() + 1) + '월 ' + ws.getDate() + '일 주';
+    let h = '<div class="cv-d-hd">'
+      + '<span style="font-size:14px;font-weight:700">' + wkLabel + '</span>'
+      + '<span style="font-size:12px;color:var(--text-subtle)">주간</span>'
+      + '</div>';
+    h += '<div class="cv-tt-scroll">';
+    h += '<div class="cv-tt-day-hdrs cv-tt-day-hdrs--week">' + dayHeaders + '</div>';
+    h += '<div class="cv-tt-grid cv-tt-grid--week">';
+    h += _ttBuildTimeAxis(start, end);
+    h += colsHtml.join('');
+    h += '</div></div>';
+    return h;
+  }
+
+  function _renderWeek(date, mapped) {
+    const body = _body(); if (!body) return;
+    body.innerHTML = _buildChipStrip(date) + _buildTimetableWeek(date, mapped);
+    _bindTimetable(body, date);
     setTimeout(() => {
       const strip  = document.getElementById('cv-day-strip');
       const active = strip?.querySelector('.active');
       if (active) active.scrollIntoView({ inline: 'center', behavior: 'smooth' });
     }, 50);
+  }
+
+  function _bindTimetable(body, date) {
+    // 예약 블록 클릭 → 편집
+    body.querySelectorAll('.cv-tt-block[data-booking-id]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const item = _mappedCache.find(m => m.id === btn.dataset.bookingId);
+        if (item) _openForm(new Date(item._raw.starts_at), item._raw);
+      });
+    });
+    // 빈 슬롯 클릭 → 새 예약 (시작시간 prefill)
+    body.querySelectorAll('.cv-tt-slot').forEach(slot => {
+      slot.addEventListener('click', () => {
+        const col = slot.closest('.cv-tt-col');
+        const ymd = col?.getAttribute('data-date');
+        const hr = parseInt(slot.getAttribute('data-hour'), 10);
+        if (!ymd || isNaN(hr)) return;
+        const startD = new Date(ymd + 'T00:00:00');
+        startD.setHours(hr, 0, 0, 0);
+        const endD = new Date(startD.getTime() + 60 * 60000); // 기본 1시간
+        window._pendingBookingSlot = {
+          starts_at: startD.toISOString(),
+          ends_at:   endD.toISOString(),
+        };
+        _openForm(startD, null);
+      });
+    });
+    body.querySelector('#cv-add-btn')?.addEventListener('click', () => _openForm(date, null));
   }
 
   // === 예약 폼 ===
@@ -322,8 +504,17 @@ ${isEdit ? `
           window.dispatchEvent(new CustomEvent('booking:created', { detail: { customer_name: payload.customer_name, customer_id: payload.customer_id || null } }));
         }
         if (window.hapticLight) window.hapticLight();
-        const custLabel = payload.customer_name ? ` (${payload.customer_name})` : '';
-        if (window.showToast) window.showToast(existing ? '수정 완료' + custLabel : '✅ 예약 추가 완료' + custLabel);
+        // T-D 토스트: ✓ {name}님 {date} {time} 예약 추가됨
+        const _name = payload.customer_name || '';
+        const _date = d || '';
+        const _time = s || '';
+        const _addToast = _name
+          ? `✓ ${_name}님 ${_date} ${_time} 예약 추가됨`
+          : `✓ ${_date} ${_time} 예약 추가됨`;
+        const _editToast = _name
+          ? `✓ ${_name}님 ${_date} ${_time} 예약 수정됨`
+          : `✓ ${_date} ${_time} 예약 수정됨`;
+        if (window.showToast) window.showToast(existing ? _editToast : _addToast);
         if (window.Dashboard?.refresh) window.Dashboard.refresh(true);
         _mappedCache = await _loadMonth(_curYear, _curMonth);
         _renderDay(date || _curDate, _mappedCache);
@@ -397,8 +588,9 @@ ${isEdit ? `
     o.querySelectorAll('.cal-view-toggle button').forEach(b => {
       b.classList.toggle('active', b.dataset.view === view);
     });
-    if (view === 'month') _renderMonth(_curYear, _curMonth, _mappedCache);
-    else                  _renderDay(_curDate, _mappedCache);
+    if (view === 'month')      _renderMonth(_curYear, _curMonth, _mappedCache);
+    else if (view === 'week')  _renderWeek(_curDate, _mappedCache);
+    else                       _renderDay(_curDate, _mappedCache);
   }
 
   // === 인접 월 미리 캐싱 ===
@@ -443,7 +635,8 @@ ${isEdit ? `
   };
   window._calSelectDayChip = function (dateStr) {
     _curDate = new Date(dateStr + 'T00:00:00');
-    _renderDay(_curDate, _mappedCache);
+    if (_curView === 'week') _renderWeek(_curDate, _mappedCache);
+    else                     _renderDay(_curDate, _mappedCache);
   };
   window._calSwitchView = _switchView;
   window._calPrevMonth  = _prevMonth;
@@ -484,6 +677,7 @@ ${isEdit ? `
           <span id="cal-offline-badge" style="display:none;font-size:10px;font-weight:700;color:var(--danger);background:rgba(220,53,69,.1);padding:2px 8px;border-radius:999px;">오프라인</span>
           <div class="cal-view-toggle">
             <button class="active" data-view="month" onclick="_calSwitchView('month')">월</button>
+            <button data-view="week" onclick="_calSwitchView('week')">주</button>
             <button data-view="day" onclick="_calSwitchView('day')">일</button>
           </div>
           <button class="cal-close-btn" onclick="(function(){var o=document.getElementById('${OVERLAY}');if(o)o.remove();document.body.style.overflow=''})()">✕</button>
@@ -494,6 +688,10 @@ ${isEdit ? `
     document.body.appendChild(o);
     document.body.style.overflow = 'hidden';
     o.querySelector('.cal-body').innerHTML = _skeletonMonth();
+    // 2026-04-26 — 시술 카탈로그 가격 표시 위해 캐시 워밍 (조용히 병행 호출)
+    if (typeof window.loadServiceTemplates === 'function' && !(window._serviceTemplatesCache || []).length) {
+      window.loadServiceTemplates().catch(() => {});
+    }
     _mappedCache = await _loadMonth(_curYear, _curMonth);
     _renderMonth(_curYear, _curMonth, _mappedCache);
     _prefetchNeighbors();

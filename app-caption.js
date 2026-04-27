@@ -405,18 +405,39 @@ function _capAutoGrow(ta) {
 }
 
 function _capSchedulePatch(text) {
-  if (!_lastLogId) return;
+  // 백엔드 PATCH는 _lastLogId 있을 때만, 슬롯 로컬 동기화는 항상 시도
   clearTimeout(_capPatchTimer);
   _capPatchTimer = setTimeout(() => _capPatchLog(text), 800);
 }
 
 async function _capPatchLog(text) {
-  if (!_lastLogId || !text.trim()) return;
+  const trimmed = (text || '').trim();
+
+  // 1) 슬롯 로컬 동기화 — 사용자가 직접 글 쓰면 슬롯에 저장하고 마무리 탭에서 인식되게
+  try {
+    if (typeof _captionSlotId !== 'undefined' && _captionSlotId && typeof _slots !== 'undefined') {
+      const slot = _slots.find(s => s.id === _captionSlotId);
+      if (slot) {
+        slot.caption = text || '';
+        const haEl = document.getElementById('captionHash');
+        if (haEl) slot.hashtags = haEl.value || '';
+        if (trimmed) {
+          slot.status = 'done';
+          slot.completedAt = slot.completedAt || Date.now();
+        }
+        if (typeof saveSlotToDB === 'function') {
+          try { await saveSlotToDB(slot); } catch (_e) { /* IndexedDB 일시 실패 무시 */ }
+        }
+      }
+    }
+  } catch (_e) { /* 슬롯 동기화 실패해도 PATCH는 시도 */ }
+
+  // 2) 백엔드 generation_log PATCH — log_id 있을 때만
+  if (!_lastLogId || !trimmed) return;
   // edited_amount: 글자 차이 % (간단 추정)
   const pct = _capAiDraft
     ? Math.round(Math.abs(text.length - _capAiDraft.length) / Math.max(_capAiDraft.length, 1) * 100)
     : 0;
-  const micro = document.getElementById('captionEditMicro');
   const pctEl = document.getElementById('captionEditPct');
   if (pctEl) pctEl.textContent = pct > 0 ? `${pct}% 수정됨` : '';
 
@@ -491,11 +512,13 @@ function showAddKeywordInput() {
 const _CAP_CAT_MAP = {'붙임머리':'extension','네일아트':'nail','네일':'nail'};
 
 // 400 에러 코드 → 사용자 안내 메시지
+// [2026-04-26] identity_incomplete / insufficient_posts 는 백엔드에서 더 이상 hard-fail로 막지 않음.
+// 캡션 생성은 기본 페르소나로 진행되며, 아래 메시지는 백엔드 폴백 전 구버전 호환용 안전망.
 const _CAP_ERR_MSG = {
-  'identity_incomplete':  '사장님 프로필(업종·매장명 등)을 먼저 등록해주세요',
+  'identity_incomplete':  '프로필을 완성하면 더 정교한 말투로 만들 수 있어요. 일단 일반 말투로 만들게요.',
   'consent_missing':      'AI 처리 동의가 필요합니다',
-  'insufficient_posts':   '포스트가 5개 이상 필요합니다. 인스타 연동에서 포스트를 더 불러와주세요.',
-  'fingerprint_missing':  '포스트가 5개 이상 필요합니다. 인스타 연동에서 포스트를 더 불러와주세요.',
+  'insufficient_posts':   '인스타 게시물이 더 모이면 사장님 말투에 맞춰 글이 나와요.',
+  'fingerprint_missing':  '인스타 게시물이 더 모이면 사장님 말투에 맞춰 글이 나와요.',
   'generation_failed':    'AI 캡션 생성이 실패했어요. 시나리오 다시 선택하거나, 1분 후 다시 시도해 주세요.',
   'content_filtered':     'AI 가 안전 정책상 이 내용을 생성할 수 없어요. 키워드를 바꿔서 다시 시도해 주세요.',
   'quota_exceeded':       '오늘 캡션 사용량을 다 쓰셨어요. 내일 다시 시도하거나 Pro 로 업그레이드해 주세요.',
@@ -525,9 +548,21 @@ function openCaptionScenarioPopup() {
   sheet.appendChild(handle);
 
   const title = document.createElement('div');
-  title.style.cssText = 'font-size:17px;font-weight:800;color:#1a1a1a;margin-bottom:16px;';
+  title.style.cssText = 'font-size:17px;font-weight:800;color:#1a1a1a;margin-bottom:6px;';
   title.textContent = '어떤 상황이에요?';
   sheet.appendChild(title);
+
+  // [2026-04-26] 프로필·말투 학습 미완성이어도 캡션 생성은 진행됨. 부드러운 유도 한 줄.
+  const hasIdentity = !!localStorage.getItem('shop_type');
+  const hasInsta = !!(typeof window !== 'undefined' && window._instaHandle);
+  if (!hasIdentity || !hasInsta) {
+    const hint = document.createElement('div');
+    hint.style.cssText = 'font-size:12px;color:#888;margin-bottom:14px;line-height:1.5;';
+    hint.textContent = !hasIdentity
+      ? '프로필을 완성하면 사장님 말투로 더 정교하게 만들어드려요.'
+      : '인스타 연동 + 말투 학습이 끝나면 더 자연스러운 글이 나와요.';
+    sheet.appendChild(hint);
+  }
 
   const selectorWrap = document.createElement('div');
   sheet.appendChild(selectorWrap);
@@ -594,20 +629,10 @@ async function _doGenerateCaption(scenario, closePopup) {
       const msg = _CAP_ERR_MSG[code] || '캡션 생성에 실패했습니다. 다시 시도해주세요.';
       hideCaptionLoader(false, () => {
         closePopup();
-        // identity_incomplete → 신 온보딩 팝업 (T-310: 구 페르소나 팝업 제거)
-        if (code.startsWith('identity_incomplete')) {
-          showToast('사장님 프로필(업종·매장명 등)을 먼저 등록해주세요');
-          if (typeof window.showOnboardingCaptionPopup === 'function') {
-            setTimeout(() => window.showOnboardingCaptionPopup(), 300);
-          }
-          return;
-        }
+        // [2026-04-26] identity_incomplete / insufficient_posts 는 백엔드에서 더 이상 막지 않음.
+        // 구버전 백엔드에 떨어진 경우만 안내. 강제 온보딩 팝업은 띄우지 않음.
         if (code.startsWith('consent_missing')) {
           showToast('AI 처리 동의가 필요합니다');
-          return;
-        }
-        if (code.startsWith('insufficient_posts') || code.startsWith('fingerprint_missing')) {
-          showToast('인스타 게시물 5개 이상 필요. 홈에서 인스타 연동 → 말투 분석해주세요');
           return;
         }
         showToast(msg);
@@ -651,18 +676,46 @@ async function _doGenerateCaption(scenario, closePopup) {
         if (slot) {
           slot.caption = finalCaption;
           slot.hashtags = hashes;
+          // 캡션 생성되면 슬롯 자동으로 '완료' 상태로 — 마무리 탭에서 인식되도록
+          if (finalCaption && finalCaption.trim()) {
+            slot.status = 'done';
+            slot.completedAt = slot.completedAt || Date.now();
+          }
           if (typeof saveSlotToDB === 'function') saveSlotToDB(slot).catch(() => {});
         }
       }
 
       _renderCaptionActionBar(finalCaption, hashes);
       if (btn) { btn.innerHTML = '만들기 ✨'; btn.disabled = false; }
+
+      // [2026-04-24] 캡션 렌더 후 미리보기 프레임으로 스크롤 — 사용자 시선 유도
+      const frame = document.getElementById('captionResult');
+      if (frame && typeof frame.scrollIntoView === 'function') {
+        setTimeout(() => frame.scrollIntoView({ behavior: 'smooth', block: 'center' }), 120);
+      }
     });
   } catch(e) {
-    if (e.message === '401') return; // _personaFetch가 401 처리
+    if (e && e.message === '401') return; // _personaFetch가 401 처리
+    // [2026-04-24] 명확한 에러 진단 — '일시적 오류' 일괄 표시 제거
+    console.error('[caption.generate] 실패:', e);
+    const raw = (e && (e.message || e.toString())) || '';
+    let userMsg = '캡션 만들기 실패. 잠시 후 다시 시도해주세요.';
+    if (/Failed to fetch|NetworkError|TypeError/i.test(raw)) {
+      userMsg = '네트워크 연결 확인 후 다시 시도해주세요.';
+    } else if (/timeout/i.test(raw)) {
+      userMsg = 'AI 응답이 지연되고 있어요. 잠시 후 다시 시도해주세요.';
+    } else if (/identity_incomplete/i.test(raw)) {
+      // [2026-04-26] 백엔드 신버전은 폴백 처리. 구버전 폴백 메시지는 부드럽게.
+      userMsg = '프로필을 완성하면 더 정교한 말투로 만들 수 있어요.';
+    } else if (/insufficient_posts|fingerprint_missing/i.test(raw)) {
+      userMsg = '인스타 게시물이 더 모이면 사장님 말투에 맞춰 글이 나와요.';
+    } else if (/HTTP 5\d\d/i.test(raw)) {
+      userMsg = '서버가 잠깐 불안정해요. 1분 후 다시 시도해주세요.';
+    }
     hideCaptionLoader(false, () => {
       closePopup();
-      showToast('일시적 오류. 다시 시도해주세요.');
+      // 미리보기 textarea 비어있어도 placeholder 살아남도록 둠
+      showToast(userMsg);
     });
   }
 }
@@ -915,6 +968,18 @@ async function regenerateCaption(overrides = {}) {
     _capAiDraft = data.caption || '';
     _lastLogId = data.log_id || null;
     if (ta) { ta.value = _capAiDraft; _capAutoGrow(ta); }
+    // 재생성 결과도 슬롯에 반영 + status 갱신
+    if (typeof _captionSlotId !== 'undefined' && _captionSlotId && typeof _slots !== 'undefined') {
+      const slot = _slots.find(s => s.id === _captionSlotId);
+      if (slot) {
+        slot.caption = _capAiDraft;
+        if (_capAiDraft && _capAiDraft.trim()) {
+          slot.status = 'done';
+          slot.completedAt = slot.completedAt || Date.now();
+        }
+        if (typeof saveSlotToDB === 'function') saveSlotToDB(slot).catch(() => {});
+      }
+    }
     _renderCaptionActionBar(_capAiDraft, '');
   } catch (e) {
     showToast('네트워크 오류. 다시 시도해주세요');
