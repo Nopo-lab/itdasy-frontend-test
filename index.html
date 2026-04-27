@@ -823,6 +823,13 @@
         <span class="nav-sheet-s">완성된 포스트 인스타에 올리기</span>
       </span>
     </button>
+    <button class="nav-sheet-opt" onclick="closeNavSheet(); window.reelApp?.open();">
+      <span class="nav-sheet-ic"><svg width="20" height="20"><use href="#ic-video"/></svg></span>
+      <span class="nav-sheet-body">
+        <span class="nav-sheet-t">릴스 만들기</span>
+        <span class="nav-sheet-s">시술 영상 던지면 AI가 편집까지</span>
+      </span>
+    </button>
   </div>
 </div>
 
@@ -1226,6 +1233,11 @@
   <div id="finishRoot"></div>
 </div>
 
+<!-- 릴스 만들기 -->
+<div class="tab" id="reelStage">
+  <!-- reelApp.open() 이 동적으로 채움 -->
+</div>
+
 <!-- 갤러리 슬롯 팝업 (§5.9 dt-overlay 풀스크린) -->
 <div id="slotPopup" class="dt-overlay" style="display:none;" oncontextmenu="return false">
   <header class="dt-hdr">
@@ -1499,6 +1511,12 @@
 <script src="app-instant-caption.js"></script>
 <!-- E3: 주간 자동 보고서 (카톡 톤) -->
 <script src="app-weekly-report.js"></script>
+<!-- 릴스 만들기 (keyframe → template → caption → save → reel 순서 중요) -->
+<script src="app-reel-keyframe.js"></script>
+<script src="app-reel-template.js"></script>
+<script src="app-reel-caption.js"></script>
+<script src="app-reel-save.js"></script>
+<script src="app-reel.js"></script>
 <!-- T-327 · Sentry 에러 모니터링 (T-351: GDPR 동의 기반 활성화) -->
 <script>window.SENTRY_DSN_FE = "https://b3732869f4b445bc7a73a5e4cbacc4ed@o4511236563992576.ingest.us.sentry.io/4511236579852288";</script>
 <script src="https://browser.sentry-cdn.com/7.100.0/bundle.min.js" crossorigin="anonymous"></script>
