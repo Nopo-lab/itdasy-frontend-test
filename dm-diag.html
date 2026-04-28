@@ -19,8 +19,37 @@
 <body>
 <h1>📥 DM 자동응답 진단</h1>
 <div id="results"></div>
+<button class="btn" id="enableBtn" style="background:#059669;">⚡ DM 자동응답 ON 시키기</button>
 <button class="btn" onclick="location.reload()">다시 진단</button>
 <button class="btn" style="background:#888;" onclick="location.href='./'">잇데이로</button>
+<script>
+document.getElementById('enableBtn').addEventListener('click', async () => {
+  const t = localStorage.getItem('itdasy_token::staging') || localStorage.getItem('itdasy_token::prod') || localStorage.getItem('itdasy_token');
+  if (!t) { alert('토큰 없음 — 잇데이 로그인 먼저'); return; }
+  try {
+    const res = await fetch('https://itdasy260417-staging-production.up.railway.app/instagram/dm-reply/settings', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        enabled: true,
+        greeting_template: '안녕하세요! 문의 주셔서 감사해요 😊 사장님이 곧 답변드릴게요.',
+        keyword_blocklist: ['환불', '소송', '신고'],
+        working_hours_start: '09:00',
+        working_hours_end: '21:00',
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      alert('✅ DM 자동응답 ON 성공!\n\n다시 진단 버튼 눌러서 user_enabled: true 확인하세요.\n\n' + JSON.stringify(data, null, 2));
+    } else {
+      const err = await res.text();
+      alert('❌ 실패: ' + res.status + '\n' + err);
+    }
+  } catch (e) {
+    alert('에러: ' + e.message);
+  }
+});
+</script>
 <script>
 const API = 'https://itdasy260417-staging-production.up.railway.app';
 const r = document.getElementById('results');
@@ -49,8 +78,8 @@ function pre(label, value, cls) {
   // 1. webhook 검증 endpoint 직접 호출 (인증 X)
   try {
     const res = await fetch(API + '/instagram/dm-reply/webhook?hub.mode=subscribe&hub.challenge=PING&hub.verify_token=he8ibHiTzhTOnMoqAldYED2KCcSJHTdbsvPc9iYb3KM');
-    const txt = await res.text();
-    row('Webhook verify', res.status + ' ' + (txt === 'PING' ? '✅ challenge 정상' : 'fail'), res.status === 200 ? 'ok' : 'err');
+    const txt = (await res.text()).replace(/^"|"$/g, '');
+    row('Webhook verify', res.status + ' ' + (txt === 'PING' ? '✅ challenge 정상' : 'fail (' + txt.substring(0, 30) + ')'), res.status === 200 && txt === 'PING' ? 'ok' : 'err');
   } catch (e) { row('Webhook verify 에러', e.message, 'err'); }
 
   // 2. /instagram/dm-reply/status (인증)
