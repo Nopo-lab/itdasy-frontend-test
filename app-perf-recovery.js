@@ -85,7 +85,8 @@
     home:      { url: '/today/brief',          key: 'pv_cache::today' },
     dashboard: { url: '/today/brief',          key: 'pv_cache::today' },
     customer:  { url: '/customers',            key: 'pv_cache::customers' },
-    revenue:   { url: '/revenue?period=month', key: 'pv_cache::revenue' },
+    // [2026-04-26 0초딜레이] 매출은 기본을 today 로 (앱 첫 진입 시 가장 자주 보는 탭)
+    revenue:   { url: '/revenue?period=today', key: 'pv_cache::revenue::today' },
     inventory: { url: '/inventory',            key: 'pv_cache::inventory' },
     service:   { url: '/services',             key: 'pv_cache::service' },
     nps:       { url: '/nps',                  key: 'pv_cache::nps' },
@@ -156,19 +157,25 @@
     document.addEventListener('focusin', handler, true);
   }
 
-  // 1-D. Critical path 캐시 워밍 — DOMContentLoaded 후 1초
-  // 파워뷰·캘린더·매출 등 자주 진입하는 화면의 데이터를 백그라운드에서 미리 채움.
+  // [2026-04-26 0초딜레이] Critical path 캐시 워밍 — DOMContentLoaded 직후 즉시
+  // 사용자 입력 먼저 우선이라 rAF 한 프레임만 기다림 (= ~16ms).
+  // 매출은 기간별 키 분리 (today/week/month) — 사용자가 어느 탭 누르든 0ms.
   function _criticalPathWarm() {
-    setTimeout(() => {
+    const run = () => {
       const auth = window.authHeader && window.authHeader();
       if (!auth || !auth.Authorization) return;
-      _prefetch('/today/brief',          'pv_cache::today');
-      _prefetch('/customers',            'pv_cache::customers');
-      _prefetch('/revenue?period=month', 'pv_cache::revenue');
-      _prefetch('/inventory',            'pv_cache::inventory');
-      _prefetch('/services',             'pv_cache::service');
-      _prefetch(_bookingRange(),         'pv_cache::bookings_all');
-    }, 1000);
+      _prefetch('/today/brief',           'pv_cache::today');
+      _prefetch('/customers',             'pv_cache::customers');
+      _prefetch('/revenue?period=today',  'pv_cache::revenue::today');
+      _prefetch('/revenue?period=week',   'pv_cache::revenue::week');
+      _prefetch('/revenue?period=month',  'pv_cache::revenue::month');
+      _prefetch('/inventory',             'pv_cache::inventory');
+      _prefetch('/services',              'pv_cache::service');
+      _prefetch(_bookingRange(),          'pv_cache::bookings_all');
+    };
+    // requestAnimationFrame — 첫 프레임 그린 직후
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(run);
+    else setTimeout(run, 0);
   }
 
   // ============================================================
@@ -217,7 +224,7 @@
     }
     return `
       <div class="itdasy-skeleton-wrap" data-itdasy-skeleton="1"
-           style="opacity:1;transition:opacity 0.12s ease-out;${opts.style || ''}">
+           style="opacity:1;transition:none;${opts.style || ''}">
         ${rows.join('')}
       </div>
     `;
@@ -225,13 +232,8 @@
 
   function _replaceSkeleton(containerEl, freshHtml) {
     if (!containerEl) return;
-    const sk = containerEl.querySelector('[data-itdasy-skeleton]');
-    if (sk) {
-      sk.style.opacity = '0';
-      setTimeout(() => { containerEl.innerHTML = freshHtml; }, 100);
-    } else {
-      containerEl.innerHTML = freshHtml;
-    }
+    // [2026-04-26 0초딜레이] 100ms 페이드아웃 제거 — 즉시 교체 (사람 눈은 차이 거의 없음)
+    containerEl.innerHTML = freshHtml;
   }
 
   window._renderSkeleton = _renderSkeleton;
@@ -251,7 +253,7 @@
     s.textContent = `
       [data-instant-sheet] {
         opacity: 0;
-        transition: opacity 8ms linear;
+        transition: none;
       }
       [data-instant-sheet].is-open { opacity: 1; }
       .itdasy-offline-banner {

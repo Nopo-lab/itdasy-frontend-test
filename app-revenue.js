@@ -76,13 +76,61 @@
     return res.status === 204 ? null : await res.json();
   }
 
+  // [2026-04-26 0초딜레이] SWR 캐시 — 기간별 키 분리
+  const _SWR_TTL = 60 * 1000;
+  function _swrKey(p) { return 'pv_cache::revenue::' + p; }
+  function _readSWRPeriod(p) {
+    try {
+      const raw = localStorage.getItem(_swrKey(p)) || sessionStorage.getItem(_swrKey(p));
+      if (!raw) return null;
+      const obj = JSON.parse(raw);
+      return { items: obj.d, age: Date.now() - obj.t, fresh: Date.now() - obj.t < _SWR_TTL };
+    } catch (_) { return null; }
+  }
+  function _writeSWRPeriod(p, items) {
+    try {
+      const payload = JSON.stringify({ t: Date.now(), d: items });
+      try { localStorage.setItem(_swrKey(p), payload); }
+      catch (_) { try { sessionStorage.setItem(_swrKey(p), payload); } catch (_e) { void _e; } }
+    } catch (_) { /* silent */ }
+  }
+  function _clearSWRRevenue() {
+    try {
+      const ks = ['today', 'week', 'month'].map(_swrKey);
+      ks.forEach(k => { try { localStorage.removeItem(k); sessionStorage.removeItem(k); } catch (_e) { void _e; } });
+      // 레거시 키도 청소
+      try { localStorage.removeItem('pv_cache::revenue'); sessionStorage.removeItem('pv_cache::revenue'); } catch (_e) { void _e; }
+    } catch (_) { /* silent */ }
+  }
+
+  async function _fetchPeriod(p) {
+    const d = await _api('GET', '/revenue?period=' + p);
+    _isOffline = false;
+    _items = d.items || [];
+    _writeSWRPeriod(p, _items);
+    return _items;
+  }
+
   async function list(period) {
     const p = PERIODS.includes(period) ? period : 'today';
-    try {
-      const d = await _api('GET', '/revenue?period=' + p);
-      _isOffline = false;
-      _items = d.items || [];
+    // 1) SWR 캐시 즉시 사용 (0ms)
+    const swr = _readSWRPeriod(p);
+    if (swr) {
+      _items = swr.items;
+      // 오래됐으면 백그라운드 갱신
+      if (!swr.fresh) {
+        _fetchPeriod(p).then(fresh => {
+          if (JSON.stringify(_items) !== JSON.stringify(fresh)) {
+            _items = fresh;
+            try { _rerender && _rerender(); } catch (_e) { void _e; }
+          }
+        }).catch(() => {});
+      }
       return _items;
+    }
+    // 2) 캐시 없음 — 첫 진입 fetch
+    try {
+      return await _fetchPeriod(p);
     } catch (e) {
       if (e.message === 'endpoint-missing' || e.message === 'no-token') {
         _isOffline = true;
@@ -139,6 +187,8 @@
       const idx = _items.findIndex(r => r.id === optimisticRecord.id);
       if (idx >= 0) _items[idx] = created;
       else _items.unshift(created);
+      // [2026-04-26 0초딜레이] SWR 캐시 invalidate (다음 진입 시 fresh)
+      _clearSWRRevenue();
       try { window.dispatchEvent(new CustomEvent('itdasy:data-changed', { detail: { kind: 'create_revenue', optimistic: false } })); } catch (_e) { void _e; }
       return created;
     } catch (err) {
@@ -159,6 +209,7 @@
     }
     await _api('DELETE', '/revenue/' + id);
     _items = _items.filter(r => r.id !== id);
+    _clearSWRRevenue();
     // [2026-04-26 A9] mutation 이벤트 누락 보충
     try { window.dispatchEvent(new CustomEvent('itdasy:data-changed', { detail: { kind: 'delete_revenue', optimistic: false } })); } catch (_e) { void _e; }
     return { ok: true };
@@ -455,6 +506,17 @@
     const sheet = document.getElementById('revenueSheet');
     if (!sheet) return;
     const listEl = sheet.querySelector('#revenueList');
+    // [2026-04-26 0초딜레이] SWR 캐시 있으면 skeleton 없이 즉시 렌더
+    const swr = _readSWRPeriod(_currentPeriod);
+    if (swr) {
+      _items = swr.items;
+      _rerender();
+      // 오래된 캐시면 백그라운드 갱신 (list 안에서 자동 처리)
+      if (!swr.fresh) {
+        list(_currentPeriod).then(() => _rerender()).catch(() => {});
+      }
+      return;
+    }
     listEl.innerHTML = (typeof window._renderSkeleton === 'function')
       ? window._renderSkeleton(5)
       : '<div style="padding:30px;text-align:center;color:#aaa;">불러오는 중…</div>';
@@ -499,8 +561,10 @@
       const k = (e && e.detail && e.detail.kind) || '';
       if (!k) return;
       // Wave D3 (2026-04-24) — 매출/지출 변동 모두 여기서 재로드 (매출 탭에 지출 섹션도 함께 노출)
-      if (k === 'create_revenue' || k === 'update_revenue' || k === 'create_expense' ||
+      if (k === 'create_revenue' || k === 'update_revenue' || k === 'delete_revenue' || k === 'create_expense' ||
           k.indexOf('revenue') !== -1 || k.indexOf('expense') !== -1) {
+        // [2026-04-26 0초딜레이] 크로스도메인 mutation → SWR 캐시 무효화
+        _clearSWRRevenue();
         const sheet = document.getElementById('revenueSheet');
         if (sheet && sheet.style.display !== 'none' && typeof _loadAndRender === 'function') {
           try { await _loadAndRender(); } catch (_err) { void _err; }

@@ -770,12 +770,11 @@ async function login() {
     _offerBiometricEnroll(data.access_token);
     // Wave 2+ — 로그인 직후 주요 데이터 preload (탭 열 때 즉시 표시)
     _preloadTabs();
-    // 홈 화면 AI 추천 카드 즉시 렌더 (로그인하자마자 바로 보이도록)
-    setTimeout(() => {
-      if (window.TodayBrief && typeof window.TodayBrief.render === 'function') {
-        try { window.TodayBrief.render('home-today-brief'); } catch (_e) { /* ignore */ }
-      }
-    }, 500);
+    // [2026-04-26 0초딜레이] 홈 화면 AI 추천 카드 즉시 렌더 (500ms 딜레이 제거)
+    // SWR 캐시 있으면 0ms, 없으면 fetch — 어차피 비동기라 메인 쓰레드 블로킹 X
+    if (window.TodayBrief && typeof window.TodayBrief.render === 'function') {
+      try { window.TodayBrief.render('home-today-brief'); } catch (_e) { /* ignore */ }
+    }
   } catch(e) {
     errEl.textContent = _friendlyErr(e, '로그인 실패');
     errEl.style.display = 'block';
@@ -1565,13 +1564,17 @@ window._preloadTabs = async function () {
   const now = Date.now();
   const bookingFrom = new Date(now - 3 * 30 * 24 * 3600 * 1000).toISOString();
   const bookingTo = new Date(now + 3 * 30 * 24 * 3600 * 1000).toISOString();
+  // [2026-04-26 0초딜레이] revenue 는 기간별 키 분리 — 사용자가 어떤 기간 탭 누르든 0ms
   const tabs = [
     { url: '/customers',            swrKey: 'pv_cache::customers' },
     { url: `/bookings?from=${encodeURIComponent(bookingFrom)}&to=${encodeURIComponent(bookingTo)}`, swrKey: 'pv_cache::bookings_all' },
-    { url: '/revenue?period=month', swrKey: 'pv_cache::revenue' },
+    { url: '/revenue?period=today', swrKey: 'pv_cache::revenue::today' },
+    { url: '/revenue?period=week',  swrKey: 'pv_cache::revenue::week' },
+    { url: '/revenue?period=month', swrKey: 'pv_cache::revenue::month' },
     { url: '/inventory',            swrKey: 'pv_cache::inventory' },
     { url: '/services',             swrKey: 'pv_cache::service' },
     { url: '/today/brief',          swrKey: 'pv_cache::today' },
+    { url: '/assistant/suggestions', swrKey: 'pv_cache::ai_suggest' },
   ];
   // Promise.allSettled → 일부 실패해도 나머지 진행. localStorage persistent
   await Promise.allSettled(tabs.map(async t => {
@@ -1588,14 +1591,16 @@ window._preloadTabs = async function () {
   }));
 };
 
-// 앱 첫 부팅 시에도 preload (토큰 이미 있으면)
+// 앱 첫 부팅 시에도 preload (토큰 이미 있으면) — 1.5s 딜레이 제거, 다음 프레임 즉시
 if (typeof window !== 'undefined') {
-  setTimeout(() => {
+  const _bootPreload = () => {
     if (window._preloadTabs && window.authHeader) {
       const auth = window.authHeader();
       if (auth && auth.Authorization) window._preloadTabs();
     }
-  }, 1500);
+  };
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(_bootPreload);
+  else setTimeout(_bootPreload, 0);
 }
 
 // ──────────────────────────────────────────────

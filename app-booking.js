@@ -635,6 +635,16 @@
   async function _loadAndRender() {
     const from = _anchorDate.toISOString();
     const to = new Date(_anchorDate.getTime() + 7 * 24 * 3600 * 1000 - 1).toISOString();
+    // [2026-04-26 0초딜레이] SWR 캐시 있으면 즉시 렌더
+    const swr = _readSWRAll();
+    if (swr) {
+      _items = _filterByRange(swr.items, from, to);
+      _rerender();
+      if (!swr.fresh) {
+        list(from, to).then(() => _rerender()).catch(() => {});
+      }
+      return;
+    }
     try {
       await list(from, to);
       _rerender();

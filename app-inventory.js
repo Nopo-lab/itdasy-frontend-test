@@ -47,12 +47,53 @@
     return res.status === 204 ? null : await res.json();
   }
 
-  async function list() {
+  // [2026-04-26 0초딜레이] SWR 캐시
+  const _SWR_KEY = 'pv_cache::inventory';
+  const _SWR_TTL = 60 * 1000;
+  function _readSWR() {
     try {
-      const d = await _api('GET', '/inventory');
-      _isOffline = false;
-      _items = d.items || [];
+      const raw = localStorage.getItem(_SWR_KEY) || sessionStorage.getItem(_SWR_KEY);
+      if (!raw) return null;
+      const obj = JSON.parse(raw);
+      return { items: obj.d, age: Date.now() - obj.t, fresh: Date.now() - obj.t < _SWR_TTL };
+    } catch (_) { return null; }
+  }
+  function _writeSWR(items) {
+    try {
+      const payload = JSON.stringify({ t: Date.now(), d: items });
+      try { localStorage.setItem(_SWR_KEY, payload); }
+      catch (_) { try { sessionStorage.setItem(_SWR_KEY, payload); } catch (_e) { void _e; } }
+    } catch (_) { /* silent */ }
+  }
+  function _clearSWR() {
+    try { localStorage.removeItem(_SWR_KEY); sessionStorage.removeItem(_SWR_KEY); } catch (_e) { void _e; }
+  }
+
+  async function _fetchFresh() {
+    const d = await _api('GET', '/inventory');
+    _isOffline = false;
+    _items = d.items || [];
+    _writeSWR(_items);
+    return _items;
+  }
+
+  async function list() {
+    // 1) SWR 캐시 즉시 사용
+    const swr = _readSWR();
+    if (swr) {
+      _items = swr.items;
+      if (!swr.fresh) {
+        _fetchFresh().then(fresh => {
+          if (JSON.stringify(_items) !== JSON.stringify(fresh)) {
+            _items = fresh;
+            try { _rerender && _rerender(); } catch (_e) { void _e; }
+          }
+        }).catch(() => {});
+      }
       return _items;
+    }
+    try {
+      return await _fetchFresh();
     } catch (e) {
       if (e.message === 'endpoint-missing' || e.message === 'no-token') {
         _isOffline = true;
@@ -102,6 +143,8 @@
       const idx = _items.findIndex(x => x.id === optimisticRecord.id);
       if (idx >= 0) _items[idx] = created;
       else _items.unshift(created);
+      // [2026-04-26 0초딜레이] SWR 캐시 갱신
+      _writeSWR(_items);
       try { window.dispatchEvent(new CustomEvent('itdasy:data-changed', { detail: { kind: 'upsert_inventory', optimistic: false } })); } catch (_e) { void _e; }
       return created;
     } catch (err) {
@@ -129,6 +172,7 @@
     const updated = await _api('POST', '/inventory/' + id + '/adjust', { delta: n });
     const j = _items.findIndex(x => x.id === id);
     if (j >= 0) _items[j] = updated;
+    _writeSWR(_items);
     // [2026-04-26 A9] mutation 이벤트 누락 보충
     try { window.dispatchEvent(new CustomEvent('itdasy:data-changed', { detail: { kind: 'upsert_inventory', optimistic: false } })); } catch (_e) { void _e; }
     return updated;
@@ -144,6 +188,7 @@
     }
     await _api('DELETE', '/inventory/' + id);
     _items = _items.filter(x => x.id !== id);
+    _writeSWR(_items);
     // [2026-04-26 A9] mutation 이벤트 누락 보충
     try { window.dispatchEvent(new CustomEvent('itdasy:data-changed', { detail: { kind: 'delete_inventory', optimistic: false } })); } catch (_e) { void _e; }
     return { ok: true };
@@ -317,6 +362,16 @@
     sheet.classList.add('dt-shown');
     document.body.style.overflow = 'hidden';
     const listEl = sheet.querySelector('#inventoryList');
+    // [2026-04-26 0초딜레이] SWR 캐시 있으면 skeleton 없이 즉시 렌더
+    const swr = _readSWR();
+    if (swr) {
+      _items = swr.items;
+      _rerender();
+      if (!swr.fresh) {
+        list().then(() => _rerender()).catch(() => {});
+      }
+      return;
+    }
     listEl.innerHTML = (typeof window._renderSkeleton === 'function')
       ? window._renderSkeleton(5)
       : '<div class="dt-loading">불러오는 중…</div>';
@@ -347,10 +402,12 @@
     window.addEventListener('itdasy:data-changed', async (e) => {
       const k = (e && e.detail && e.detail.kind) || '';
       if (!k) return;
-      if (k === 'upsert_inventory' || k.indexOf('inventor') !== -1) {
+      if (k === 'upsert_inventory' || k === 'delete_inventory' || k.indexOf('inventor') !== -1) {
+        // 다른 디바이스 등에서 mutation 발생 → 캐시 무효화 후 갱신
+        _clearSWR();
         const sheet = document.getElementById('inventorySheet');
         if (sheet && sheet.style.display !== 'none') {
-          try { await list(); _rerender(); } catch (_err) { void _err; }
+          try { await _fetchFresh(); _rerender(); } catch (_err) { void _err; }
         }
       }
     });

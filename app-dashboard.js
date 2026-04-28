@@ -404,7 +404,23 @@
   async function _loadAndRender() {
     const body = _getBody();
     if (!body) return;
-    _renderLoading();
+    // [2026-04-26 0초딜레이] 캐시에 모든 path 가 있으면 skeleton 없이 바로 렌더
+    // (캐시 _cache 자체에 들어있으면 = sessionStorage 도 있음 → _cachedGet 즉시 반환)
+    const period0 = _getPeriod();
+    const prevPath0 = _prevPeriodPath(period0);
+    const requiredPaths = [
+      '/revenue?period=month', '/revenue?period=today', '/revenue?period=' + period0,
+      prevPath0, '/customers', '/bookings'
+    ].filter(Boolean);
+    const allCached = requiredPaths.every(p => {
+      try {
+        const raw = sessionStorage.getItem(_cacheKey(p));
+        if (!raw) return false;
+        const { t } = JSON.parse(raw);
+        return Date.now() - t <= _CACHE_TTL;
+      } catch (_) { return false; }
+    });
+    if (!allCached) _renderLoading();
 
     const period = _getPeriod();
     const prevPath = _prevPeriodPath(period);
@@ -474,8 +490,10 @@
       return false;
     };
     const run = () => { if (hasToken()) prefetch().catch(() => {}); };
-    if ('requestIdleCallback' in window) requestIdleCallback(run, { timeout: 3000 });
-    else setTimeout(run, 1200);
+    // [2026-04-26 0초딜레이] 1200ms 폴백 → rAF (다음 프레임). 메인 쓰레드 블로킹 안 함
+    if ('requestIdleCallback' in window) requestIdleCallback(run, { timeout: 1500 });
+    else if (typeof requestAnimationFrame === 'function') requestAnimationFrame(run);
+    else setTimeout(run, 0);
   }
   if (document.readyState === 'complete' || document.readyState === 'interactive') _schedulePrefetch();
   else document.addEventListener('DOMContentLoaded', _schedulePrefetch);

@@ -34,11 +34,34 @@
     return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${map[name] || ''}</svg>`;
   }
 
+  // [2026-04-26 0초딜레이] SWR 캐시 — localStorage persistent
+  // 첫 렌더 시 캐시 있으면 즉시 그리고, 백그라운드로 fresh fetch → 다르면 부드럽게 교체
+  const _SWR_BRIEF_KEY = 'pv_cache::today';
+  const _SWR_AI_KEY    = 'pv_cache::ai_suggest';
+  const _SWR_TTL       = 60 * 1000;  // 60초 신선
+  function _readSWRObj(key) {
+    try {
+      const raw = localStorage.getItem(key) || sessionStorage.getItem(key);
+      if (!raw) return null;
+      const obj = JSON.parse(raw);
+      return { d: obj.d, age: Date.now() - obj.t, fresh: Date.now() - obj.t < _SWR_TTL };
+    } catch (_) { return null; }
+  }
+  function _writeSWRObj(key, data) {
+    try {
+      const payload = JSON.stringify({ t: Date.now(), d: data });
+      try { localStorage.setItem(key, payload); }
+      catch (_) { try { sessionStorage.setItem(key, payload); } catch (_e) { void _e; } }
+    } catch (_) { /* silent */ }
+  }
+
   async function _fetchBrief() {
     try {
       const res = await fetch(window.API + '/today/brief', { headers: window.authHeader() });
       if (!res.ok) return null;
-      return await res.json();
+      const data = await res.json();
+      _writeSWRObj(_SWR_BRIEF_KEY, data);
+      return data;
     } catch (_) { return null; }
   }
 
@@ -47,7 +70,9 @@
     try {
       const res = await fetch(window.API + '/assistant/suggestions', { headers: window.authHeader() });
       if (!res.ok) return null;
-      return await res.json();
+      const data = await res.json();
+      _writeSWRObj(_SWR_AI_KEY, data);
+      return data;
     } catch (_e) { return null; }
   }
 
@@ -193,11 +218,37 @@
     const container = document.getElementById(containerId);
     if (!container) return;
     _lastContainerId = containerId;
+
+    // [2026-04-26 0초딜레이] SWR 캐시 즉시 렌더 — 0ms
+    const briefSWR = _readSWRObj(_SWR_BRIEF_KEY);
+    const aiSWR    = _readSWRObj(_SWR_AI_KEY);
+    let cachedBrief = briefSWR ? briefSWR.d : null;
+    // ai 캐시는 writer 가 두 가지 모양 — {items:[...]} (자체 _fetchAISuggest)
+    // 또는 [items array] (_preloadTabs 가 d.items 스트립). 둘 다 처리.
+    let cachedAi = null;
+    if (aiSWR && aiSWR.d) {
+      cachedAi = Array.isArray(aiSWR.d) ? { items: aiSWR.d } : aiSWR.d;
+    }
+    if (cachedBrief || cachedAi) {
+      try {
+        const items = _buildItems(cachedBrief, cachedAi);
+        container.innerHTML = _render(items, _greetByHour());
+        _bind(container);
+      } catch (_e) { void _e; }
+      // 신선하면 종료, 오래됐으면 백그라운드 갱신
+      if (briefSWR && briefSWR.fresh && aiSWR && aiSWR.fresh) return;
+    }
+
+    // 백그라운드 (또는 캐시 미스 시 첫 렌더) fetch
     const [brief, ai] = await Promise.all([
       _fetchBrief().catch(() => null),
       _fetchAISuggest().catch(() => null),
     ]);
     if (!brief && !ai) return;
+    // 같은 데이터면 다시 안 그려서 깜빡임 방지
+    const sameBrief = JSON.stringify(brief) === JSON.stringify(cachedBrief);
+    const sameAi    = JSON.stringify(ai) === JSON.stringify(cachedAi);
+    if (sameBrief && sameAi && (cachedBrief || cachedAi)) return;
     const items = _buildItems(brief, ai);
     container.innerHTML = _render(items, _greetByHour());
     _bind(container);
