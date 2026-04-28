@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DM 봇 진단</title>
+<style>
+  body { font-family: -apple-system, sans-serif; padding: 20px; max-width: 480px; margin: 0 auto; background: #f7f7f9; font-size: 14px; }
+  h1 { font-size: 18px; color: #B8385A; margin-bottom: 12px; }
+  .row { padding: 10px 12px; margin: 6px 0; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+  .label { font-weight: 700; color: #555; }
+  .ok { color: #059669; font-weight: 700; }
+  .err { color: #dc2626; font-weight: 700; }
+  .warn { color: #d97706; font-weight: 700; }
+  pre { background: #f3f4f6; padding: 8px; border-radius: 6px; overflow-x: auto; font-size: 11px; white-space: pre-wrap; word-break: break-all; }
+  .btn { display: block; width: 100%; padding: 12px; margin-top: 10px; background: #F18091; color: #fff; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; }
+</style>
+</head>
+<body>
+<h1>📥 DM 자동응답 진단</h1>
+<div id="results"></div>
+<button class="btn" onclick="location.reload()">다시 진단</button>
+<button class="btn" style="background:#888;" onclick="location.href='./'">잇데이로</button>
+<script>
+const API = 'https://itdasy260417-staging-production.up.railway.app';
+const r = document.getElementById('results');
+function row(label, value, cls) {
+  const d = document.createElement('div');
+  d.className = 'row';
+  d.innerHTML = '<span class="label">' + label + ':</span> <span class="' + (cls || '') + '">' + value + '</span>';
+  r.appendChild(d);
+}
+function pre(label, value, cls) {
+  const d = document.createElement('div');
+  d.className = 'row';
+  d.innerHTML = '<div class="label ' + (cls || '') + '">' + label + '</div><pre>' + value + '</pre>';
+  r.appendChild(d);
+}
+
+(async () => {
+  // 토큰
+  const token = localStorage.getItem('itdasy_token::staging') || localStorage.getItem('itdasy_token::prod') || localStorage.getItem('itdasy_token');
+  if (!token) {
+    row('⚠️ 토큰 없음', '먼저 잇데이 앱 카카오 로그인 후 다시 이 페이지 방문', 'err');
+    return;
+  }
+  row('토큰', '✅ 있음 (' + token.length + '자)', 'ok');
+
+  // 1. webhook 검증 endpoint 직접 호출 (인증 X)
+  try {
+    const res = await fetch(API + '/instagram/dm-reply/webhook?hub.mode=subscribe&hub.challenge=PING&hub.verify_token=he8ibHiTzhTOnMoqAldYED2KCcSJHTdbsvPc9iYb3KM');
+    const txt = await res.text();
+    row('Webhook verify', res.status + ' ' + (txt === 'PING' ? '✅ challenge 정상' : 'fail'), res.status === 200 ? 'ok' : 'err');
+  } catch (e) { row('Webhook verify 에러', e.message, 'err'); }
+
+  // 2. /instagram/dm-reply/status (인증)
+  try {
+    const res = await fetch(API + '/instagram/dm-reply/status', {
+      headers: { 'Authorization': 'Bearer ' + token },
+    });
+    const data = await res.json();
+    pre('DM 봇 status', JSON.stringify(data, null, 2), res.ok ? 'ok' : 'err');
+  } catch (e) { row('Status 에러', e.message, 'err'); }
+
+  // 3. /instagram/status (인스타 연동 확인)
+  try {
+    const res = await fetch(API + '/instagram/status', {
+      headers: { 'Authorization': 'Bearer ' + token },
+    });
+    const data = await res.json();
+    pre('인스타 연동 status', JSON.stringify(data, null, 2), res.ok ? 'ok' : 'err');
+  } catch (e) { row('인스타 status 에러', e.message, 'err'); }
+
+  // 4. /instagram/diagnose (인증 — 자세한 진단)
+  try {
+    const res = await fetch(API + '/instagram/diagnose', {
+      headers: { 'Authorization': 'Bearer ' + token },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      pre('인스타 detailed diagnose', JSON.stringify(data, null, 2), 'ok');
+    } else if (res.status === 404) {
+      row('Diagnose endpoint', 'Not Found (옛 백엔드)', 'warn');
+    } else {
+      row('Diagnose', res.status, 'warn');
+    }
+  } catch (e) { row('Diagnose 에러', e.message, 'err'); }
+
+  // 5. ShopSettings 조회 (인스타 user_id 확인)
+  try {
+    const res = await fetch(API + '/shop/settings', {
+      headers: { 'Authorization': 'Bearer ' + token },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const ig = {
+        instagram_handle: data.instagram_handle || '(없음)',
+        instagram_user_id: data.instagram_user_id || '(없음)',
+        has_token: !!data.instagram_access_token,
+      };
+      pre('ShopSettings (IG)', JSON.stringify(ig, null, 2), data.instagram_user_id ? 'ok' : 'err');
+    }
+  } catch (e) { row('ShopSettings 에러', e.message, 'err'); }
+
+  row('진단 완료', '빨강(err) 항목 = 진짜 원인', 'ok');
+})();
+</script>
+</body>
+</html>
