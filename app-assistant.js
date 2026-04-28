@@ -192,10 +192,9 @@
     } catch (_e) { void _e; }
   }
 
-  // 페이지 언로드 시 in-flight fetch abort. chat_pending 은 유지(다시 들어오면 보임).
-  window.addEventListener('pagehide', () => {
-    try { if (_inflightCtrl) _inflightCtrl.abort(); } catch (_e) { void _e; }
-  });
+  // [2026-04-28] pagehide 자동 abort 제거 — iOS PWA 가 백그라운드 갈 때 발사돼서
+  // 사용자가 챗봇 메시지 보낸 직후 화면 잠깐 옮기면 자동 abort → "네트워크 연결을 확인해주세요" 에러.
+  // chat_pending 직렬화로 이미 답변 보존되니 abort 불필요.
 
   // Wave B5 — 고객 이름 캐시 (keystroke 마다 localStorage 접근 방지)
   let _customerCache = null;
@@ -2387,9 +2386,14 @@
     } catch (e) {
       _history = _history.filter(m => m.role !== 'loading');
       const isAbort = e && (e.name === 'AbortError');
-      _history.push({ role: 'assistant', text: isAbort
-        ? '응답이 중단됐어요. 다시 시도해 주세요.'
-        : ('잠시 연결이 불안정해요. 다시 시도해 주세요. (' + (window._humanError ? window._humanError(e) : e.message) + ')') });
+      // [2026-04-28] AbortError 는 사용자에게 에러로 보이지 않게 — 보통 페이지 전환·백그라운드 시 발생
+      if (isAbort) {
+        // 메시지 추가 안 하고 조용히 종료 (chat_pending 으로 답변 복원 가능)
+        _renderHistory();
+        _clearPending();
+        return;
+      }
+      _history.push({ role: 'assistant', text: '잠시 연결이 불안정해요. 다시 시도해 주세요. (' + (window._humanError ? window._humanError(e) : e.message) + ')' });
       _renderHistory();
       _clearPending();
     } finally {
