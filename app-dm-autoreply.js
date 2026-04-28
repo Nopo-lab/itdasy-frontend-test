@@ -43,6 +43,7 @@
   async function openDMAutoreplySettings() {
     const status = await _fetchStatus();
     _globalEnabled = !!status.global_enabled;
+    const accountReady = status.account_ready !== false;
     const browserTz = (Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul');
     const settings = (await _fetchSettings()) || {
       enabled: false, tone: 'friendly',
@@ -67,19 +68,28 @@
           설정은 미리 저장해 두실 수 있고, 심사 통과 즉시 자동으로 적용돼요 (최대 2~3주).
         </div>
       </div>`;
+    const accountBanner = accountReady ? '' : `
+      <div style="padding:14px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:12px;margin-bottom:16px;">
+        <div style="font-weight:800;color:#B91C1C;font-size:13px;margin-bottom:4px;">인스타 계정 재확인 필요</div>
+        <div style="font-size:12px;color:#666;line-height:1.5;">
+          ${status.instagram_connected ? '인스타 토큰은 있지만 DM 받을 계정 ID가 비어 있어요.' : '인스타그램이 아직 연결되지 않았어요.'}<br>
+          인스타 다시 연결하기 또는 DM 진단의 user_id 동기화를 먼저 실행해 주세요.
+        </div>
+      </div>`;
 
     sheet.innerHTML = `
       <div style="width:36px;height:4px;background:#e0e0e0;border-radius:2px;margin:0 auto 18px;"></div>
       <div style="font-size:17px;font-weight:800;color:#1a1a1a;margin-bottom:6px;">🤖 AI DM 자동응답</div>
       <div style="font-size:12px;color:#888;margin-bottom:16px;">시술 중 온 DM에 AI 비서가 자동으로 답장해요.</div>
       ${disabledBanner}
+      ${accountBanner}
 
-      <label style="display:flex;align-items:center;justify-content:space-between;padding:14px;background:#FAFAFA;border-radius:12px;margin-bottom:12px;cursor:${_globalEnabled ? 'pointer' : 'not-allowed'};opacity:${_globalEnabled ? '1' : '0.6'};">
+      <label style="display:flex;align-items:center;justify-content:space-between;padding:14px;background:#FAFAFA;border-radius:12px;margin-bottom:12px;cursor:${_globalEnabled && accountReady ? 'pointer' : 'not-allowed'};opacity:${_globalEnabled && accountReady ? '1' : '0.6'};">
         <div>
           <div style="font-weight:700;font-size:14px;">자동응답 켜기</div>
-          <div style="font-size:11px;color:#888;margin-top:2px;">켜놓으면 DM 즉시 AI 답장</div>
+          <div style="font-size:11px;color:#888;margin-top:2px;">${status.instagram_handle ? _esc(status.instagram_handle) + ' DM에 즉시 AI 답장' : '켜놓으면 DM 즉시 AI 답장'}</div>
         </div>
-        <input id="dmEnabled" type="checkbox" ${settings.enabled ? 'checked' : ''} ${_globalEnabled ? '' : 'disabled'} style="width:20px;height:20px;">
+        <input id="dmEnabled" type="checkbox" ${settings.enabled ? 'checked' : ''} ${_globalEnabled && accountReady ? '' : 'disabled'} style="width:20px;height:20px;">
       </label>
 
       <div style="margin-bottom:14px;">
