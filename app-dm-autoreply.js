@@ -126,11 +126,23 @@
         <div style="font-size:10px;color:#999;margin-top:4px;">기본 금지어 자동 포함: 의료·치료·부작용·환불·법적</div>
       </div>
 
+      <details open style="margin-bottom:14px;">
+        <summary style="font-size:12px;font-weight:700;color:#7C3AED;cursor:pointer;padding:8px 0;">⭐ 사장님이 평소 답하는 방식 (3~5개) — AI가 이 톤·문체 그대로 따라 함</summary>
+        <textarea id="dmSample1" placeholder="예: 가격 문의 감사해요🌷 시술별로 달라서 인스타 프로필 가격표 먼저 확인 부탁드려요!" style="width:100%;margin-top:8px;padding:10px;border:1px solid #C4B5FD;border-radius:10px;font-size:13px;box-sizing:border-box;min-height:50px;background:#FAF5FF;">${_esc((settings.sample_replies || [])[0] || '')}</textarea>
+        <textarea id="dmSample2" placeholder="예: 예약 문의 주셔서 감사해요🥹 원하시는 날짜·시간 DM 으로 보내주시면 확인해드릴게요" style="width:100%;margin-top:8px;padding:10px;border:1px solid #C4B5FD;border-radius:10px;font-size:13px;box-sizing:border-box;min-height:50px;background:#FAF5FF;">${_esc((settings.sample_replies || [])[1] || '')}</textarea>
+        <textarea id="dmSample3" placeholder="예: 후기 사진은 인스타 피드 참고해 주세요💗 시술 결과 자연스럽게 잘 나와요!" style="width:100%;margin-top:8px;padding:10px;border:1px solid #C4B5FD;border-radius:10px;font-size:13px;box-sizing:border-box;min-height:50px;background:#FAF5FF;">${_esc((settings.sample_replies || [])[2] || '')}</textarea>
+        <textarea id="dmSample4" placeholder="예: 안녕하세요🤍 잇데이 스튜디오입니다! 어떤 시술 궁금하세요?" style="width:100%;margin-top:8px;padding:10px;border:1px solid #C4B5FD;border-radius:10px;font-size:13px;box-sizing:border-box;min-height:50px;background:#FAF5FF;">${_esc((settings.sample_replies || [])[3] || '')}</textarea>
+        <textarea id="dmSample5" placeholder="예: 영업시간은 09:00~21:00 이에요✨ 일요일 휴무!" style="width:100%;margin-top:8px;padding:10px;border:1px solid #C4B5FD;border-radius:10px;font-size:13px;box-sizing:border-box;min-height:50px;background:#FAF5FF;">${_esc((settings.sample_replies || [])[4] || '')}</textarea>
+      </details>
+
       <details style="margin-bottom:14px;">
-        <summary style="font-size:12px;font-weight:700;color:#555;cursor:pointer;padding:8px 0;">AI 실패 시 사용할 템플릿 (선택)</summary>
-        <textarea id="dmTplIntro" placeholder="인사말 템플릿" style="width:100%;margin-top:8px;padding:10px;border:1px solid #ddd;border-radius:10px;font-size:13px;box-sizing:border-box;min-height:60px;">${_esc(settings.template_intro || '')}</textarea>
-        <textarea id="dmTplPricing" placeholder="가격 문의 템플릿" style="width:100%;margin-top:8px;padding:10px;border:1px solid #ddd;border-radius:10px;font-size:13px;box-sizing:border-box;min-height:60px;">${_esc(settings.template_pricing || '')}</textarea>
-        <textarea id="dmTplBooking" placeholder="예약 문의 템플릿" style="width:100%;margin-top:8px;padding:10px;border:1px solid #ddd;border-radius:10px;font-size:13px;box-sizing:border-box;min-height:60px;">${_esc(settings.template_booking || '')}</textarea>
+        <summary style="font-size:12px;font-weight:700;color:#555;cursor:pointer;padding:8px 0;">AI 실패 시 사용할 템플릿 (카테고리별)</summary>
+        <textarea id="dmTplIntro" placeholder="인사말" style="width:100%;margin-top:8px;padding:10px;border:1px solid #ddd;border-radius:10px;font-size:13px;box-sizing:border-box;min-height:50px;">${_esc(settings.template_intro || '')}</textarea>
+        <textarea id="dmTplPricing" placeholder="가격 문의" style="width:100%;margin-top:8px;padding:10px;border:1px solid #ddd;border-radius:10px;font-size:13px;box-sizing:border-box;min-height:50px;">${_esc(settings.template_pricing || '')}</textarea>
+        <textarea id="dmTplBooking" placeholder="예약 문의" style="width:100%;margin-top:8px;padding:10px;border:1px solid #ddd;border-radius:10px;font-size:13px;box-sizing:border-box;min-height:50px;">${_esc(settings.template_booking || '')}</textarea>
+        <textarea id="dmTplLocation" placeholder="위치 문의 (예: 강남역 5번 출구 도보 3분)" style="width:100%;margin-top:8px;padding:10px;border:1px solid #ddd;border-radius:10px;font-size:13px;box-sizing:border-box;min-height:50px;">${_esc(settings.template_location || '')}</textarea>
+        <textarea id="dmTplHours" placeholder="영업시간 문의" style="width:100%;margin-top:8px;padding:10px;border:1px solid #ddd;border-radius:10px;font-size:13px;box-sizing:border-box;min-height:50px;">${_esc(settings.template_hours || '')}</textarea>
+        <textarea id="dmTplReview" placeholder="후기/사진 문의" style="width:100%;margin-top:8px;padding:10px;border:1px solid #ddd;border-radius:10px;font-size:13px;box-sizing:border-box;min-height:50px;">${_esc(settings.template_review || '')}</textarea>
       </details>
 
       <div style="display:flex;gap:10px;margin-top:20px;">
@@ -145,6 +157,9 @@
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
     sheet.querySelector('#dmCancel').addEventListener('click', () => overlay.remove());
     sheet.querySelector('#dmSave').addEventListener('click', async () => {
+      const samples = ['dmSample1', 'dmSample2', 'dmSample3', 'dmSample4', 'dmSample5']
+        .map(id => (sheet.querySelector('#' + id)?.value || '').trim())
+        .filter(Boolean);
       const payload = {
         enabled: sheet.querySelector('#dmEnabled').checked,
         tone: sheet.querySelector('#dmTone').value,
@@ -155,6 +170,10 @@
         template_intro: sheet.querySelector('#dmTplIntro').value,
         template_pricing: sheet.querySelector('#dmTplPricing').value,
         template_booking: sheet.querySelector('#dmTplBooking').value,
+        template_location: sheet.querySelector('#dmTplLocation')?.value || '',
+        template_hours: sheet.querySelector('#dmTplHours')?.value || '',
+        template_review: sheet.querySelector('#dmTplReview')?.value || '',
+        sample_replies: samples,
       };
       const ok = await _saveSettings(payload);
       if (window.showToast) window.showToast(ok ? '저장됐어요' : '저장 실패');
