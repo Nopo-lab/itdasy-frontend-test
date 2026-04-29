@@ -110,6 +110,20 @@
     if (d.membership_low_balance > 0) {
       items.push({ ic: 'sparkles', label: `회원권 잔액 부족 ${d.membership_low_balance}명`, color: '#A78BFA' });
     }
+    // [2026-04-29 F1] 챗봇 능동 제안 — proactive_suggestions
+    if (d.proactive_suggestions && Array.isArray(d.proactive_suggestions)) {
+      d.proactive_suggestions.forEach(s => {
+        if (s && s.text) {
+          items.push({
+            ic: 'sparkles',
+            label: s.text,
+            color: '#7C3AED',
+            chat_input: s.chat_input || '',
+            action: 'chat_input',
+          });
+        }
+      });
+    }
     // [2026-04-24] '생일' / '대기자' 항목 제거 — 사용자 요구로 통합 카드에서 비노출.
     //   백엔드 응답에 birthday_count 가 와도 무시. 항목 노출 자체를 차단해야
     //   AI 추천 텍스트 병합 단계에서도 우연히 들어오지 않음.
@@ -157,7 +171,7 @@
         </div>
         <div style="display:flex;flex-direction:column;gap:9px;">
           ${items.map(it => `
-            <div ${it.action ? `data-brief-act="${_esc(it.action)}" style="cursor:pointer;"` : ''} style="display:flex;gap:10px;align-items:center;padding:10px 12px;background:rgba(255,255,255,0.06);border-radius:10px;border-left:3px solid ${it.color};${it.action ? 'cursor:pointer;' : ''}">
+            <div ${it.action ? `data-brief-act="${_esc(it.action)}"${it.chat_input ? ` data-brief-chat="${_esc(it.chat_input)}"` : ''} style="cursor:pointer;"` : ''} style="display:flex;gap:10px;align-items:center;padding:10px 12px;background:rgba(255,255,255,0.06);border-radius:10px;border-left:3px solid ${it.color};${it.action ? 'cursor:pointer;' : ''}">
               <span style="display:inline-flex;color:${it.color};flex-shrink:0;">${_ic(it.ic)}</span>
               <span style="font-size:12px;line-height:1.4;flex:1;">${_esc(it.label)}</span>
               ${it.action ? `<span style="color:rgba(255,255,255,0.4);display:inline-flex;">${_ic('arrow')}</span>` : ''}
@@ -193,6 +207,22 @@
         // [2026-04-24] 'birthday' 액션 제거 — 통합 카드에서 항목 자체를 노출하지 않음
         if (act === 'unrecorded' && typeof window.openBooking === 'function') {
           window.openBooking();
+          return;
+        }
+        // [2026-04-29 F1] 챗봇 능동 제안 — chat_input 자동 입력
+        if (act === 'chat_input') {
+          const chatInput = el.dataset.briefChat || '';
+          if (typeof window.openAssistant === 'function') {
+            window.openAssistant();
+            // 챗봇 입력창에 자동 텍스트
+            setTimeout(() => {
+              const inp = document.getElementById('asstInput');
+              if (inp && chatInput) {
+                inp.value = chatInput;
+                inp.focus();
+              }
+            }, 200);
+          }
           return;
         }
         // window 에 등록된 함수면 바로 호출 (insights/unrecorded 외 명시 act)
