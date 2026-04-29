@@ -580,8 +580,8 @@
       const s = grid.querySelector('#bfStart').value;
       const e = grid.querySelector('#bfEnd').value;
       if (!d || !s || !e) return;
-      const starts = new Date(d + 'T' + s + ':00').toISOString();
-      const ends = new Date(d + 'T' + e + ':00').toISOString();
+      const starts = `${d}T${s}:00+09:00`;
+      const ends = `${d}T${e}:00+09:00`;
       const conflict = _hasConflict(starts, ends, existing?.id);
       grid.querySelector('#bfConflict').style.display = conflict ? 'block' : 'none';
     };
@@ -595,9 +595,12 @@
       if (!d || !s || !e) { if (window.showToast) window.showToast('날짜·시간을 입력해 주세요'); return; }
       if (s >= e) { if (window.showToast) window.showToast('종료 시간이 시작보다 늦어야 해요'); return; }
       const staffSel = grid.querySelector('#bfStaff');
+      // [2026-04-29] 명시적 KST ISO — Capacitor/iOS PWA 일부 환경에서 new Date() 가
+      // UTC 로 동작해서 14:00 입력이 14:00 UTC (= 23:00 KST) 로 잘못 저장되던 버그 픽스.
+      // 사용자 보고: "오후 2시 추가했는데 맨 아래 추가됨".
       const payload = {
-        starts_at: new Date(d + 'T' + s + ':00').toISOString(),
-        ends_at: new Date(d + 'T' + e + ':00').toISOString(),
+        starts_at: `${d}T${s}:00+09:00`,
+        ends_at: `${d}T${e}:00+09:00`,
         customer_id,
         customer_name: grid.querySelector('#bfCustomerName').value.trim() || null,
         service_name: grid.querySelector('#bfService').value.trim() || null,

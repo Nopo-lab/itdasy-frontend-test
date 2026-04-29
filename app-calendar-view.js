@@ -465,8 +465,8 @@ ${isEdit ? `
       const e = body.querySelector('#bfEnd').value;
       if (!d || !s || !e) return;
       const conflict = window.Booking.hasConflict(
-        new Date(d + 'T' + s + ':00').toISOString(),
-        new Date(d + 'T' + e + ':00').toISOString(),
+        `${d}T${s}:00+09:00`,
+        `${d}T${e}:00+09:00`,
         existing?.id,
       );
       body.querySelector('#bfConflict').style.display = conflict ? 'block' : 'none';
@@ -490,9 +490,10 @@ ${isEdit ? `
       const e = body.querySelector('#bfEnd').value;
       if (!d || !s || !e) { if (window.showToast) window.showToast('날짜·시간을 입력해 주세요'); return; }
       if (s >= e) { if (window.showToast) window.showToast('종료 시간이 시작보다 늦어야 해요'); return; }
+      // [2026-04-29] 명시적 KST ISO — Capacitor/iOS 일부 환경에서 timezone 부정확 픽스
       const payload = {
-        starts_at:     new Date(d + 'T' + s + ':00').toISOString(),
-        ends_at:       new Date(d + 'T' + e + ':00').toISOString(),
+        starts_at:     `${d}T${s}:00+09:00`,
+        ends_at:       `${d}T${e}:00+09:00`,
         customer_id:   body._getCustId?.() || null,
         customer_name: body.querySelector('#bfCustName').value.trim() || null,
         service_name:  body.querySelector('#bfSvc').value.trim()      || null,
