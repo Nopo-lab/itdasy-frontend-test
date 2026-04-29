@@ -77,12 +77,82 @@
         </div>
       </div>`;
 
+    const _dmInboxAsync = async () => {
+      try {
+        const res = await fetch(window.API + '/instagram/dm-reply/recent-conversations?limit=10', {
+          headers: window.authHeader(),
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const inbox = sheet.querySelector('#dmInbox');
+        if (!inbox || !data.conversations || !data.conversations.length) {
+          if (inbox) inbox.innerHTML = `
+            <div style="padding:14px;background:#FAFAFA;border-radius:12px;text-align:center;color:#999;font-size:12px;">
+              📭 아직 도착한 DM 이 없어요
+            </div>`;
+          return;
+        }
+        inbox.innerHTML = `
+          <div style="font-size:12px;font-weight:700;color:#555;margin-bottom:8px;">📥 최근 도착 DM (${data.conversations.length}건)</div>
+          ${data.conversations.map(c => {
+            const replyOk = c.reply?.ok === true;
+            const replyTxt = (c.reply?.text || '').replace(/[<>&"]/g,'');
+            const recvTxt = (c.received_text || '').replace(/[<>&"]/g,'');
+            const senderTail = c.sender_tail || '????';
+            const tsTxt = c.ts ? new Date(c.ts).toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit'}) : '';
+            return `
+              <div style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:10px 12px;margin-bottom:8px;">
+                <div style="display:flex;justify-content:space-between;font-size:11px;color:#888;margin-bottom:4px;">
+                  <span>👤 ...${senderTail}</span>
+                  <span>${tsTxt}</span>
+                </div>
+                <div style="font-size:13px;color:#333;margin-bottom:6px;">${recvTxt}</div>
+                ${replyTxt ? `
+                  <div style="background:${replyOk ? '#F3E8FF' : '#FEF3C7'};border-radius:8px;padding:8px;font-size:12px;color:${replyOk ? '#6B21A8' : '#92400E'};margin-bottom:6px;">
+                    🤖 ${replyTxt}
+                  </div>
+                  ${replyOk ? `
+                    <div style="display:flex;gap:6px;">
+                      <button class="dm-fb-good" data-recv="${recvTxt}" data-reply="${replyTxt}" style="flex:1;padding:6px;border:1px solid #10B981;border-radius:6px;background:#fff;color:#10B981;font-size:11px;font-weight:700;cursor:pointer;">👍 좋음</button>
+                      <button class="dm-fb-bad" data-recv="${recvTxt}" data-reply="${replyTxt}" style="flex:1;padding:6px;border:1px solid #DC2626;border-radius:6px;background:#fff;color:#DC2626;font-size:11px;font-weight:700;cursor:pointer;">👎 별로</button>
+                    </div>
+                  ` : ''}
+                ` : `
+                  <div style="font-size:11px;color:#999;">⏳ 답장 안 감 (영업시간 외 또는 금지어 등)</div>
+                `}
+              </div>
+            `;
+          }).join('')}
+        `;
+        // 피드백 클릭 핸들러
+        const _fb = async (recv, reply, rating) => {
+          try {
+            const r = await fetch(window.API + '/instagram/dm-reply/feedback', {
+              method: 'POST',
+              headers: { ...window.authHeader(), 'Content-Type': 'application/json' },
+              body: JSON.stringify({ received_text: recv, reply_text: reply, rating }),
+            });
+            const d = await r.json();
+            if (d.ok && rating === 'good' && window.showToast) {
+              window.showToast('✅ 답변 예시에 추가됐어요 — AI 가 다음부터 이렇게 답장합니다');
+            } else if (rating === 'bad' && window.showToast) {
+              window.showToast('피드백 기록됐어요');
+            }
+          } catch (_) { /* ignore */ }
+        };
+        inbox.querySelectorAll('.dm-fb-good').forEach(b => b.addEventListener('click', () => _fb(b.dataset.recv, b.dataset.reply, 'good')));
+        inbox.querySelectorAll('.dm-fb-bad').forEach(b => b.addEventListener('click', () => _fb(b.dataset.recv, b.dataset.reply, 'bad')));
+      } catch (_) { /* ignore */ }
+    };
+
     sheet.innerHTML = `
       <div style="width:36px;height:4px;background:#e0e0e0;border-radius:2px;margin:0 auto 18px;"></div>
       <div style="font-size:17px;font-weight:800;color:#1a1a1a;margin-bottom:6px;">🤖 AI DM 자동응답</div>
       <div style="font-size:12px;color:#888;margin-bottom:16px;">시술 중 온 DM에 AI 비서가 자동으로 답장해요.</div>
       ${disabledBanner}
       ${accountBanner}
+      <!-- [2026-04-29 C1] 도착 DM 시간순 list — 시트 상단 -->
+      <div id="dmInbox" style="margin-bottom:16px;"></div>
 
       <label style="display:flex;align-items:center;justify-content:space-between;padding:14px;background:#FAFAFA;border-radius:12px;margin-bottom:12px;cursor:${_globalEnabled && accountReady ? 'pointer' : 'not-allowed'};opacity:${_globalEnabled && accountReady ? '1' : '0.6'};">
         <div>
@@ -153,6 +223,9 @@
 
     overlay.appendChild(sheet);
     document.body.appendChild(overlay);
+
+    // [2026-04-29 C1] 도착 DM list 비동기 채움
+    _dmInboxAsync().catch(() => {});
 
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
     sheet.querySelector('#dmCancel').addEventListener('click', () => overlay.remove());
