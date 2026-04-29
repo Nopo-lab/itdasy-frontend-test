@@ -619,46 +619,13 @@
       <span class="hint" style="flex-basis:100%;margin-left:28px;font-size:11px;color:var(--text3);font-weight:400;margin-top:2px;">고객·예약·매출·재고 빠르게 한 번에</span>
     </button>
 
-    <!-- [2026-04-29 W5] 직원 관리 (Pro+1, Premium+5) -->
-    <button class="sheet-row" data-haptic="light" onclick="closeSettings(); window.StaffUI && window.StaffUI.open();" style="flex-wrap:wrap;">
-      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style="flex-shrink:0;margin-right:10px;"><use href="#ic-users"/></svg>
-      <span>직원 관리</span>
-      <span class="hint" style="flex-basis:100%;margin-left:28px;font-size:11px;color:var(--text3);font-weight:400;margin-top:2px;">스타일리스트 추가 · 캘린더에 색상 표시</span>
-    </button>
-
-    <!-- [2026-04-29] DM 자동응답 설정 빠른 진입 (긴급 ON/OFF + 톤·시간·금지어) -->
-    <button class="sheet-row" data-haptic="light" onclick="closeSettings(); window.openDMAutoreplySettings && window.openDMAutoreplySettings();" style="flex-wrap:wrap;">
-      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style="flex-shrink:0;margin-right:10px;"><use href="#ic-message-circle"/></svg>
-      <span>🤖 DM 자동응답</span>
-      <span class="hint" style="flex-basis:100%;margin-left:28px;font-size:11px;color:var(--text3);font-weight:400;margin-top:2px;">ON/OFF · 톤 · 영업시간 · 금지어</span>
-    </button>
-
-    <!-- [2026-04-29 W5] 회원권 만료 임박 — Premium 차별화 -->
+    <!-- [2026-04-30] 위 항목들 (직원/DM/가격표/챗봇메모/스마트캡처) 은
+         왼쪽 메뉴 → AI 자동화 / 설정·연동 허브로 통합. 중복 제거.
+         '회원권 만료 임박' 만 hot shortcut 으로 유지 (Premium 사용자 자주 액세스). -->
     <button class="sheet-row" data-haptic="light" onclick="closeSettings(); window.MembershipUI && window.MembershipUI.openExpiringList(30);" style="flex-wrap:wrap;">
       <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style="flex-shrink:0;margin-right:10px;"><use href="#ic-alert-triangle"/></svg>
       <span>회원권 만료 임박</span>
       <span class="hint" style="flex-basis:100%;margin-left:28px;font-size:11px;color:var(--text3);font-weight:400;margin-top:2px;">30일 내 만료 고객 + 충전 안내 1탭</span>
-    </button>
-
-    <!-- [2026-04-30] 가격표 사진 일괄 등록 — 챗봇 자동 가격 매칭 활성화 -->
-    <button class="sheet-row" data-haptic="light" onclick="closeSettings(); window.openPricelistUpload && window.openPricelistUpload();" style="flex-wrap:wrap;">
-      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style="flex-shrink:0;margin-right:10px;"><use href="#ic-camera"/></svg>
-      <span>📋 가격표 사진 → 자동 등록</span>
-      <span class="hint" style="flex-basis:100%;margin-left:28px;font-size:11px;color:var(--text3);font-weight:400;margin-top:2px;">사진 1장 → AI 가 시술·가격 인식 → 챗봇 자동 합산 활성</span>
-    </button>
-
-    <!-- [2026-04-30] 챗봇 영구 메모 + 사장님 프로필 (A1+A4) -->
-    <button class="sheet-row" data-haptic="light" onclick="closeSettings(); window.openAssistantFactsSheet && window.openAssistantFactsSheet();" style="flex-wrap:wrap;">
-      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style="flex-shrink:0;margin-right:10px;"><use href="#ic-bot"/></svg>
-      <span>🧠 챗봇 메모</span>
-      <span class="hint" style="flex-basis:100%;margin-left:28px;font-size:11px;color:var(--text3);font-weight:400;margin-top:2px;">"화요일 휴무" / "강연준 알러지" — 챗봇이 매번 참고할 사실</span>
-    </button>
-
-    <!-- [2026-04-30] 스마트 캡처 — 카톡 (E3) + 명함 (E4) -->
-    <button class="sheet-row" data-haptic="light" onclick="closeSettings(); window.openSmartCapture && window.openSmartCapture();" style="flex-wrap:wrap;">
-      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style="flex-shrink:0;margin-right:10px;"><use href="#ic-image-plus"/></svg>
-      <span>📥 스마트 캡처 임포트</span>
-      <span class="hint" style="flex-basis:100%;margin-left:28px;font-size:11px;color:var(--text3);font-weight:400;margin-top:2px;">카톡 캡처 → 예약·매출 자동 / 명함 → 고객 자동</span>
     </button>
 
     <div class="sheet-sep"></div>
@@ -1607,16 +1574,12 @@
       <svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg>
     </button>
   </header>
+  <!-- [2026-04-30] 13개 → 5개 핵심으로 통합. 하위 기능은 각 hub 진입 후 카드/버튼으로 노출. -->
   <nav class="drawer-nav" aria-label="내 샵 관리 메뉴">
     <div class="drawer-group">운영</div>
     <button type="button" class="drawer-item" data-drawer-route="bookings">
       <svg class="ic" aria-hidden="true"><use href="#ic-calendar"/></svg>
       <span class="lbl">예약관리</span>
-      <svg class="chev" aria-hidden="true"><use href="#ic-chevron-right"/></svg>
-    </button>
-    <button type="button" class="drawer-item" data-drawer-route="inventory">
-      <svg class="ic" aria-hidden="true"><use href="#ic-package"/></svg>
-      <span class="lbl">재고관리</span>
       <svg class="chev" aria-hidden="true"><use href="#ic-chevron-right"/></svg>
     </button>
     <button type="button" class="drawer-item" data-drawer-route="customer">
@@ -1629,62 +1592,23 @@
       <span class="lbl">매출관리</span>
       <svg class="chev" aria-hidden="true"><use href="#ic-chevron-right"/></svg>
     </button>
+    <button type="button" class="drawer-item" data-drawer-route="inventory">
+      <svg class="ic" aria-hidden="true"><use href="#ic-package"/></svg>
+      <span class="lbl">재고관리</span>
+      <svg class="chev" aria-hidden="true"><use href="#ic-chevron-right"/></svg>
+    </button>
 
-    <div class="drawer-group">AI 자동화</div>
-    <button type="button" class="drawer-item" data-drawer-route="dm">
-      <svg class="ic" aria-hidden="true"><use href="#ic-message-square"/></svg>
-      <span class="lbl">DM 관리</span>
-      <span class="badge muted">soon</span>
-    </button>
-    <button type="button" class="drawer-item" data-drawer-route="kakao">
-      <svg class="ic" aria-hidden="true"><use href="#ic-message-circle"/></svg>
-      <span class="lbl">카카오 알림톡</span>
-      <span class="badge muted">soon</span>
-    </button>
-    <button type="button" class="drawer-item" data-drawer-route="persona">
+    <div class="drawer-group">AI · 자동화</div>
+    <button type="button" class="drawer-item" data-drawer-route="ai_hub">
       <svg class="ic" aria-hidden="true"><use href="#ic-bot"/></svg>
-      <span class="lbl">AI 페르소나</span>
-      <svg class="chev" aria-hidden="true"><use href="#ic-chevron-right"/></svg>
-    </button>
-
-    <div class="drawer-group">콘텐츠</div>
-    <button type="button" class="drawer-item" data-drawer-route="posts">
-      <svg class="ic" aria-hidden="true"><use href="#ic-image"/></svg>
-      <span class="lbl">게시물 관리</span>
-      <svg class="chev" aria-hidden="true"><use href="#ic-chevron-right"/></svg>
-    </button>
-    <button type="button" class="drawer-item" data-drawer-route="caption">
-      <svg class="ic" aria-hidden="true"><use href="#ic-pen-line"/></svg>
-      <span class="lbl">SNS 자동 캡션</span>
-      <svg class="chev" aria-hidden="true"><use href="#ic-chevron-right"/></svg>
-    </button>
-
-    <div class="drawer-group">연동</div>
-    <button type="button" class="drawer-item" data-drawer-route="naver">
-      <svg class="ic" aria-hidden="true"><use href="#ic-link"/></svg>
-      <span class="lbl">네이버 예약 연동</span>
-      <span class="badge muted">soon</span>
-    </button>
-    <button type="button" class="drawer-item" data-drawer-route="payment">
-      <svg class="ic" aria-hidden="true"><use href="#ic-credit-card"/></svg>
-      <span class="lbl">결제 · 정산</span>
+      <span class="lbl">AI 자동화</span>
       <svg class="chev" aria-hidden="true"><use href="#ic-chevron-right"/></svg>
     </button>
 
     <div class="drawer-group">설정</div>
-    <button type="button" class="drawer-item" data-drawer-route="shopinfo">
+    <button type="button" class="drawer-item" data-drawer-route="settings_hub">
       <svg class="ic" aria-hidden="true"><use href="#ic-settings"/></svg>
-      <span class="lbl">샵 정보 · 직원</span>
-      <svg class="chev" aria-hidden="true"><use href="#ic-chevron-right"/></svg>
-    </button>
-    <button type="button" class="drawer-item" data-drawer-route="failures">
-      <svg class="ic" aria-hidden="true"><use href="#ic-bell"/></svg>
-      <span class="lbl">자동화 실패 알림함</span>
-      <span class="badge muted">soon</span>
-    </button>
-    <button type="button" class="drawer-item" data-drawer-route="backup">
-      <svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg>
-      <span class="lbl">백업 · 로그아웃</span>
+      <span class="lbl">설정 · 연동</span>
       <svg class="chev" aria-hidden="true"><use href="#ic-chevron-right"/></svg>
     </button>
   </nav>
@@ -1752,6 +1676,10 @@ window._lazyImgly = function _lazyImgly() {
 <script src="app-assistant-facts.js" defer></script>
 <!-- [2026-04-30] 스마트 캡처 — 카톡 자동 임포트 (E3) + 명함 OCR (E4) -->
 <script src="app-smart-capture.js" defer></script>
+<!-- [2026-04-30] AI 자동화 허브 — DM/카카오/페르소나/캡션/게시물/메모/캡처 통합 -->
+<script src="app-ai-hub.js" defer></script>
+<!-- [2026-04-30] 설정 · 연동 허브 — 샵정보/네이버/백업/실패/앱설정 통합 -->
+<script src="app-settings-hub.js" defer></script>
 <!-- [2026-04-29 W5] 직원 관리 — 미용실/대형샵 다중 직원 -->
 <script src="app-staff.js" defer></script>
 <!-- E3 (2026-04-26) — 검색 가능 AI 고객 메모. 알러지 자동 경고 + 전체 검색. -->

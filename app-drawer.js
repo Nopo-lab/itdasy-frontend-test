@@ -13,16 +13,20 @@
 
   let _isOpen = false;
 
-  // ── 라우트 매핑 (실제 함수명 기준) ─────────────────────────
+  // ── 라우트 매핑 (2026-04-30 — 13개 → 5개 + AI허브 + 설정허브로 통합) ──
   const ROUTES = {
-    bookings:  () => _call(['openCalendarView']),
-    inventory: () => _call(['openInventoryHub']),
-    customer:  () => _call(['openCustomerHub']),
-    revenue:   () => _call(['openRevenueHub']),
+    // 핵심 4 운영 메뉴
+    bookings:     () => _call(['openCalendarView']),
+    customer:     () => _call(['openCustomerHub']),
+    revenue:      () => _call(['openRevenueHub']),
+    inventory:    () => _call(['openInventoryHub']),
+    // 통합 허브 (AI 자동화 / 설정·연동)
+    ai_hub:       () => _call(['openAiHub']),
+    settings_hub: () => _call(['openSettingsHub']),
+    // 레거시 라우트 호환 (외부 링크가 직접 호출하는 경우)
     dm:        () => _call(['openDMAutoreplySettings']),
     kakao:     () => _call(['openKakaoHub']),
     persona:   () => _call(['openPersonaSurveyModal']),
-    // posts: 게시물 관리 = 마무리 탭(완성된 포스트 인스타 발행 화면)
     posts:     () => {
       try {
         if (typeof window.showTab === 'function') {
@@ -31,15 +35,10 @@
         }
         if (typeof window.initFinishTab === 'function') window.initFinishTab();
         return true;
-      } catch (e) {
-        console.warn('[drawer] posts route error:', e);
-        if (window.showToast) window.showToast('게시물 관리 화면을 여는 중 문제가 생겼어요');
-        return false;
-      }
+      } catch (_) { return false; }
     },
     caption:   () => _call(['openCaptionScenarioPopup']),
     naver:     () => _call(['openNaverLink']),
-    // payment: 결제·정산 = 매출/정산 허브 (구독 비교는 홈 플랜 배지에서 별도)
     payment:   () => _call(['openRevenueHub', 'openRevenueInput']),
     shopinfo:  () => _call(['openShopSettings']),
     failures:  () => _call(['openFailuresHub']),
@@ -58,7 +57,7 @@
   }
 
   function _haptic() {
-    try { if (window.hapticLight) window.hapticLight(); } catch (_) {}
+    try { if (window.hapticLight) window.hapticLight(); } catch (_) { /* ignore */ }
   }
 
   function openShopDrawer() {
@@ -146,7 +145,7 @@
   window.toggleShopDrawer = toggleShopDrawer;
   window.ShopDrawer = window.ShopDrawer || {};
   window.ShopDrawer.registerRoute = function (key, fn) {
-    if (typeof fn === 'function') ROUTES[key] = () => { try { fn(); } catch (_) {} };
+    if (typeof fn === 'function') ROUTES[key] = () => { try { fn(); } catch (_) { /* ignore */ } };
   };
   window.ShopDrawer.refreshHeader = _hydrateShopHeader;
 
