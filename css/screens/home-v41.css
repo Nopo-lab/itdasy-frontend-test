@@ -65,6 +65,11 @@ body:has(#tab-home.active) #headerPersona { display: none !important; }
   border-radius: var(--r-pill);
   background: var(--surface);
   border: 0.5px solid var(--border);
+  appearance: none;
+  -webkit-appearance: none;
+  outline: 0;
+  cursor: pointer;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -209,6 +214,15 @@ body:has(#tab-home.active) #headerPersona { display: none !important; }
   color: var(--surface);
   font-size: 12.5px;
   font-weight: 600;
+  /* native button reset — macOS Safari 디폴트 그라데이션/그림자 제거 */
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: inherit;
 }
 .hv-card--featured .hv-card__cta { background: var(--brand-strong); color: #FFF; }
 
@@ -229,6 +243,9 @@ body:has(#tab-home.active) #headerPersona { display: none !important; }
   cursor: pointer;
   border: none;
   padding: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  outline: 0;
 }
 .hv-dot.is-on {
   width: 22px;
@@ -284,6 +301,12 @@ body:has(#tab-home.active) #headerPersona { display: none !important; }
   justify-content: center;
   font-size: 11.5px;
   color: var(--text-subtle);
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  outline: 0;
+  cursor: pointer;
+  font-family: inherit;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
@@ -310,6 +333,12 @@ body:has(#tab-home.active) #headerPersona { display: none !important; }
   background: var(--surface);
   border: 0.5px solid var(--border);
   border-radius: var(--r-md);
+  appearance: none;
+  -webkit-appearance: none;
+  outline: 0;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
 }
 .hv-ops__cat {
   font-size: 11px;
@@ -364,7 +393,11 @@ body:has(#tab-home.active) #headerPersona { display: none !important; }
   align-items: center;
   justify-content: center;
   box-shadow: var(--shadow-md);
-  border: none;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  outline: 0;
+  padding: 0;
   cursor: pointer;
   z-index: 20;
 }
