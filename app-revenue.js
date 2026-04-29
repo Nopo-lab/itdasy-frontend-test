@@ -447,6 +447,12 @@
           <input id="rfCustomerName" readonly style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;background:#fafafa;" placeholder="고객 (선택)" />
           <button type="button" id="rfCustomerPick" style="padding:10px 14px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;font-size:12px;">👤 선택</button>
         </div>
+        <!-- [2026-04-29 W5] 회원권 결제 토글 — 고객 선택 시에만 표시 -->
+        <label id="rfMembershipToggle" style="display:none;align-items:center;gap:8px;padding:10px;background:#F3E8FF;border:1px solid #A78BFA;border-radius:8px;margin-bottom:10px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" id="rfUseMembership" style="width:18px;height:18px;cursor:pointer;">
+          <span>💳 회원권으로 결제 (잔액 자동 차감)</span>
+          <span id="rfMembershipBalance" style="margin-left:auto;font-size:11px;color:#6B21A8;font-weight:700;"></span>
+        </label>
         <label style="display:block;font-size:12px;color:#666;margin-bottom:4px;">메모</label>
         <textarea id="rfMemo" name="rfMemo" rows="2" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;margin-bottom:10px;font-family:inherit;resize:vertical;" maxlength="200"></textarea>
         <button type="button" id="rfSave" data-mutation style="width:100%;padding:12px;border:none;border-radius:8px;background:var(--accent,#F18091);color:#fff;font-weight:700;cursor:pointer;font-size:15px;">저장</button>
@@ -475,6 +481,18 @@
       if (picked === null) return;
       customer_id = picked.id;
       listEl.querySelector('#rfCustomerName').value = picked.name || '';
+      // [2026-04-29 W5] 회원권 토글 — 활성 회원권 + 잔액 있을 때만
+      const memToggle = listEl.querySelector('#rfMembershipToggle');
+      const memBal = listEl.querySelector('#rfMembershipBalance');
+      const memCheck = listEl.querySelector('#rfUseMembership');
+      if (memCheck) memCheck.checked = false;
+      if (picked.membership_active && (picked.membership_balance || 0) > 0) {
+        memToggle.style.display = 'flex';
+        memBal.textContent = `잔액 ${(picked.membership_balance || 0).toLocaleString()}원`;
+      } else {
+        memToggle.style.display = 'none';
+        memBal.textContent = '';
+      }
     });
 
     listEl.querySelector('#rfSave').addEventListener('click', async () => {
@@ -483,22 +501,24 @@
         if (window.showToast) window.showToast('금액을 입력해 주세요');
         return;
       }
+      const useMem = !!listEl.querySelector('#rfUseMembership')?.checked;
       try {
         await create({
           amount,
-          method,
+          method: useMem ? 'membership' : method,
           service_name: document.getElementById('rfService').value.trim() || null,
           customer_id,
           customer_name: listEl.querySelector('#rfCustomerName').value.trim() || null,
           memo: document.getElementById('rfMemo').value.trim() || null,
+          use_membership: useMem,
         });
         if (window.hapticLight) window.hapticLight();
-        if (window.showToast) window.showToast('매출 기록 완료');
+        if (window.showToast) window.showToast(useMem ? '회원권 차감 완료' : '매출 기록 완료');
         if (typeof window._formRecoveryClear === 'function') window._formRecoveryClear('revenue-add');
         await _loadAndRender();
       } catch (e) {
         console.warn('[revenue] create 실패:', e);
-        if (window.showToast) window.showToast('저장 실패');
+        if (window.showToast) window.showToast('저장 실패: ' + (e?.message || ''), { error: true });
       }
     });
   }
