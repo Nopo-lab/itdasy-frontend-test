@@ -1,0 +1,468 @@
+/* ── Itdasy Design System v1 · screens/home-v41.css ─────────────
+   홈 v4.1 톤다운 — 캐러셀/슬롯/3카드/FAB 스타일
+   mockup: ../../mockups/01-home.html 참고
+   tokens: tokens.css */
+
+/* ============ 헤더 ============ */
+/* 홈 탭 활성 시 글로벌 탑바의 #headerPersona 숨김 (v4.1 헤더 아바타와 중복 방지).
+   updateHeaderProfile() 의 display:flex 인라인 스타일을 덮으려 !important 사용.
+   DOM/JS 는 손대지 않으므로 외부 호환 유지. 다른 탭에서는 영향 없음. */
+body:has(#tab-home.active) #headerPersona { display: none !important; }
+
+.hv-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px 8px;
+}
+.hv-header__left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.hv-header__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex: 0 0 40px;
+}
+.hv-header__avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: var(--r-pill);
+  display: block;
+}
+.hv-header__initial {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-muted);
+  letter-spacing: -0.3px;
+}
+.hv-header__text { min-width: 0; }
+.hv-header__date {
+  font-size: 11px;
+  color: var(--text-subtle);
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+.hv-header__shop {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.3px;
+  margin-top: 2px;
+}
+.hv-bell {
+  background: transparent;
+  border: 0;
+  padding: 8px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+/* ============ AI 라벨 ============ */
+.hv-ai-label {
+  padding: 10px 16px 8px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.hv-ai-label__text {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.hv-ai-label__text b { color: var(--text); }
+.hv-ai-label__count {
+  font-size: 11px;
+  color: var(--text-subtle);
+  margin-left: auto;
+  font-weight: 500;
+}
+
+/* ============ 캐러셀 ============ */
+.hv-carousel {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  padding: 4px 16px 8px;
+}
+.hv-carousel::-webkit-scrollbar { display: none; }
+
+.hv-card {
+  flex: 0 0 calc(100% - 36px);
+  scroll-snap-align: start;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 18px 18px 16px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: var(--shadow-sm);
+}
+.hv-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+.hv-card:active { transform: scale(0.99); }
+
+/* 첫 카드(차별점)만 옅은 핑크 강조 — 토큰 기반으로 다크에서도 작동 */
+.hv-card.hv-card--featured {
+  background: linear-gradient(180deg, var(--brand-bg) 0%, var(--surface) 100%);
+  border-color: var(--brand);
+}
+
+.hv-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.hv-card__cat {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.hv-card__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--r-pill);
+}
+.hv-card__cat-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-subtle);
+  letter-spacing: 0.2px;
+}
+
+/* 카테고리 점 색상 */
+.hv-dot--pink   { background: var(--brand-strong); }
+.hv-dot--amber  { background: var(--warn); }
+.hv-dot--red    { background: var(--danger); }
+.hv-dot--coral  { background: #D85A30; }
+.hv-dot--green  { background: var(--ok); }
+.hv-dot--purple { background: #7F77DD; }
+
+/* 사진 스택 */
+.hv-card__photos { display: flex; }
+.hv-card__photo {
+  width: 30px;
+  height: 30px;
+  border: 2px solid var(--surface);
+  border-radius: 7px;
+  overflow: hidden;
+  margin-left: -8px;
+}
+.hv-card__photo:first-child { margin-left: 0; }
+.hv-photo-fill {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #F4C0D1, #E5586E);
+}
+.hv-photo-fill.hv-photo-fill--2 { background: linear-gradient(135deg, #FAC775, #BA7517); }
+.hv-photo-fill.hv-photo-fill--3 { background: linear-gradient(135deg, #C0DD97, #639922); }
+
+.hv-card__headline {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+  letter-spacing: -0.3px;
+  margin-bottom: 6px;
+}
+.hv-card__sub {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.55;
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
+.hv-card__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 14px;
+  border-radius: var(--r-pill);
+  background: var(--text);
+  color: var(--surface);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.hv-card--featured .hv-card__cta { background: var(--brand-strong); color: #FFF; }
+
+/* ============ 점 인디케이터 ============ */
+.hv-dots {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  padding: 12px 0 10px;
+  align-items: center;
+}
+.hv-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--border-strong);
+  transition: all 0.25s;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+.hv-dot.is-on {
+  width: 22px;
+  border-radius: var(--r-pill);
+  background: var(--text);
+}
+
+/* ============ 오늘의 예약 ============ */
+.hv-booking {
+  margin: 4px 16px 12px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--r-lg);
+}
+.hv-booking__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 11px;
+}
+.hv-booking__label {
+  font-size: 11px;
+  color: var(--text-subtle);
+  font-weight: 600;
+}
+.hv-booking__title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-top: 3px;
+  letter-spacing: -0.2px;
+  color: var(--text);
+}
+.hv-booking__link {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 5px 10px;
+  background: var(--surface-2);
+  border-radius: var(--r-pill);
+  font-weight: 500;
+}
+.hv-slots {
+  display: flex;
+  gap: 6px;
+}
+.hv-slot {
+  flex: 1;
+  height: 32px;
+  background: var(--surface-2);
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11.5px;
+  color: var(--text-subtle);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.hv-slot.is-now {
+  background: var(--text);
+  color: var(--surface);
+}
+
+/* ============ 운영 3카드 ============ */
+.hv-ops { padding: 0 16px 6px; }
+.hv-ops__title {
+  font-size: 11px;
+  color: var(--text-subtle);
+  margin: 0 2px 8px;
+  font-weight: 600;
+}
+.hv-ops__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+.hv-ops__card {
+  padding: 11px 13px;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--r-md);
+}
+.hv-ops__cat {
+  font-size: 11px;
+  color: var(--text-subtle);
+  font-weight: 500;
+}
+.hv-ops__val {
+  font-size: 14px;
+  font-weight: 700;
+  margin-top: 3px;
+  letter-spacing: -0.3px;
+  color: var(--text);
+}
+.hv-ops__val.is-danger { color: var(--danger); }
+
+/* ============ 자동화 칩 ============ */
+.hv-chips {
+  display: flex;
+  gap: 6px;
+  padding: 6px 16px 10px;
+  flex-wrap: wrap;
+}
+.hv-chip {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 5px 10px;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--r-pill);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 500;
+}
+.hv-chip__on {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--ok);
+}
+
+/* ============ 챗봇 FAB ============ */
+.hv-fab {
+  position: absolute;
+  right: 18px;
+  bottom: 84px;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--r-pill);
+  background: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+  border: none;
+  cursor: pointer;
+  z-index: 20;
+}
+.hv-fab__badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: var(--brand-strong);
+  color: #FFF;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: var(--r-pill);
+}
+
+/* ============ PC 사이드바 ============ */
+.hv-sidebar {
+  width: 96px;
+  background: var(--surface);
+  border-right: 0.5px solid var(--border);
+  padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.hv-sidebar__logo {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 12px;
+  letter-spacing: -0.3px;
+}
+.hv-sidebar__item {
+  width: 72px;
+  padding: 12px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  border-radius: var(--r-md);
+  cursor: pointer;
+}
+.hv-sidebar__item.is-active { background: var(--surface-2); }
+.hv-sidebar__label {
+  font-size: 11px;
+  color: var(--text-subtle);
+  font-weight: 500;
+}
+.hv-sidebar__item.is-active .hv-sidebar__label {
+  color: var(--text);
+  font-weight: 700;
+}
+.hv-sidebar__fab {
+  width: 60px;
+  height: 60px;
+  border-radius: var(--r-pill);
+  background: var(--brand-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+}
+.hv-sidebar__spacer { flex: 1; }
+
+/* ============ PC 그리드 ============ */
+.hv-pc-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 14px;
+  margin-top: 12px;
+}
+.hv-pc-grid .hv-booking { margin: 0; }
+
+/* ============ PC 분기 (1100px+) ============ */
+@media (min-width: 1100px) {
+  .hv-carousel {
+    padding: 4px 0 8px;
+  }
+  /* mockup의 .pc-carousel 패턴 — 첫 카드 56%, 나머지 38% */
+  .hv-carousel .hv-card {
+    flex: 0 0 calc(56% - 5px);
+  }
+  .hv-carousel .hv-card:nth-child(2),
+  .hv-carousel .hv-card:nth-child(3),
+  .hv-carousel .hv-card:nth-child(4),
+  .hv-carousel .hv-card:nth-child(5),
+  .hv-carousel .hv-card:nth-child(6) {
+    flex: 0 0 calc(38% - 5px);
+  }
+  .hv-fab {
+    right: 24px;
+    bottom: 24px;
+    width: 60px;
+    height: 60px;
+  }
+}
+
+/* ============ 모션 줄임 ============ */
+@media (prefers-reduced-motion: reduce) {
+  .hv-card,
+  .hv-card:hover,
+  .hv-card:active {
+    transform: none;
+    transition: none;
+  }
+  .hv-dot {
+    transition: none;
+  }
+}
