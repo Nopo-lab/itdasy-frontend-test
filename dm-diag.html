@@ -18,6 +18,7 @@
 </head>
 <body>
 <h1>📥 DM 자동응답 진단</h1>
+<button class="btn" id="copyAllBtn" style="background:#0d9488;margin-bottom:6px;">📋 진단 결과 전체 복사</button>
 <div id="results"></div>
 <button class="btn" id="subscribeBtn" style="background:#dc2626;">🔔 IG 계정 webhook 구독 활성화 (제일 먼저!)</button>
 <div id="subscribeResult" style="margin-top:8px;"></div>
@@ -28,6 +29,24 @@
 <button class="btn" onclick="location.reload()">다시 진단</button>
 <button class="btn" style="background:#888;" onclick="location.href='./'">잇데이로</button>
 <script>
+document.getElementById('copyAllBtn').addEventListener('click', async () => {
+  const text = document.getElementById('results').innerText
+    + '\n\n=== webhook 이벤트 ===\n' + (document.getElementById('recentEvents')?.innerText || '(클릭 안 함)')
+    + '\n\n=== 구독 활성화 결과 ===\n' + (document.getElementById('subscribeResult')?.innerText || '(클릭 안 함)');
+  try {
+    await navigator.clipboard.writeText(text);
+    alert('✅ 클립보드에 복사됐어요. 붙여넣기로 공유 가능.');
+  } catch (e) {
+    // 폴백 — textarea 임시 생성 후 복사
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); alert('✅ 복사됨 (legacy)'); } catch(_) { alert('복사 실패: ' + text.length + '자 — 직접 선택해서 복사하세요'); }
+    document.body.removeChild(ta);
+  }
+});
+
 document.getElementById('subscribeBtn').addEventListener('click', async () => {
   const t = localStorage.getItem('itdasy_token::staging') || localStorage.getItem('itdasy_token::prod') || localStorage.getItem('itdasy_token');
   if (!t) { alert('토큰 없음'); return; }
