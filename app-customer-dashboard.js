@@ -322,8 +322,20 @@
     `;
   }
 
-  function _renderEditBar(id) {
+  function _renderEditBar(id, customer) {
+    // [2026-04-29] 회원권 빠른 진입 — 활성 회원권이면 충전/사용 버튼, 아니면 충전 버튼만
+    const memOn = !!customer?.membership_active;
+    const bal = +customer?.membership_balance || 0;
+    const memberBtns = memOn
+      ? `
+        <button data-act="ms-topup" data-cust-id="${id}" data-cust-name="${_esc(customer.name || '')}" style="flex:1;padding:11px;border:1px solid #A78BFA;border-radius:10px;background:#F3E8FF;color:#6B21A8;font-size:12px;font-weight:700;cursor:pointer;">💳 충전</button>
+        <button data-act="ms-use" data-cust-id="${id}" data-cust-name="${_esc(customer.name || '')}" data-cust-bal="${bal}" style="flex:1;padding:11px;border:1px solid #0288D1;border-radius:10px;background:#E1F5FE;color:#01579B;font-size:12px;font-weight:700;cursor:pointer;">✂️ 사용</button>
+      `
+      : `
+        <button data-act="ms-topup" data-cust-id="${id}" data-cust-name="${_esc(customer.name || '')}" style="flex:1;padding:11px;border:1px solid #A78BFA;border-radius:10px;background:#F3E8FF;color:#6B21A8;font-size:12px;font-weight:700;cursor:pointer;">💳 회원권 시작</button>
+      `;
     return `
+      <div style="display:flex;gap:8px;margin-bottom:8px;">${memberBtns}</div>
       <button data-act="edit" style="width:100%;padding:11px;border:1px solid rgba(0,0,0,0.08);border-radius:10px;background:#fff;color:#555;font-size:12px;font-weight:700;cursor:pointer;">✏️  정보 편집</button>
     `;
   }
@@ -435,6 +447,18 @@
         } else if (act === 'nps') {
           closeCustomerDashboard();
           if (typeof window.openNps === 'function') window.openNps();
+        } else if (act === 'ms-topup') {
+          // [2026-04-29] 회원권 충전 — 1탭 시트
+          if (window.MembershipUI && typeof window.MembershipUI.openTopupSheet === 'function') {
+            const cid = parseInt(btn.dataset.custId, 10);
+            window.MembershipUI.openTopupSheet(cid, btn.dataset.custName || '');
+          }
+        } else if (act === 'ms-use') {
+          if (window.MembershipUI && typeof window.MembershipUI.openUseSheet === 'function') {
+            const cid = parseInt(btn.dataset.custId, 10);
+            const bal = parseInt(btn.dataset.custBal || '0', 10);
+            window.MembershipUI.openUseSheet(cid, btn.dataset.custName || '', bal);
+          }
         }
       });
     });
@@ -466,7 +490,7 @@
         ${_renderRevenues(d.recent_revenues)}
         ${_renderBookings(d.recent_bookings)}
         ${_renderNps(d.recent_nps)}
-        ${_renderEditBar(d.customer.id)}
+        ${_renderEditBar(d.customer.id, d.customer)}
       `;
       _bindActions(d.customer.id, d.customer.name);
       _bindMembership(d);
