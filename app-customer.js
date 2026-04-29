@@ -277,6 +277,14 @@
         <div class="dt-search-wrap">
           <input id="customerSearch" type="search" class="dt-field" placeholder="이름·연락처·태그 검색" />
         </div>
+        <!-- [2026-04-29 E2] 자동 세그먼트 chip 4개 -->
+        <div id="customerSegments" style="display:flex;gap:6px;padding:0 4px 10px;overflow-x:auto;-webkit-overflow-scrolling:touch;">
+          <button data-seg="all" class="cust-seg-chip cust-seg-active" style="flex-shrink:0;padding:6px 14px;border:1px solid #F18091;background:#F18091;color:#fff;border-radius:999px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">전체</button>
+          <button data-seg="regular" class="cust-seg-chip" style="flex-shrink:0;padding:6px 14px;border:1px solid #ddd;background:#fff;color:#555;border-radius:999px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">⭐ 단골</button>
+          <button data-seg="member" class="cust-seg-chip" style="flex-shrink:0;padding:6px 14px;border:1px solid #ddd;background:#fff;color:#555;border-radius:999px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">💳 회원권</button>
+          <button data-seg="new" class="cust-seg-chip" style="flex-shrink:0;padding:6px 14px;border:1px solid #ddd;background:#fff;color:#555;border-radius:999px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">🌱 신규</button>
+          <button data-seg="atrisk" class="cust-seg-chip" style="flex-shrink:0;padding:6px 14px;border:1px solid #ddd;background:#fff;color:#555;border-radius:999px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">⚠️ 이탈 임박</button>
+        </div>
         <div id="customerList"></div>
       </div>
       <footer class="dt-footer">
@@ -286,6 +294,23 @@
     document.body.appendChild(sheet);
     sheet.querySelector('#customerSearch').addEventListener('input', _rerender);
     sheet.querySelector('#customerAddBtn').addEventListener('click', _openAddForm);
+    // [2026-04-29 E2] 세그먼트 chip 클릭
+    let _activeSeg = 'all';
+    sheet.querySelectorAll('.cust-seg-chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        _activeSeg = btn.dataset.seg;
+        window._customerSeg = _activeSeg;
+        sheet.querySelectorAll('.cust-seg-chip').forEach(b => {
+          const on = b.dataset.seg === _activeSeg;
+          b.classList.toggle('cust-seg-active', on);
+          b.style.background = on ? '#F18091' : '#fff';
+          b.style.color = on ? '#fff' : '#555';
+          b.style.borderColor = on ? '#F18091' : '#ddd';
+        });
+        _windowSize = 50;
+        _rerender();
+      });
+    });
     return sheet;
   }
 
@@ -298,15 +323,34 @@
     const sheet = document.getElementById('customerSheet');
     if (!sheet) return;
     const q = sheet.querySelector('#customerSearch').value;
-    const items = search(q);
+    let items = search(q);
+    // [2026-04-29 E2] 세그먼트 필터
+    const seg = window._customerSeg || 'all';
+    if (seg !== 'all' && items.length) {
+      const now = Date.now();
+      const ATRISK_DAYS = 60;
+      items = items.filter(c => {
+        if (seg === 'regular') return !!c.is_regular;
+        if (seg === 'member')  return !!c.membership_active;
+        if (seg === 'new')     return (c.visit_count || 0) <= 1;
+        if (seg === 'atrisk') {
+          if (!c.last_visit_at) return false;
+          const t = Date.parse(c.last_visit_at);
+          if (!isFinite(t)) return false;
+          const days = (now - t) / 86400000;
+          return days >= ATRISK_DAYS;
+        }
+        return true;
+      });
+    }
     const box = sheet.querySelector('#customerList');
     const count = sheet.querySelector('#customerCount');
     const offBadge = sheet.querySelector('#customerOfflineBadge');
-    count.textContent = (_cache ? _cache.length : 0) + '명';
+    count.textContent = (_cache ? _cache.length : 0) + '명' + (seg !== 'all' ? ` · ${items.length}명 표시` : '');
     offBadge.style.display = _isOffline ? 'inline-block' : 'none';
 
     if (!items.length) {
-      box.innerHTML = `<div class="dt-empty">${_cache && _cache.length ? '검색 결과 없음' : '아직 고객이 없어요. 아래 버튼으로 추가해 주세요.'}</div>`;
+      box.innerHTML = `<div class="dt-empty">${_cache && _cache.length ? (seg !== 'all' ? '이 세그먼트에 해당하는 고객이 없어요.' : '검색 결과 없음') : '아직 고객이 없어요. 아래 버튼으로 추가해 주세요.'}</div>`;
       return;
     }
     // 검색 키워드 바뀌면 window 리셋
@@ -349,7 +393,44 @@
       more.addEventListener('click', () => { _windowSize += WINDOW_STEP; _rerender(); }, { once: true });
     }
     box.querySelectorAll('.customer-row').forEach(row => {
-      row.addEventListener('click', () => {
+      // [2026-04-29 E1] 좌우 스와이프 액션
+      let _sx = 0, _sy = 0, _swiped = false, _down = false;
+      const SWIPE_THRESHOLD = 60;
+      row.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        _down = true; _swiped = false;
+        _sx = e.clientX; _sy = e.clientY;
+      });
+      row.addEventListener('pointermove', (e) => {
+        if (!_down) return;
+        const dx = e.clientX - _sx, dy = e.clientY - _sy;
+        if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+          _swiped = true;
+          row.style.transform = `translateX(${Math.max(-120, Math.min(120, dx))}px)`;
+          row.style.transition = 'none';
+        }
+      });
+      const _resetRow = () => { row.style.transform = ''; row.style.transition = 'transform 180ms ease'; };
+      row.addEventListener('pointerup', (e) => {
+        if (!_down) return;
+        _down = false;
+        const dx = e.clientX - _sx;
+        if (_swiped && Math.abs(dx) >= SWIPE_THRESHOLD) {
+          if (dx < 0) {
+            _resetRow();
+            _confirmDelete(row.dataset.id);
+          } else {
+            _resetRow();
+            _openSwipeActions(row.dataset.id);
+          }
+          e.preventDefault(); e.stopPropagation();
+          return;
+        }
+        _resetRow();
+      });
+      row.addEventListener('pointercancel', () => { _down = false; _resetRow(); });
+      row.addEventListener('click', (e) => {
+        if (_swiped) { e.preventDefault(); e.stopPropagation(); _swiped = false; return; }
         // 행 클릭 = 대시보드(조회). 편집은 대시보드 안의 '편집' 버튼 또는 _openDetail 직접 호출.
         if (typeof window.openCustomerDashboard === 'function') {
           window.openCustomerDashboard(row.dataset.id);
@@ -357,6 +438,60 @@
           _openDetail(row.dataset.id);
         }
       });
+    });
+  }
+
+  // [2026-04-29 E1] 스와이프 액션 메뉴
+  function _openSwipeActions(customerId) {
+    const c = (_cache || []).find(x => x.id === customerId);
+    if (!c) return;
+    const old = document.getElementById('custSwipeActions');
+    if (old) old.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'custSwipeActions';
+    wrap.style.cssText = 'position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.4);display:flex;align-items:flex-end;justify-content:center;';
+    wrap.innerHTML = `
+      <div style="width:100%;max-width:420px;background:#fff;border-radius:18px 18px 0 0;padding:14px 14px max(14px,env(safe-area-inset-bottom));box-shadow:0 -4px 24px rgba(0,0,0,0.12);">
+        <div style="text-align:center;margin-bottom:10px;">
+          <div style="width:36px;height:4px;background:#e0e0e0;border-radius:2px;margin:0 auto 10px;"></div>
+          <strong style="font-size:15px;">${_esc(c.name)}</strong>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+          <button data-act="revenue" style="padding:14px 6px;border:none;border-radius:12px;background:linear-gradient(135deg,#FFE0E6,#FFD0DA);color:#C5304D;font-size:13px;font-weight:700;cursor:pointer;">💰<br>매출 입력</button>
+          <button data-act="booking" style="padding:14px 6px;border:none;border-radius:12px;background:linear-gradient(135deg,#E0EAFF,#D0E0FF);color:#2548A0;font-size:13px;font-weight:700;cursor:pointer;">📅<br>예약 잡기</button>
+          <button data-act="membership" style="padding:14px 6px;border:none;border-radius:12px;background:linear-gradient(135deg,#F0E0FF,#E0D0FF);color:#5A30A0;font-size:13px;font-weight:700;cursor:pointer;">💳<br>회원권</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(wrap);
+    const close = () => wrap.remove();
+    wrap.addEventListener('click', (e) => { if (e.target === wrap) close(); });
+    wrap.querySelectorAll('[data-act]').forEach(b => {
+      b.addEventListener('click', () => {
+        const act = b.dataset.act;
+        close();
+        if (act === 'revenue' && typeof window.openRevenue === 'function') {
+          window.openRevenue();
+          if (typeof window._openRevenueAddFor === 'function') window._openRevenueAddFor(c.id, c.name);
+        } else if (act === 'booking') {
+          window._pendingBookingCustomer = { id: c.id, name: c.name };
+          if (typeof window.openCalendar === 'function') window.openCalendar();
+        } else if (act === 'membership' && typeof window.openMembershipCharge === 'function') {
+          window.openMembershipCharge(c.id, c.name, c.membership_balance || 0);
+        }
+      });
+    });
+  }
+
+  function _confirmDelete(customerId) {
+    const c = (_cache || []).find(x => x.id === customerId);
+    if (!c) return;
+    if (!confirm(`'${c.name}' 고객을 삭제할까요?\n방문 ${c.visit_count || 0}회 기록도 함께 사라집니다.`)) return;
+    remove(customerId).then(() => {
+      if (window.showToast) window.showToast('삭제됨');
+      _rerender();
+    }).catch(() => {
+      if (window.showToast) window.showToast('삭제 실패');
     });
   }
 

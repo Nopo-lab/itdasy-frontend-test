@@ -56,6 +56,37 @@
     return el;
   }
 
+  // [2026-04-29 B4] 회원권 충전/사용 history
+  async function _loadHistory(customerId, container) {
+    if (!container || !customerId) return;
+    container.innerHTML = '<div style="font-size:12px;color:#888;text-align:center;padding:8px;">최근 내역 불러오는 중…</div>';
+    try {
+      const r = await _fetch('GET', `/memberships/${customerId}/history?limit=8`);
+      const items = r.items || [];
+      if (!items.length) {
+        container.innerHTML = '<div style="font-size:12px;color:#888;text-align:center;padding:10px;">아직 내역이 없어요.</div>';
+        return;
+      }
+      const rows = items.map(it => {
+        const isUse = it.kind === 'use';
+        const sign = isUse ? '−' : '+';
+        const color = isUse ? '#0288D1' : '#F18091';
+        const dt = (it.recorded_at || '').replace('T', ' ').slice(5, 16);
+        const svc = it.service_name ? ` · ${(it.service_name + '').replace(/[<>&"]/g,'')}` : '';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 4px;border-bottom:1px solid #f3f3f3;">
+          <div style="font-size:12px;color:#444;">${dt}${svc}</div>
+          <div style="font-size:13px;font-weight:700;color:${color};">${sign}${_krw(it.amount || 0)}</div>
+        </div>`;
+      }).join('');
+      container.innerHTML = `
+        <div style="font-size:12px;color:#888;font-weight:600;margin-bottom:6px;">최근 내역</div>
+        <div style="background:#FAFAFA;border-radius:10px;padding:6px 10px;">${rows}</div>
+      `;
+    } catch (_e) {
+      container.innerHTML = '<div style="font-size:12px;color:#888;text-align:center;padding:10px;">내역을 불러올 수 없어요.</div>';
+    }
+  }
+
   function _open(title, htmlBody) {
     const sheet = _ensureSheet();
     sheet.querySelector('#msTitle').textContent = title;
@@ -83,6 +114,8 @@
         </select>
       </div>
       <button id="msConfirm" style="width:100%;padding:16px;background:linear-gradient(135deg,#F18091,#FFA8B6);color:#fff;border:none;border-radius:12px;font-weight:700;font-size:15px;cursor:pointer;">충전하기</button>
+      <!-- [2026-04-29 B4] 최근 사용 history -->
+      <div id="msHistoryWrap" style="margin-top:18px;"></div>
     `;
     _open('💳 회원권 충전', html);
     const sheet = document.getElementById('membershipSheet');
@@ -91,6 +124,7 @@
         sheet.querySelector('#msAmount').value = btn.dataset.amt;
       });
     });
+    _loadHistory(customerId, sheet.querySelector('#msHistoryWrap'));
     sheet.querySelector('#msConfirm').addEventListener('click', async () => {
       const amount = parseInt(sheet.querySelector('#msAmount').value, 10);
       const method = sheet.querySelector('#msMethod').value;
@@ -133,9 +167,12 @@
         <input id="msUseService" type="text" placeholder="시술명 (선택)" style="width:100%;padding:12px;border:1px solid var(--border,#e5e5e5);border-radius:10px;font-size:14px;">
       </div>
       <button id="msUseConfirm" style="width:100%;padding:16px;background:linear-gradient(135deg,#0288D1,#03A9F4);color:#fff;border:none;border-radius:12px;font-weight:700;font-size:15px;cursor:pointer;">차감하기</button>
+      <!-- [2026-04-29 B4] 최근 사용 history -->
+      <div id="msHistoryWrap" style="margin-top:18px;"></div>
     `;
     _open('💳 회원권 사용', html);
     const sheet = document.getElementById('membershipSheet');
+    _loadHistory(customerId, sheet.querySelector('#msHistoryWrap'));
     sheet.querySelector('#msUseConfirm').addEventListener('click', async () => {
       const amount = parseInt(sheet.querySelector('#msUseAmount').value, 10);
       const svc = sheet.querySelector('#msUseService').value.trim();

@@ -2069,6 +2069,51 @@
     `).join('');
   }
 
+  // [2026-04-29 F1] 능동 제안 carousel — today/brief 의 proactive_suggestions 상단 노출
+  let _proactiveLoadedAt = 0;
+  async function _loadProactiveSuggestions() {
+    try {
+      // 5분 캐시
+      if (Date.now() - _proactiveLoadedAt < 300000) return;
+      if (!window.API || !window.authHeader) return;
+      const res = await fetch(window.API + '/today/brief', { headers: window.authHeader() });
+      if (!res.ok) return;
+      const d = await res.json();
+      const suggestions = (d.proactive_suggestions || []).slice(0, 3);
+      _renderProactiveCarousel(suggestions);
+      _proactiveLoadedAt = Date.now();
+    } catch (_e) { void _e; }
+  }
+  function _renderProactiveCarousel(suggestions) {
+    const sheet = document.getElementById('assistantSheet');
+    if (!sheet) return;
+    let box = sheet.querySelector('#asstProactive');
+    if (!box) {
+      const target = sheet.querySelector('#asstSuggest');
+      if (!target) return;
+      box = document.createElement('div');
+      box.id = 'asstProactive';
+      box.style.cssText = 'display:flex;gap:8px;overflow-x:auto;margin-top:6px;padding:4px 0;-webkit-overflow-scrolling:touch;';
+      target.parentNode.insertBefore(box, target);
+    }
+    if (!suggestions || !suggestions.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    box.style.display = 'flex';
+    box.innerHTML = suggestions.map((s, i) => {
+      const text = _esc(s.text || '');
+      const chat = _esc(s.chat_input || s.text || '');
+      return `<button data-proactive-chat="${chat}" style="flex:0 0 auto;max-width:260px;padding:10px 14px;border:1px solid #DDD6FE;border-radius:14px;background:linear-gradient(135deg,#FAF5FF,#F3E8FF);color:#5B21B6;cursor:pointer;font-size:12px;font-weight:600;text-align:left;line-height:1.35;white-space:normal;">✨ ${text}</button>`;
+    }).join('');
+    box.querySelectorAll('[data-proactive-chat]').forEach(b => {
+      b.addEventListener('click', () => {
+        const inp = document.getElementById('asstInput');
+        if (inp) {
+          inp.value = b.dataset.proactiveChat || '';
+          inp.focus();
+        }
+      });
+    });
+  }
+
   // ── 📸 사진 업로드 (챗봇 입력바 좌측 버튼) ─────────────────
   function _openPhotoSheet() {
     // 이미 떠 있으면 닫고 끝
@@ -2618,6 +2663,8 @@
     _setUnreadAnswer(false);
     // 첫 오픈 시 서버 history 동기화 (백그라운드, 즉시 렌더에 영향 X)
     _loadServerHistory();
+    // [2026-04-29 F1] 능동 제안 carousel — chat 입력창 위
+    _loadProactiveSuggestions();
     setTimeout(() => document.getElementById('asstInput')?.focus(), 60);
     // [2026-04-26 A5] popstate 등록 + 스와이프 다운 닫기
     try {

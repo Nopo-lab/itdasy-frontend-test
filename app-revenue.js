@@ -336,14 +336,63 @@
         </div>
         <div id="revenueTabs" style="display:flex;gap:4px;margin-bottom:10px;"></div>
         <div id="revenueSummary" style="padding:12px;background:linear-gradient(135deg,rgba(241,128,145,0.08),rgba(241,128,145,0.02));border-radius:12px;margin-bottom:10px;"></div>
+        <!-- [2026-04-29 D1] 매출 인라인 1줄 빠른 추가 -->
+        <div id="revenueQAdd" style="display:flex;gap:6px;align-items:center;margin-bottom:10px;padding:10px;background:#FAFAFA;border:1px dashed #ddd;border-radius:12px;">
+          <input id="rqaAmount"  type="number" inputmode="numeric" placeholder="금액" style="flex:1.0;min-width:0;padding:9px 8px;border:1px solid #e5e5e5;border-radius:8px;font-size:14px;font-variant-numeric:tabular-nums;"/>
+          <select id="rqaMethod" style="flex:0.9;min-width:0;padding:9px 6px;border:1px solid #e5e5e5;border-radius:8px;font-size:13px;background:#fff;">
+            <option value="card">카드</option>
+            <option value="cash">현금</option>
+            <option value="transfer">이체</option>
+            <option value="membership">회원권</option>
+          </select>
+          <input id="rqaCustomer" type="text" placeholder="고객(선택)" style="flex:1.0;min-width:0;padding:9px 8px;border:1px solid #e5e5e5;border-radius:8px;font-size:13px;"/>
+          <input id="rqaService"  type="text" placeholder="시술(선택)" style="flex:1.0;min-width:0;padding:9px 8px;border:1px solid #e5e5e5;border-radius:8px;font-size:13px;"/>
+          <button id="rqaSubmit" type="button" aria-label="추가" style="flex:0;padding:9px 14px;border:none;border-radius:8px;background:var(--accent,#F18091);color:#fff;font-weight:700;font-size:14px;cursor:pointer;">+</button>
+        </div>
         <div id="revenueChart" style="margin-bottom:10px;"></div>
         <div id="revenueList" style="flex:1;overflow-y:auto;min-height:100px;"></div>
-        <button id="revenueAddBtn" style="margin-top:10px;padding:12px;border:none;border-radius:10px;background:var(--accent,#F18091);color:#fff;font-weight:700;font-size:15px;cursor:pointer;">+ 매출 입력</button>
+        <button id="revenueAddBtn" style="margin-top:10px;padding:12px;border:none;border-radius:10px;background:var(--accent,#F18091);color:#fff;font-weight:700;font-size:15px;cursor:pointer;">+ 자세히 입력</button>
       </div>
     `;
     document.body.appendChild(sheet);
     sheet.addEventListener('click', (e) => { if (e.target === sheet) closeRevenue(); });
     sheet.querySelector('#revenueAddBtn').addEventListener('click', _openAddForm);
+    // [2026-04-29 D1] 인라인 1줄 빠른 추가
+    const _qaSubmit = async () => {
+      const amtEl = sheet.querySelector('#rqaAmount');
+      const mthEl = sheet.querySelector('#rqaMethod');
+      const cusEl = sheet.querySelector('#rqaCustomer');
+      const svcEl = sheet.querySelector('#rqaService');
+      const amount = parseInt(amtEl.value, 10);
+      if (!amount || amount <= 0) {
+        amtEl.focus();
+        if (window.showToast) window.showToast('금액을 입력해 주세요');
+        return;
+      }
+      const btn = sheet.querySelector('#rqaSubmit');
+      btn.disabled = true; btn.textContent = '...';
+      try {
+        await create({
+          customer_name: cusEl.value.trim() || null,
+          service_name:  svcEl.value.trim() || null,
+          amount,
+          method: mthEl.value || 'card',
+        });
+        amtEl.value = ''; cusEl.value = ''; svcEl.value = '';
+        if (window.Fun && window.Fun.confetti) { try { window.Fun.confetti(btn); } catch (_e) { void _e; } }
+        if (window.showToast) window.showToast(`매출 +${amount.toLocaleString()}원`);
+        amtEl.focus();
+        await _loadAndRender();
+      } catch (_e) {
+        if (window.showToast) window.showToast('저장 실패 — 다시 시도해 주세요');
+      } finally {
+        btn.disabled = false; btn.textContent = '+';
+      }
+    };
+    sheet.querySelector('#rqaSubmit').addEventListener('click', _qaSubmit);
+    sheet.querySelector('#rqaAmount').addEventListener('keydown', (e) => { if (e.key === 'Enter') _qaSubmit(); });
+    sheet.querySelector('#rqaCustomer').addEventListener('keydown', (e) => { if (e.key === 'Enter') _qaSubmit(); });
+    sheet.querySelector('#rqaService').addEventListener('keydown', (e) => { if (e.key === 'Enter') _qaSubmit(); });
     return sheet;
   }
 
