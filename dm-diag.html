@@ -22,6 +22,8 @@
 <div id="results"></div>
 <button class="btn" id="subscribeBtn" style="background:#dc2626;">🔔 IG 계정 webhook 구독 활성화 (제일 먼저!)</button>
 <div id="subscribeResult" style="margin-top:8px;"></div>
+<button class="btn" id="claimPageIdBtn" style="background:#7c3aed;">📌 webhook recipient page_id 등록 (매칭 실패 시)</button>
+<div id="claimResult" style="margin-top:8px;"></div>
 <button class="btn" id="recentBtn" style="background:#7c3aed;">🔍 최근 webhook 이벤트 보기</button>
 <div id="recentEvents" style="margin-top:8px;"></div>
 <button class="btn" id="syncIdBtn" style="background:#3b82f6;">🔄 인스타 user_id 강제 동기화</button>
@@ -29,6 +31,46 @@
 <button class="btn" onclick="location.reload()">다시 진단</button>
 <button class="btn" style="background:#888;" onclick="location.href='./'">잇데이로</button>
 <script>
+document.getElementById('claimPageIdBtn').addEventListener('click', async () => {
+  const t = localStorage.getItem('itdasy_token::staging') || localStorage.getItem('itdasy_token::prod') || localStorage.getItem('itdasy_token');
+  if (!t) { alert('토큰 없음'); return; }
+  const box = document.getElementById('claimResult');
+  // recent-events 에서 외부 sender 의 webhook 자동 추출 (is_echo 아닌 것)
+  let pageId = '';
+  try {
+    const res = await fetch('https://itdasy260417-staging-production.up.railway.app/instagram/dm-reply/recent-events?limit=20', {
+      headers: { 'Authorization': 'Bearer ' + t },
+    });
+    const data = await res.json();
+    for (const ev of (data.events || [])) {
+      if (ev.stage === 'webhook_received' && ev.body_preview && ev.body_preview.indexOf('"is_echo":true') === -1) {
+        const m = ev.body_preview.match(/"recipient":\{"id":"(\d+)"/);
+        if (m) { pageId = m[1]; break; }
+      }
+    }
+  } catch (e) { /* ignore */ }
+  if (!pageId) {
+    pageId = prompt('webhook 의 recipient page_id 를 입력하세요 (자동 추출 실패):', '17841446473367347');
+  } else {
+    pageId = prompt('자동 감지된 page_id 등록할까요?', pageId);
+  }
+  if (!pageId || !/^\d+$/.test(pageId)) { alert('유효한 page_id 가 아니에요'); return; }
+  box.innerHTML = '<pre>등록 중…</pre>';
+  try {
+    const res = await fetch('https://itdasy260417-staging-production.up.railway.app/instagram/dm-reply/claim-page-id', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ page_id: pageId }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      box.innerHTML = '<pre style="background:#d1fae5;padding:8px;border-radius:6px;font-size:11px;color:#065f46;">✅ page_id 등록 성공!\n\n' + JSON.stringify(data, null, 2) + '\n\n→ 외부 폰에서 DM 다시 보내면 자동 응답 작동</pre>';
+    } else {
+      box.innerHTML = '<pre style="background:#fee2e2;padding:8px;border-radius:6px;font-size:11px;color:#991b1b;">❌ ' + JSON.stringify(data) + '</pre>';
+    }
+  } catch (e) { box.innerHTML = '<pre style="color:#dc2626;">' + e.message + '</pre>'; }
+});
+
 document.getElementById('copyAllBtn').addEventListener('click', async () => {
   const text = document.getElementById('results').innerText
     + '\n\n=== webhook 이벤트 ===\n' + (document.getElementById('recentEvents')?.innerText || '(클릭 안 함)')
