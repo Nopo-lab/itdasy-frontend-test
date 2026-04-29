@@ -19,10 +19,32 @@
 <body>
 <h1>📥 DM 자동응답 진단</h1>
 <div id="results"></div>
+<button class="btn" id="recentBtn" style="background:#7c3aed;">🔍 최근 webhook 이벤트 보기</button>
+<div id="recentEvents" style="margin-top:8px;"></div>
 <button class="btn" id="syncIdBtn" style="background:#3b82f6;">🔄 인스타 user_id 강제 동기화</button>
 <button class="btn" id="enableBtn" style="background:#059669;">⚡ DM 자동응답 ON 시키기</button>
 <button class="btn" onclick="location.reload()">다시 진단</button>
 <button class="btn" style="background:#888;" onclick="location.href='./'">잇데이로</button>
+<script>
+document.getElementById('recentBtn').addEventListener('click', async () => {
+  const t = localStorage.getItem('itdasy_token::staging') || localStorage.getItem('itdasy_token::prod') || localStorage.getItem('itdasy_token');
+  if (!t) { alert('토큰 없음'); return; }
+  const box = document.getElementById('recentEvents');
+  box.innerHTML = '<pre>불러오는 중…</pre>';
+  try {
+    const res = await fetch('https://itdasy260417-staging-production.up.railway.app/instagram/dm-reply/recent-events?limit=20', {
+      headers: { 'Authorization': 'Bearer ' + t },
+    });
+    const data = await res.json();
+    if (!res.ok) { box.innerHTML = '<pre style="color:#dc2626;">에러: ' + JSON.stringify(data) + '</pre>'; return; }
+    if (!data.events || !data.events.length) {
+      box.innerHTML = '<pre style="color:#d97706;">⚠️ webhook 이벤트 0건. Meta 가 아직 메시지를 보낸 적 없음.\n\n원인 후보:\n1. Meta Console → Webhooks → Instagram → fields(messages) 구독 안 됨\n2. 인스타 비즈 계정 → 페이스북 페이지 연결 안 됨\n3. App Review 권한 미통과 → Tester 미등록 계정에서 보내면 도착 X\n4. 외부 폰에서 DM 안 보냈음</pre>';
+      return;
+    }
+    box.innerHTML = '<pre style="background:#f3f4f6;padding:8px;border-radius:6px;font-size:10px;max-height:400px;overflow:auto;">' + JSON.stringify(data, null, 2) + '</pre>';
+  } catch (e) { box.innerHTML = '<pre style="color:#dc2626;">' + e.message + '</pre>'; }
+});
+</script>
 <script>
 document.getElementById('syncIdBtn').addEventListener('click', async () => {
   const t = localStorage.getItem('itdasy_token::staging') || localStorage.getItem('itdasy_token::prod') || localStorage.getItem('itdasy_token');
