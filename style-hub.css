@@ -1,0 +1,142 @@
+/* 잇데이 v65 — 허브 카드 + 시트 폴리싱 (2026-04-30)
+   AI 자동화 / 설정 / 스마트 캡처 등 hub 시트의 카드들에 통일된 인터랙션 + 그림자 + 타이포.
+   디자인 토큰: css/tokens.css — --brand / --r-md / --space-4 / --shadow-md 등 사용. */
+
+/* ── 시트 backdrop ────────────────────────────────────── */
+#aiHubSheet,
+#settingsHubSheet,
+#smartCaptureSheet,
+#undoHistorySheet,
+#assistantFactsSheet,
+#pricelistSheet {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* ── 허브 카드 인터랙션 (AI hub) ───────────────────────── */
+.aih-card,
+.sc-mode-btn {
+  position: relative;
+  transition:
+    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+.aih-card:hover,
+.sc-mode-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+.aih-card:active,
+.sc-mode-btn:active {
+  transform: translateY(0) scale(0.98);
+  transition: transform 0.06s ease;
+}
+
+/* ── 설정 허브 row ──────────────────────────────────── */
+.sh-row {
+  position: relative;
+  transition:
+    background 0.15s ease,
+    transform 0.06s ease;
+}
+.sh-row:active {
+  transform: scale(0.985);
+  background: #EAEAEA !important;
+}
+.sh-row .sh-ic svg,
+.sh-row .sh-chev svg {
+  stroke: currentColor;
+  fill: none;
+}
+
+/* ── 시트 카드 그림자·라운드 일관화 ──────────────────── */
+#aihCard,
+#shCard,
+#scCard,
+#uhsCard,
+#afsCard,
+#pricelistCard {
+  box-shadow:
+    0 -1px 0 rgba(0, 0, 0, 0.04),
+    0 -4px 16px rgba(0, 0, 0, 0.08),
+    0 -16px 48px rgba(0, 0, 0, 0.12);
+}
+
+/* ── 시트 닫기 버튼 hover ─────────────────────────────── */
+#aihClose,
+#shClose,
+#scClose,
+#uhsClose,
+#afsClose,
+#plClose {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.04);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+#aihClose:hover,
+#shClose:hover,
+#scClose:hover,
+#uhsClose:hover,
+#afsClose:hover,
+#plClose:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+/* ── 어시스턴트 메모 row hover ───────────────────────── */
+#afsList > div {
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+#afsList > div:hover {
+  background: #F4F4F5 !important;
+}
+
+/* ── 토큰 정렬: 카드 텍스트 line-height + 자간 ───────── */
+.aih-card,
+.sc-mode-btn,
+.sh-row {
+  letter-spacing: -0.01em;
+}
+
+/* ── 다크 테마 backdrop ───────────────────────────────── */
+html[data-theme="dark"] #aihCard,
+html[data-theme="dark"] #shCard,
+html[data-theme="dark"] #scCard,
+html[data-theme="dark"] #uhsCard,
+html[data-theme="dark"] #afsCard,
+html[data-theme="dark"] #pricelistCard {
+  background: var(--surface, #1A1F27);
+  color: var(--text, #F3F5F7);
+}
+html[data-theme="dark"] .sh-row {
+  background: var(--surface-2, #242A33);
+  color: var(--text, #F3F5F7);
+}
+html[data-theme="dark"] .sh-row:active {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* ── 리듀스드 모션 (접근성) ──────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .aih-card,
+  .sc-mode-btn,
+  .sh-row,
+  #aihCard,
+  #shCard,
+  #scCard,
+  #uhsCard,
+  #afsCard,
+  #pricelistCard {
+    transition: none !important;
+  }
+  .aih-card:hover,
+  .sc-mode-btn:hover {
+    transform: none;
+  }
+}

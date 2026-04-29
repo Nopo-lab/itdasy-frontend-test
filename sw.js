@@ -7,7 +7,7 @@
 //    - /api/, /auth/, /data-export/  → network-first (항상 최신)
 //    - app-*.js, *.css, *.html       → cache-first + 백그라운드 revalidate
 // ─────────────────────────────────────────────
-const CACHE_VERSION = '20260430-v65-lucide-anim-cache';
+const CACHE_VERSION = '20260430-v66-design-polish';
 const CACHE_NAME    = `itdasy-${CACHE_VERSION}`;
 const API_CACHE_NAME = `itdasy-api-${CACHE_VERSION}`;
 
@@ -37,6 +37,7 @@ const STATIC_ASSETS = [
   './style-components.css',
   './style-polish.css',
   './style-dark.css',
+  './style-hub.css',
   './app-core.js',
   './app-perf-recovery.js',
   './app-instagram.js',
