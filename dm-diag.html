@@ -147,6 +147,9 @@ function pre(label, value, cls) {
   } catch (e) { row('Diagnose 에러', e.message, 'err'); }
 
   // 5. ShopSettings 조회 (인스타 user_id 확인)
+  // [2026-04-29] has_token 은 GET /shop/settings 가 보안상 token 자체를 노출 안 해서
+  // 항상 false 로 표시됐던 오해 신호. 실제 토큰 유무는 dm-reply/status 의
+  // instagram_connected + expires_at 으로 판단해야 함.
   try {
     const res = await fetch(API + '/shop/settings', {
       headers: { 'Authorization': 'Bearer ' + token },
@@ -156,13 +159,15 @@ function pre(label, value, cls) {
       const ig = {
         instagram_handle: data.instagram_handle || '(없음)',
         instagram_user_id: data.instagram_user_id || '(없음)',
-        has_token: !!data.instagram_access_token,
+        // 위 dm-reply/status 의 instagram_connected/expires_at 가 진짜 신호.
+        // 본 필드는 schema 에 access_token 없으므로 false 보여도 정상.
+        token_field_exposed: '(보안상 미노출 — dm-reply/status 의 expires_at 으로 판단)',
       };
       pre('ShopSettings (IG)', JSON.stringify(ig, null, 2), data.instagram_user_id ? 'ok' : 'err');
     }
   } catch (e) { row('ShopSettings 에러', e.message, 'err'); }
 
-  row('진단 완료', '빨강(err) 항목 = 진짜 원인', 'ok');
+  row('진단 완료', '빨강(err) 항목 = 진짜 원인. 모두 ✅ 인데 응답 안 오면 → Meta Webhook fields 구독 / App Review 권한 확인', 'ok');
 })();
 </script>
 </body>
