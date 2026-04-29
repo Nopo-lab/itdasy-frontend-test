@@ -151,6 +151,64 @@
     } catch (_) { void 0; }
   }
 
+  // [2026-04-29] 회원권 만료 임박 + 잔액 부족 알림 카드 (홈 인라인)
+  function _renderMembershipAlertCard() {
+    const anchor = document.getElementById('home-today-brief')
+      || document.getElementById('homePostConnect')
+      || document.querySelector('main') || document.body;
+    if (!anchor) return;
+    let host = document.getElementById('itdMembershipAlertHost');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'itdMembershipAlertHost';
+      host.style.cssText = 'margin:0 0 12px 0;';
+      if (anchor.parentNode) anchor.parentNode.insertBefore(host, anchor);
+      else anchor.appendChild(host);
+    }
+    const dismissed = _getDismissed();
+    const memKinds = ['membership_expire_7d', 'membership_expire_1d', 'membership_low_30', 'membership_low_10'];
+    const memNotifs = _items.filter(n => memKinds.includes(n.kind) && !dismissed.includes(n.id));
+    if (!memNotifs.length) { host.innerHTML = ''; return; }
+    const total = memNotifs.length;
+    const a = memNotifs[0];
+    host.innerHTML = `
+      <div role="status" style="background:linear-gradient(135deg,#F3E8FF 0%,#E9D5FF 100%);border:1px solid #C4B5FD;border-radius:14px;padding:14px 14px 14px 16px;position:relative;">
+        <div style="display:flex;align-items:flex-start;gap:10px;">
+          <div style="flex-shrink:0;width:36px;height:36px;border-radius:12px;background:#A78BFA;display:flex;align-items:center;justify-content:center;font-size:17px;color:#fff;">💳</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:11px;font-weight:600;color:#7C3AED;letter-spacing:0.2px;margin-bottom:2px;">회원권 알림 ${total > 1 ? `(${total}건)` : ''}</div>
+            <div style="font-size:14px;font-weight:700;color:#1f2330;line-height:1.35;">${_esc(a.title)}</div>
+            <div style="font-size:12px;color:#525c70;margin-top:4px;line-height:1.5;">${_esc(a.body || '')}</div>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:10px;">
+              <button data-mem-open="${a.id}" data-mem-payload='${(a.payload || '{}').replace(/'/g, '&#39;')}' style="background:#7C3AED;color:#fff;border:none;padding:7px 14px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;">충전 안내</button>
+              <button data-mem-dismiss="${a.id}" style="background:none;border:none;color:#7C3AED;font-size:11px;cursor:pointer;">나중에</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    host.querySelector('[data-mem-open]')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      const id = parseInt(btn.dataset.memOpen, 10);
+      try {
+        const payload = JSON.parse(btn.dataset.memPayload || '{}');
+        if (payload.customer_id && window.MembershipUI && window.MembershipUI.openTopupSheet) {
+          window.MembershipUI.openTopupSheet(payload.customer_id, payload.customer_name || '');
+        }
+      } catch (_) { void 0; }
+      await _markRead(id);
+      _items = _items.filter(x => x.id !== id);
+      _updateBadge();
+      _renderMembershipAlertCard();
+    });
+    host.querySelector('[data-mem-dismiss]')?.addEventListener('click', async (e) => {
+      const id = parseInt(e.currentTarget.dataset.memDismiss, 10);
+      _items = _items.filter(x => x.id !== id);
+      _updateBadge();
+      _renderMembershipAlertCard();
+    });
+  }
+
   function _renderAnnouncementCard() {
     // 잇데이 운영자가 보낸 공지(kind=announcement) 만 인라인 카드로 노출
     const anchor = document.getElementById('home-today-brief')
@@ -227,6 +285,7 @@
       _items = d.items;
       _updateBadge();
       _renderAnnouncementCard();
+      _renderMembershipAlertCard();
     }
   }
 
