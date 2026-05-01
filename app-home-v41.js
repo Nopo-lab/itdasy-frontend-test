@@ -377,6 +377,8 @@
     if (!act) return;
     const map = {
       openCalendar: () => {
+        // 2026-05-01 ── 'calendar' 탭은 없음. openCalendarView 가 캘린더 시트 띄움.
+        if (typeof window.openCalendarView === 'function') return window.openCalendarView();
         if (typeof window.showTab === 'function') {
           const btn = document.querySelector('.tab-bar__btn[data-tab="calendar"]');
           try { window.showTab('calendar', btn); } catch (_e) { /* ignore */ }
@@ -387,6 +389,11 @@
           const btn = document.querySelector('.tab-bar__btn[data-tab="gallery"]');
           try { window.showTab('gallery', btn); } catch (_e) { /* ignore */ }
         }
+      },
+      // 2026-05-01 ── 캡션 만들기 — app-caption.js 의 openCaptionScenarioPopup 호출
+      openCaption: () => {
+        if (typeof window.openCaptionScenarioPopup === 'function') return window.openCaptionScenarioPopup();
+        if (typeof window.openNavSheet === 'function') return window.openNavSheet();
       },
       bell: () => {
         if (typeof window.openNotifications === 'function') window.openNotifications();

@@ -438,7 +438,8 @@
   <input type="text" class="login-input" id="signupName" placeholder="성함 (예: 김원장)" maxlength="30" autocomplete="name">
   <input type="email" class="login-input" id="signupEmail" placeholder="이메일" autocomplete="email">
   <input type="password" class="login-input" id="signupPassword" placeholder="비밀번호 (8자 이상 · 영문+숫자)" autocomplete="new-password">
-  <input type="text" class="login-input" id="signupRef" placeholder="추천 코드 (선택)" maxlength="12" autocomplete="off">
+  <!-- 2026-05-01 ── 추천 코드 제거 (친구초대 폐지). hidden 으로 두어 JS 호환 유지. -->
+  <input type="hidden" id="signupRef" value="">
 
   <label style="display:flex;align-items:flex-start;gap:8px;margin:14px 0 4px;padding:10px;background:rgba(241,128,145,0.06);border-radius:10px;cursor:pointer;font-size:12px;line-height:1.55;">
     <input type="checkbox" id="signupAgree" style="margin-top:2px;flex-shrink:0;">
@@ -628,10 +629,8 @@
       💬 고객센터
       <span id="supportUnreadBadge" style="display:none;margin-left:8px;background:#f18091;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:10px;"></span>
     </button>
-    <button class="sheet-row" data-haptic="medium" onclick="closeSettings(); window.openReferral && window.openReferral();"
-            style="background:linear-gradient(135deg,rgba(255,215,0,0.15),rgba(255,215,0,0.04));border:1px solid rgba(255,179,71,0.3);font-weight:700;">
-      <svg width="16" height="16" aria-hidden="true" style="vertical-align:-3px;margin-right:6px;color:#F59E0B;"><use href="#ic-sparkles"/></svg>친구 초대 <span style="font-size:10px;color:#888;font-weight:400;margin-left:4px;">1명당 3개월 무료</span>
-    </button>
+    <!-- 2026-05-01 ── 친구초대 제거 (사용자 요청) -->
+
     <button class="sheet-row" data-haptic="light" onclick="closeSettings(); openPowerView('customer');" style="flex-wrap:wrap;">
       <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style="flex-shrink:0;margin-right:10px;"><use href="#ic-database"/></svg>
       <span>빠른 데이터 입력 (파워뷰)</span>
@@ -1493,7 +1492,7 @@ try { localStorage.removeItem('itdasy:fab_pos'); } catch (_e) { void _e; }
 </aside>
 <!-- /shop-drawer -->
 
-<script src="app-core.js?v=20260501-12"></script>
+<script src="app-core.js?v=20260501-13"></script>
 <script src="app-drawer.js"></script>
 <script src="app-shop-settings.js"></script>
 <script src="app-backup.js"></script>
@@ -1612,7 +1611,7 @@ window._lazyImgly = function _lazyImgly() {
 <script src="app-calendar-view.js?v=20260430-7"></script>
 <!-- app-voice-input.js 제거 — 전역 🎤 버튼 자동주입 비활성 (2026-04-23) -->
 <script src="app-biometric.js"></script>
-<script src="app-referral.js"></script>
+<!-- 2026-05-01 ── app-referral.js 제거 (친구초대 폐지) -->
 <script src="app-growth-story.js"></script>
 <script src="app-content-report.js"></script>
 <script src="app-cookie-consent.js"></script>

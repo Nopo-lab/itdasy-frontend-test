@@ -860,6 +860,14 @@ async function signup() {
     errEl.style.display = 'block'; return;
   }
   btn.textContent = '가입 중…'; btn.disabled = true;
+  // 2026-05-01 ── 이전 필드 에러 마크 제거
+  ['signupEmail','signupPassword','signupName'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.borderColor = '';
+    const errId = id + 'Err';
+    const errBelow = document.getElementById(errId);
+    if (errBelow) errBelow.remove();
+  });
   try {
     const res = await fetch(API + '/auth/register', {
       method: 'POST',
@@ -867,7 +875,37 @@ async function signup() {
       body: JSON.stringify({ email, password, name, referral_code, age_over_14: ageOver14 }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || '가입 실패');
+    if (!res.ok) {
+      // 2026-05-01 ── 422 (Pydantic validation) 의 detail 배열에서 필드별 에러 추출.
+      // FastAPI: detail = [{loc:['body','email'], msg:'value is not a valid email...', type:'...'}, ...]
+      if (res.status === 422 && Array.isArray(data.detail)) {
+        const fieldMap = { email: 'signupEmail', password: 'signupPassword', name: 'signupName' };
+        const koMap = { email: '이메일', password: '비밀번호', name: '이름' };
+        let firstFieldErr = '';
+        data.detail.forEach(err => {
+          const loc = (err.loc || []).filter(p => p !== 'body');
+          const field = loc[0];
+          const inputId = fieldMap[field];
+          if (!inputId) return;
+          const input = document.getElementById(inputId);
+          if (!input) return;
+          input.style.borderColor = '#ef4444';
+          // 해당 input 바로 아래 inline 에러 메시지 추가
+          const e = document.createElement('div');
+          e.id = inputId + 'Err';
+          e.style.cssText = 'color:#ef4444;font-size:11px;margin:-6px 0 8px 4px;font-weight:500;';
+          let msg = err.msg || '올바르지 않은 형식';
+          if (msg.startsWith('value is not a valid email')) msg = `${koMap[field]} 형식이 올바르지 않아요 (예: name@example.com)`;
+          else if (field === 'password' && msg.toLowerCase().includes('length')) msg = '비밀번호는 8자 이상이어야 해요';
+          else msg = `${koMap[field] || field}: ${msg}`;
+          e.textContent = msg;
+          input.insertAdjacentElement('afterend', e);
+          if (!firstFieldErr) firstFieldErr = msg;
+        });
+        if (firstFieldErr) throw new Error(firstFieldErr);
+      }
+      throw new Error(typeof data.detail === 'string' ? data.detail : '가입 실패');
+    }
     // 자동 로그인
     const loginRes = await fetch(API + '/auth/login', {
       method: 'POST',
