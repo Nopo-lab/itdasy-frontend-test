@@ -126,11 +126,14 @@
     const dotCls = on ? 'dm-activate__dot' : 'dm-activate__dot dm-activate__dot--off';
     const txt = on ? '자동응답 켜짐' : '자동응답 꺼짐';
     return `
-      <div class="dm-activate">
+      <div class="dm-activate" data-dm-activate>
         <div class="dm-activate__status">
           <div class="${dotCls}"></div>
           <div class="dm-activate__status-text">${txt}</div>
-          <button type="button" class="dm-activate__pause" data-act="pause">잠시 끄기</button>
+          <button type="button" class="dm-toggle ${on ? 'is-on' : ''}" data-act="enable-toggle"
+                  aria-pressed="${on}" aria-label="DM 자동응답 켜기/끄기" style="margin-left:auto;">
+            <span class="dm-toggle__track"></span><span class="dm-toggle__knob"></span>
+          </button>
         </div>
         ${_renderStats(conversations)}
       </div>`;
@@ -538,6 +541,24 @@
       _saveSettings({ enabled: false });
       _toast('자동응답 잠시 꺼졌어요');
       closeDMAutoreplySettings();
+    });
+
+    // 2026-05-01 ── 활성화 카드 ON/OFF 토글 (시트 안 닫고 즉시 반영)
+    sheet.querySelector('[data-act="enable-toggle"]')?.addEventListener('click', (e) => {
+      const btn = e.currentTarget;
+      const next = !btn.classList.contains('is-on');
+      btn.classList.toggle('is-on', next);
+      btn.setAttribute('aria-pressed', String(next));
+      const card = sheet.querySelector('[data-dm-activate]');
+      if (card) {
+        const dot = card.querySelector('.dm-activate__dot');
+        const text = card.querySelector('.dm-activate__status-text');
+        if (dot) dot.className = next ? 'dm-activate__dot' : 'dm-activate__dot dm-activate__dot--off';
+        if (text) text.textContent = next ? '자동응답 켜짐' : '자동응답 꺼짐';
+      }
+      _saveSettings({ enabled: next });
+      _toast(next ? '자동응답 켜짐' : '자동응답 꺼짐');
+      _haptic();
     });
   }
 
