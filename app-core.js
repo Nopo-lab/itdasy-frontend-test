@@ -999,12 +999,17 @@ window.startKakaoLogin = async function () {
   let raf = 0;
   const update = () => {
     raf = 0;
-    // visual viewport 가 layout viewport 보다 작아진 만큼(키보드/URL바) 보정
-    const offset = (window.innerHeight - vv.height - vv.offsetTop) | 0;
-    // 안전영역 + 기본 14px + 보정값
+    // 2026-05-01 ── 탭바 사라짐 버그 픽스. 이전엔 offset 그대로 max(0, x) 만 적용 →
+    // 사용자가 탭할 때 iOS PWA 의 viewport 미묘한 흔들림으로 offset 이 크게 튀면
+    // 탭바가 화면 밖까지 밀려 안 보임. 작은 noise (≤100px) 는 0 으로, 600px 초과는 cap.
+    // 100-600 범위만 실제 키보드/URL바로 간주.
+    const raw = (window.innerHeight - vv.height - vv.offsetTop) | 0;
+    let offset = 0;
+    if (raw > 100 && raw < 600) offset = raw;
+    else if (raw >= 600) offset = 0;  // glitch — 무시
     root.style.setProperty(
       '--tab-bar-bottom',
-      `calc(${BASE}px + env(safe-area-inset-bottom, 0px) + ${Math.max(0, offset)}px)`
+      `calc(${BASE}px + env(safe-area-inset-bottom, 0px) + ${offset}px)`
     );
   };
   const schedule = () => { if (!raf) raf = requestAnimationFrame(update); };
