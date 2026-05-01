@@ -425,15 +425,23 @@
     setTimeout(() => card.remove(), 460);
   }
 
-  function _handleReject(card) {
+  async function _handleReject(card) {
     const tail = card.dataset.tail;
+    const logId = card.dataset.logId;
     _haptic();
     _sendFeedback(tail, 'bad');
     // 좌측 슬라이드 — 인라인 transform 으로 .is-sending 의 120% 덮어씀
     card.style.transform = 'translateX(-120%)';
     card.classList.add('is-sending');
     setTimeout(() => card.remove(), 460);
-    // TODO[v1.5]: 실제 거절 큐
+    // 2026-05-01 ── 실제 백엔드 discard — 다음 fetch 때 같은 DM 다시 안 뜨게.
+    if (logId) {
+      try {
+        await fetch(window.API + `/dm-confirm-queue/${encodeURIComponent(logId)}/discard`, {
+          method: 'POST', headers: window.authHeader(),
+        });
+      } catch (_) { /* silent */ }
+    }
   }
 
   function _handleMiniTone(card, tone) {
@@ -620,20 +628,44 @@
 
   /* ── 시트 열기/닫기 ────────────────────────────── */
   function closeDMAutoreplySettings() {
-    if (!_overlay) return;
-    const overlay = _overlay;
-    const card = _sheet;
+    // 2026-05-01 ── 방어적 close. visibility 복귀 후 _overlay 가 null 이지만 DOM 에는
+    // 살아있는 stuck 케이스 방어 — 항상 #dmAutoreplySheet DOM 정리.
+    const overlay = _overlay || document.getElementById('dmAutoreplySheet');
+    const card = _sheet || (overlay && overlay.querySelector('.dm-sheet'));
     _overlay = null;
     _sheet = null;
+    _opening = false;
+    if (!overlay) return;
+    let closed = false;
+    const _hardRemove = () => {
+      if (closed) return;
+      closed = true;
+      try { overlay.remove(); } catch (_) {}
+    };
     if (window.SheetAnim?.close) {
-      window.SheetAnim.close(overlay, card, () => overlay.remove());
+      try { window.SheetAnim.close(overlay, card, _hardRemove); }
+      catch (_) { _hardRemove(); }
+      // 0.6s 후 안 닫혔으면 강제 제거 (애니메이션 콜백 누락 방어)
+      setTimeout(_hardRemove, 600);
     } else {
-      overlay.remove();
+      _hardRemove();
     }
   }
 
+  let _opening = false;
   async function openDMAutoreplySettings() {
-    if (_overlay) return;  // 이미 열림
+    if (_overlay || _opening) return;  // 이미 열림 OR 여는 중 (async fetch 진행)
+    _opening = true;
+    try {
+      // 사용자 피드백 — 살짝 로딩 토스트 (느린 네트워크 대비)
+      _toast?.('DM 패널 여는 중…');
+      const result = await _doOpenDMAutoreply();
+      return result;
+    } finally {
+      _opening = false;
+    }
+  }
+  async function _doOpenDMAutoreply() {
     const { status, settings, conversations } = await _fetchAll();
     const browserTz = (Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul');
     _settings = settings || {
