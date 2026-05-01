@@ -3,340 +3,278 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ITDASY STUDIO — 뷰티 비즈니스의 지능형 진화</title>
+    <title>잇데이 STUDIO — 뷰티샵 사장님을 위한 AI 비서</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- GSAP for World-Class Animations -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
-    <!-- Fonts: High-End Serif & Sans -->
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,700;1,300&family=Montserrat:wght@100;300;700;900&display=swap" rel="stylesheet">
+    <!-- Font: Pretendard -->
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
-    
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        luxury: {
-                            bg: '#FFFFFF',
-                            text: '#1A1A1A',
-                            accent: '#E85C75',      /* Itdasy Pink */
-                            gold: '#D4AF37',
-                            gray: '#F8F8F8',
-                            dark: '#111111'
+                        brand: {
+                            black: '#0F0F10',
+                            dark: '#161618',
+                            pink: '#E85C75',
+                            pinkhover: '#D04A62',
+                            gray: '#252528',
                         }
                     },
                     fontFamily: {
-                        serif: ['Cormorant Garamond', 'serif'],
-                        sans: ['Pretendard', 'Montserrat', 'sans-serif'],
+                        sans: ['Pretendard', 'sans-serif'],
                     }
                 }
             }
         }
     </script>
     <style>
-        body { background-color: #FFF; color: #1A1A1A; overflow-x: hidden; }
-        .editorial-text { line-height: 0.9; letter-spacing: -0.05em; }
-        .serif-italic { font-family: 'Cormorant Garamond', serif; font-style: italic; font-weight: 300; }
+        body { background-color: #0F0F10; color: white; -webkit-font-smoothing: antialiased; }
+        .pink-gradient { background: linear-gradient(135deg, #E85C75 0%, #FF8A9B 100%); }
+        .card-glow:hover { box-shadow: 0 0 30px rgba(232, 92, 117, 0.15); border-color: #E85C75; }
         
-        /* High-End Motion */
-        .reveal-text { clip-path: polygon(0 0, 100% 0, 100% 100%, 0% 100%); }
-        .parallax-img { transform: scale(1.1); transition: transform 0.1s linear; }
+        /* 실제 앱 느낌의 대시보드 위젯 스타일 */
+        .widget { background: #1C1C1E; border: 1px solid #2C2C2E; border-radius: 20px; padding: 24px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #E85C75; box-shadow: 0 0 8px #E85C75; }
         
-        /* Luxury Components */
-        .premium-btn { position: relative; overflow: hidden; transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1); }
-        .premium-btn::after { content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 1px; background: #E85C75; transform: scaleX(0); transform-origin: right; transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1); }
-        .premium-btn:hover::after { transform: scaleX(1); transform-origin: left; }
-
-        .dashboard-window { background: #FFF; border: 1px solid rgba(0,0,0,0.05); box-shadow: 0 50px 100px rgba(0,0,0,0.05); border-radius: 2rem; }
-        .terminal-text { font-family: 'Courier New', Courier, monospace; color: #666; font-size: 12px; }
-
-        /* Custom Scroll */
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: #FFF; }
-        ::-webkit-scrollbar-thumb { background: #E85C75; border-radius: 10px; }
-
-        .feature-card { border-bottom: 1px solid #EEE; padding: 60px 0; transition: all 0.4s ease; }
-        .feature-card:hover { padding-left: 20px; border-bottom-color: #1A1A1A; }
+        @keyframes scan { 0% { top: 0; } 100% { top: 100%; } }
+        .scan-line { position: absolute; width: 100%; height: 2px; background: #E85C75; box-shadow: 0 0 15px #E85C75; animation: scan 2s linear infinite; }
     </style>
 </head>
-<body class="selection:bg-luxury-accent selection:text-white">
+<body class="font-sans">
 
-    <!-- Global Navigation -->
-    <nav class="fixed top-0 w-full z-[100] mix-blend-difference px-10 h-24 flex items-center justify-between pointer-events-none">
-        <div class="font-black text-2xl tracking-tighter text-white pointer-events-auto">
-            ITDASY <span class="serif-italic text-luxury-accent">Studio</span>
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full z-50 bg-brand-black/80 backdrop-blur-md border-b border-white/5 h-16 flex items-center px-6 md:px-12 justify-between">
+        <div class="flex items-center gap-2">
+            <div class="w-7 h-7 bg-brand-pink rounded-md flex items-center justify-center font-black text-xs">I</div>
+            <span class="font-black text-lg tracking-tighter">ITDASY <span class="text-brand-pink">STUDIO</span></span>
         </div>
-        <div class="hidden md:flex gap-16 items-center pointer-events-auto">
-            <a href="#vision" class="text-[10px] uppercase tracking-[0.4em] font-bold text-white hover:text-luxury-accent transition">Philosophy</a>
-            <a href="#intelligence" class="text-[10px] uppercase tracking-[0.4em] font-bold text-white hover:text-luxury-accent transition">Intelligence</a>
-            <a href="#pricing" class="text-[10px] uppercase tracking-[0.4em] font-bold text-white hover:text-luxury-accent transition">Bespoke</a>
+        <div class="flex items-center gap-8">
+            <a href="#features" class="hidden md:block text-xs font-bold text-white/50 hover:text-white transition">기능보기</a>
+            <a href="#pricing" class="hidden md:block text-xs font-bold text-white/50 hover:text-white transition">요금제</a>
+            <button class="bg-brand-pink hover:bg-brand-pinkhover px-5 py-2 rounded-full text-xs font-black transition">무료로 시작하기</button>
         </div>
-        <button class="bg-white text-black px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest pointer-events-auto hover:bg-luxury-accent hover:text-white transition">Get Started</button>
     </nav>
 
-    <!-- Hero: High-End Editorial -->
-    <section class="relative min-h-screen flex items-center justify-center pt-32 px-10 overflow-hidden">
-        <div class="max-w-7xl w-full grid lg:grid-cols-2 gap-20 items-center">
-            <div class="z-10">
-                <div class="overflow-hidden mb-8">
-                    <span class="inline-block text-[10px] font-bold uppercase tracking-[0.5em] text-luxury-accent mb-4 block translate-y-full hero-sub">The Future of Beauty Business</span>
+    <!-- Hero Section: 첫 번째 버전의 강렬함 재현 -->
+    <section class="relative pt-32 pb-20 px-6 md:px-12 flex flex-col items-center text-center overflow-hidden">
+        <!-- 배경 글로우 -->
+        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[600px] bg-brand-pink/10 blur-[120px] pointer-events-none"></div>
+        
+        <div class="relative z-10 max-w-4xl">
+            <div class="inline-block px-4 py-1 rounded-full bg-brand-pink/10 border border-brand-pink/20 text-[10px] font-black text-brand-pink mb-8">
+                뷰티샵 운영 자동화의 완성
+            </div>
+            <h1 class="text-5xl md:text-7xl font-black leading-[1.1] tracking-tighter mb-8">
+                사장님은 시술만 하세요.<br>
+                <span class="text-brand-pink">나머지는 ITDASY가 합니다.</span>
+            </h1>
+            <p class="text-lg md:text-xl text-white/50 font-medium mb-12 max-w-2xl mx-auto leading-relaxed">
+                복잡한 장부 정리, 재고 확인, 홍보 글 작성까지.<br>
+                손 하나 까딱하지 않아도 돌아가는 뷰티샵 OS.
+            </p>
+            <div class="flex flex-col md:flex-row gap-4 justify-center">
+                <button class="pink-gradient px-10 py-5 rounded-2xl text-lg font-black shadow-lg shadow-brand-pink/20 hover:scale-105 transition-all">지금 무료 체험 시작</button>
+                <button class="bg-brand-gray px-10 py-5 rounded-2xl text-lg font-black hover:bg-brand-gray/80 transition-all border border-white/5">도입 문의하기</button>
+            </div>
+        </div>
+
+        <!-- 실제 앱 스크린샷 목업 -->
+        <div class="mt-24 relative w-full max-w-5xl mx-auto">
+            <div class="relative z-10 p-4 bg-brand-dark rounded-[3rem] border border-white/10 shadow-2xl">
+                <img src="assets/IAP-Screenshot-Premium.png" alt="Itdasy App Screen" class="w-full rounded-[2.5rem]">
+            </div>
+            <!-- 장식 요소 -->
+            <div class="absolute -bottom-10 -right-10 w-64 h-64 bg-brand-pink/20 blur-[80px]"></div>
+            <div class="absolute -top-10 -left-10 w-64 h-64 bg-blue-500/10 blur-[80px]"></div>
+        </div>
+    </section>
+
+    <!-- Core Features: 실용적인 기능 강조 -->
+    <section id="features" class="py-32 px-6 md:px-12 max-w-7xl mx-auto">
+        <div class="text-center mb-20">
+            <h2 class="text-4xl md:text-5xl font-black mb-6">가장 완벽한 <span class="text-brand-pink">자동화</span></h2>
+            <p class="text-white/40 text-lg">사장님의 시간을 하루 2시간 이상 벌어드립니다.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- 음성 자동 장부 -->
+            <div class="widget card-glow transition-all">
+                <div class="w-12 h-12 bg-brand-pink/10 rounded-xl flex items-center justify-center text-2xl mb-6">🎙️</div>
+                <h3 class="text-xl font-bold mb-4">말 한마디로 장부 끝</h3>
+                <p class="text-sm text-white/40 leading-relaxed mb-8">"김서연 속눈썹 5만원." 말만 하세요. AI가 고객 관리, 매출 기록, 재고 차감을 동시에 처리합니다.</p>
+                <div class="bg-black/20 rounded-xl p-4 border border-white/5 font-mono text-[11px] text-brand-pink">
+                    [분석 중...] 김서연 / 50,000원 / 재고 -1
                 </div>
-                <h1 class="editorial-text text-8xl md:text-[160px] font-black tracking-tighter mb-12 reveal-text">
-                    예술이 <br> <span class="serif-italic text-luxury-accent">기록</span>이<br> 될 때.
-                </h1>
-                <p class="text-luxury-text/60 text-xl md:text-2xl font-light leading-relaxed max-w-xl mb-16 hero-desc">
-                    당신의 손끝에서 탄생하는 아름다움에만 집중하십시오. 기록과 분석, 성장을 위한 모든 데이터는 ITDASY의 지능형 오퍼레이터가 처리합니다.
-                </p>
-                <div class="flex items-center gap-10">
-                    <button class="premium-btn text-sm font-black uppercase tracking-widest pb-2">Start Your Evolution</button>
-                    <span class="w-20 h-px bg-luxury-text/10"></span>
-                    <span class="text-[10px] font-bold text-luxury-text/40 uppercase tracking-widest">Est. 2026</span>
+            </div>
+
+            <!-- 재고 관리 -->
+            <div class="widget card-glow transition-all">
+                <div class="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center text-2xl mb-6">📦</div>
+                <h3 class="text-xl font-bold mb-4">영수증 찍으면 재고 자동 등록</h3>
+                <p class="text-sm text-white/40 leading-relaxed mb-8">재료 샀을 때 영수증만 찍으세요. AI가 품목을 인식해 재고 수량을 실시간으로 업데이트합니다.</p>
+                <div class="relative w-full h-24 bg-black/40 rounded-xl overflow-hidden flex items-center justify-center text-4xl">
+                    🧾 <div class="scan-line"></div>
+                </div>
+            </div>
+
+            <!-- AI 캡션 -->
+            <div class="widget card-glow transition-all">
+                <div class="w-12 h-12 bg-purple-500/10 rounded-xl flex items-center justify-center text-2xl mb-6">✨</div>
+                <h3 class="text-xl font-bold mb-4">인스타 홍보글 자동 생성</h3>
+                <p class="text-sm text-white/40 leading-relaxed mb-8">사진만 올리면 끝. AI가 고객 취향에 맞는 완벽한 캡션과 해시태그를 만들어 즉시 업로드합니다.</p>
+                <div class="bg-brand-pink/10 rounded-xl p-4 text-[11px] italic text-white/80">
+                    "오늘 고객님 속눈썹 컬이 너무 잘 나와서 한 컷..."
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- UI/UX Preview: 실제 앱의 흐름 시뮬레이션 -->
+    <section class="py-32 bg-brand-dark/50">
+        <div class="max-w-7xl mx-auto px-6 md:px-12 grid lg:grid-cols-2 gap-20 items-center">
+            <div>
+                <h2 class="text-4xl md:text-5xl font-black mb-8 leading-tight">진짜 앱을 쓰듯<br><span class="text-brand-pink">미리 경험해보세요.</span></h2>
+                <div class="space-y-6">
+                    <div class="flex items-center gap-4 p-5 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition cursor-pointer" onclick="updateSim('sales')">
+                        <div class="status-dot"></div>
+                        <span class="font-bold">실시간 매출/재고 현황</span>
+                    </div>
+                    <div class="flex items-center gap-4 p-5 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition cursor-pointer" onclick="updateSim('dm')">
+                        <div class="w-2 h-2 rounded-full bg-blue-400"></div>
+                        <span class="font-bold">AI DM 자동 응답 시스템</span>
+                    </div>
+                    <div class="flex items-center gap-4 p-5 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition cursor-pointer" onclick="updateSim('portfolio')">
+                        <div class="w-2 h-2 rounded-full bg-purple-400"></div>
+                        <span class="font-bold">원클릭 포트폴리오 관리</span>
+                    </div>
                 </div>
             </div>
             
-            <div class="relative group">
-                <div class="absolute -inset-20 bg-luxury-accent/5 blur-[120px] rounded-full"></div>
-                <div class="overflow-hidden rounded-[3rem] shadow-[0_80px_150px_rgba(0,0,0,0.1)]">
-                    <img src="assets/luxury_hero.png" alt="Luxury Salon" class="parallax-img w-full h-[800px] object-cover">
+            <div class="relative bg-brand-black p-8 rounded-[3rem] border border-white/10 shadow-2xl min-h-[500px] flex flex-col">
+                <div id="sim-screen" class="flex-1 flex flex-col justify-center items-center text-center">
+                    <div class="w-16 h-16 bg-brand-pink/20 rounded-full flex items-center justify-center mb-6">
+                        <div class="status-dot animate-ping"></div>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-4">시스템 대기 중</h3>
+                    <p class="text-white/30 text-sm">왼쪽의 기능을 선택하면 시뮬레이션이 시작됩니다.</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Philosophy -->
-    <section id="vision" class="py-64 bg-luxury-gray">
-        <div class="max-w-5xl mx-auto px-10 text-center">
-            <h2 class="serif-italic text-5xl md:text-8xl mb-16 leading-tight">"우리는 기술이 보이지 않을 때 <br> 가장 완벽하다고 믿습니다."</h2>
-            <div class="w-px h-32 bg-luxury-text/10 mx-auto mb-16"></div>
-            <p class="text-luxury-text/40 text-xl md:text-2xl font-light leading-relaxed max-w-3xl mx-auto">
-                복잡한 수식과 차트 대신, 당신의 일상 언어를 이해하고 샵의 모든 흐름을 관통하는 하나의 유기적인 OS. ITDASY Studio는 뷰티 아티스트의 시간을 해방시키기 위해 존재합니다.
-            </p>
-        </div>
-    </section>
-
-    <!-- Intelligence: The Real Preview (Using Actual App Logic) -->
-    <section id="intelligence" class="py-64 max-w-7xl mx-auto px-10">
-        <div class="grid lg:grid-cols-2 gap-32 items-start">
-            <div class="sticky top-40">
-                <span class="text-[10px] font-black uppercase tracking-[0.5em] text-luxury-accent mb-8 block">Intelligence Engine</span>
-                <h3 class="editorial-text text-6xl md:text-8xl font-black mb-12">보이지 않는<br><span class="serif-italic text-luxury-accent">지능의 흐름</span></h3>
-                <div class="space-y-12">
-                    <div class="feature-card group cursor-pointer" onclick="runSim('voice')">
-                        <h4 class="text-2xl font-bold mb-4 flex justify-between items-center">
-                            음성 인식 오퍼레이터 <span class="text-xs text-luxury-accent opacity-0 group-hover:opacity-100 transition tracking-widest uppercase">Select</span>
-                        </h4>
-                        <p class="text-luxury-text/40 text-sm">app-assistant.js 엔진이 당신의 말을 99% 정확도로 파싱하여 즉시 데이터베이스에 반영합니다.</p>
-                    </div>
-                    <div class="feature-card group cursor-pointer" onclick="runSim('receipt')">
-                        <h4 class="text-2xl font-bold mb-4 flex justify-between items-center">
-                            지능형 영수증 스캔 <span class="text-xs text-luxury-accent opacity-0 group-hover:opacity-100 transition tracking-widest uppercase">Select</span>
-                        </h4>
-                        <p class="text-luxury-text/40 text-sm">app-receipt-scan.js가 품목별 소모품 수량과 지출 내역을 실시간으로 분리하여 관리합니다.</p>
-                    </div>
-                    <div class="feature-card group cursor-pointer" onclick="runSim('dm')">
-                        <h4 class="text-2xl font-bold mb-4 flex justify-between items-center">
-                            AI DM 컨시어지 <span class="text-xs text-luxury-accent opacity-0 group-hover:opacity-100 transition tracking-widest uppercase">Select</span>
-                        </h4>
-                        <p class="text-luxury-text/40 text-sm">app-dm-autoreply.js가 자는 동안에도 고객의 문의에 응대하고 예약을 유도합니다.</p>
-                    </div>
-                </div>
+    <!-- 요금제 -->
+    <section id="pricing" class="py-32 px-6 md:px-12 max-w-5xl mx-auto text-center">
+        <h2 class="text-4xl md:text-5xl font-black mb-16">합리적인 비용으로 시작하세요</h2>
+        <div class="grid md:grid-cols-2 gap-8">
+            <div class="widget text-left border-white/5 hover:border-white/20 transition">
+                <h4 class="text-white/30 font-bold mb-8 uppercase text-xs tracking-widest">일반 사용자</h4>
+                <div class="text-5xl font-black mb-8">무료</div>
+                <ul class="space-y-4 mb-12 text-sm text-white/50">
+                    <li>✓ 고객 관리 (최대 100명)</li>
+                    <li>✓ 기본 장부 기능</li>
+                    <li>✓ AI 캡션 맛보기</li>
+                </ul>
+                <button class="w-full py-4 rounded-xl border border-white/10 font-bold hover:bg-white/5 transition">무료 버전 시작</button>
             </div>
-
-            <div class="relative pt-20">
-                <div class="dashboard-window p-12 relative overflow-hidden">
-                    <div class="flex items-center gap-2 mb-12">
-                        <div class="w-2 h-2 rounded-full bg-luxury-accent"></div>
-                        <span class="text-[10px] font-bold uppercase tracking-widest opacity-20">System Live Stream</span>
-                    </div>
-
-                    <div id="sim-content" class="min-h-[500px]">
-                        <!-- Initial State -->
-                        <div class="flex flex-col items-center justify-center h-full text-center py-32">
-                            <div class="w-20 h-20 border border-luxury-accent/20 rounded-full flex items-center justify-center mb-8">
-                                <span class="text-luxury-accent text-sm animate-pulse">Wait</span>
-                            </div>
-                            <h5 class="font-bold text-xl mb-4">엔진을 선택하십시오</h5>
-                            <p class="text-luxury-text/30 text-xs">왼쪽 리스트에서 체험하고 싶은 <br> 지능형 엔진을 선택해 주세요.</p>
-                        </div>
-                    </div>
-
-                    <!-- App UI Elements (Real-ish components) -->
-                    <div class="absolute bottom-12 right-12 flex gap-4">
-                        <div class="w-10 h-10 rounded-full bg-luxury-gray flex items-center justify-center text-xs border border-black/5">⚙️</div>
-                        <div class="w-10 h-10 rounded-full bg-luxury-gray flex items-center justify-center text-xs border border-black/5">📊</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Pricing: Bespoke -->
-    <section id="pricing" class="py-64 bg-luxury-dark text-white">
-        <div class="max-w-7xl mx-auto px-10">
-            <div class="text-center mb-32">
-                <span class="text-[10px] font-black uppercase tracking-[0.5em] text-luxury-accent mb-8 block">Investment</span>
-                <h2 class="serif-italic text-6xl md:text-9xl mb-12 text-luxury-accent">Bespoke Pricing</h2>
-                <p class="text-white/30 text-xl font-light">당신의 비즈니스 규모에 맞춘 최적의 파이낸셜 플랜.</p>
-            </div>
-
-            <div class="grid md:grid-cols-2 gap-20 items-end max-w-5xl mx-auto">
-                <div class="p-16 border border-white/5 rounded-[4rem] hover:border-white/20 transition-all group">
-                    <h4 class="text-[10px] font-bold uppercase tracking-[0.4em] mb-12 opacity-30">Essential Evolution</h4>
-                    <div class="text-7xl font-black mb-12 group-hover:text-luxury-accent transition">₩0 <span class="text-sm font-normal opacity-10 italic">/ Month</span></div>
-                    <ul class="space-y-6 mb-20 text-white/30 text-sm font-light">
-                        <li class="flex items-center gap-4">✓ 100 Customers / Mo</li>
-                        <li class="flex items-center gap-4">✓ Standard CRM Suite</li>
-                        <li class="flex items-center gap-4">✓ AI Caption Intro</li>
-                    </ul>
-                    <button class="w-full py-6 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-[0.4em] hover:bg-white hover:text-black transition">Explore</button>
-                </div>
-
-                <div class="p-20 bg-white text-black rounded-[5rem] shadow-[0_50px_100px_rgba(232,92,117,0.2)] transform scale-110 relative z-10">
-                    <div class="absolute -top-6 right-16 bg-luxury-accent text-white px-6 py-2 rounded-full text-[10px] font-black tracking-widest">MOST REFINED</div>
-                    <h4 class="text-[10px] font-bold uppercase tracking-[0.4em] mb-12 opacity-30">Master Studio</h4>
-                    <div class="text-8xl font-black mb-12 text-luxury-accent">₩4,900 <span class="text-sm font-normal opacity-20 italic text-black">/ Month</span></div>
-                    <ul class="space-y-8 mb-24 text-black/60 text-lg font-bold">
-                        <li class="flex items-center gap-4"><span class="w-1.5 h-1.5 rounded-full bg-luxury-accent"></span> AI Voice Operator (Unlimited)</li>
-                        <li class="flex items-center gap-4"><span class="w-1.5 h-1.5 rounded-full bg-luxury-accent"></span> Intelligence Stock Forecaster</li>
-                        <li class="flex items-center gap-4"><span class="w-1.5 h-1.5 rounded-full bg-luxury-accent"></span> Global Instagram Automation</li>
-                        <li class="flex items-center gap-4"><span class="w-1.5 h-1.5 rounded-full bg-luxury-accent"></span> Predictive Revenue Engine</li>
-                    </ul>
-                    <button class="w-full py-8 bg-luxury-dark text-white rounded-full text-[12px] font-black uppercase tracking-[0.5em] hover:bg-luxury-accent transition">Apply Now</button>
-                </div>
+            <div class="widget text-left bg-brand-pink/5 border-brand-pink shadow-lg relative overflow-hidden">
+                <div class="absolute top-6 right-6 bg-brand-pink text-white text-[10px] font-black px-3 py-1 rounded-full">추천</div>
+                <h4 class="text-brand-pink font-bold mb-8 uppercase text-xs tracking-widest">마스터 프로</h4>
+                <div class="text-5xl font-black mb-8">월 4,900원</div>
+                <ul class="space-y-4 mb-12 text-sm text-white/80 font-bold">
+                    <li>✓ AI 음성 오퍼레이터 (무제한)</li>
+                    <li>✓ AI DM 자동 응답</li>
+                    <li>✓ 재고 예측/알림 시스템</li>
+                    <li>✓ 전문가용 매출 리포트</li>
+                </ul>
+                <button class="w-full py-4 rounded-xl bg-brand-pink text-white font-bold hover:scale-105 transition shadow-lg shadow-brand-pink/20">프로 버전 시작하기</button>
             </div>
         </div>
     </section>
 
     <!-- Footer -->
-    <footer class="py-32 bg-white border-t border-luxury-gray">
-        <div class="max-w-7xl mx-auto px-10 flex flex-col md:flex-row justify-between items-start gap-32">
+    <footer class="py-20 border-t border-white/5 bg-brand-dark/30 px-6 md:px-12">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start gap-12">
             <div>
-                <div class="font-black text-4xl tracking-tighter mb-12">ITDASY <span class="serif-italic text-luxury-accent">Studio</span></div>
-                <p class="text-luxury-text/30 text-lg leading-relaxed max-w-sm">우리는 뷰티 아티스트의 예술적 가치를 데이터로 증명합니다. 인공지능이 빚어내는 비즈니스의 조화를 경험하십시오.</p>
+                <div class="font-black text-2xl tracking-tighter mb-6">ITDASY <span class="text-brand-pink">STUDIO</span></div>
+                <p class="text-white/20 text-sm leading-relaxed max-w-sm">잇데이는 뷰티 아티스트의 본질에 집중할 수 있도록 돕습니다. 인공지능과 함께 비즈니스를 혁신하세요.</p>
             </div>
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-24">
-                <div class="space-y-8">
-                    <h6 class="text-[10px] font-black uppercase tracking-[0.5em] text-luxury-text/30">Connect</h6>
-                    <ul class="space-y-4 text-xs font-bold text-luxury-text/60">
-                        <li><a href="#" class="hover:text-luxury-accent transition">Journal</a></li>
-                        <li><a href="#" class="hover:text-luxury-accent transition">Intelligence</a></li>
-                        <li><a href="#" class="hover:text-luxury-accent transition">Legacy</a></li>
+            <div class="flex gap-20">
+                <div class="space-y-4">
+                    <h6 class="text-xs font-black uppercase text-white/50">Product</h6>
+                    <ul class="text-xs space-y-2 font-bold text-white/30">
+                        <li><a href="#" class="hover:text-brand-pink">Features</a></li>
+                        <li><a href="#" class="hover:text-brand-pink">API</a></li>
                     </ul>
                 </div>
-                <div class="space-y-8">
-                    <h6 class="text-[10px] font-black uppercase tracking-[0.5em] text-luxury-text/30">Legal</h6>
-                    <ul class="space-y-4 text-xs font-bold text-luxury-text/60">
-                        <li><a href="#" class="hover:text-luxury-accent transition">Privacy</a></li>
-                        <li><a href="#" class="hover:text-luxury-accent transition">Terms</a></li>
+                <div class="space-y-4">
+                    <h6 class="text-xs font-black uppercase text-white/50">Legal</h6>
+                    <ul class="text-xs space-y-2 font-bold text-white/30">
+                        <li><a href="#" class="hover:text-brand-pink">Privacy</a></li>
+                        <li><a href="#" class="hover:text-brand-pink">Terms</a></li>
                     </ul>
                 </div>
             </div>
         </div>
-        <div class="max-w-7xl mx-auto px-10 mt-32 pt-12 border-t border-luxury-gray flex flex-col md:flex-row justify-between text-[10px] font-bold text-luxury-text/20 uppercase tracking-[0.5em]">
-            <span>© 2026 ITDASY STUDIO. ALL RIGHTS RESERVED.</span>
-            <span>Based in Seoul. Built for Artists.</span>
+        <div class="max-w-7xl mx-auto mt-20 pt-8 border-t border-white/5 text-[10px] font-bold text-white/10 uppercase tracking-widest text-center md:text-left">
+            © 2026 ITDASY STUDIO. All rights reserved.
         </div>
     </footer>
 
     <script>
-        gsap.registerPlugin(ScrollTrigger);
-
-        // World-Class Reveal Animations
-        gsap.to(".hero-sub", { y: 0, duration: 1, ease: "power4.out" });
-        gsap.from(".reveal-text", { x: -100, opacity: 0, duration: 1.5, stagger: 0.2, ease: "power4.out" });
-        gsap.from(".hero-desc", { y: 50, opacity: 0, duration: 1.5, delay: 0.5, ease: "power4.out" });
-
-        gsap.utils.toArray('section').forEach(section => {
-            gsap.from(section, {
-                opacity: 0,
-                y: 100,
-                duration: 2,
-                scrollTrigger: {
-                    trigger: section,
-                    start: "top 90%",
-                    toggleActions: "play none none none"
-                }
-            });
-        });
-
-        // Live Simulation Logic
-        function runSim(type) {
-            const content = document.getElementById('sim-content');
+        function updateSim(type) {
+            const screen = document.getElementById('sim-screen');
+            screen.classList.add('opacity-0');
             
-            if (type === 'voice') {
-                content.innerHTML = `
-                    <div class="animate-in fade-in duration-1000">
-                        <div class="flex flex-col items-center justify-center py-20">
-                            <div class="w-32 h-32 rounded-full border border-luxury-accent flex items-center justify-center mb-12 relative">
-                                <div class="absolute inset-0 bg-luxury-accent/10 rounded-full animate-ping"></div>
-                                <div class="w-4 h-4 bg-luxury-accent rounded-full"></div>
-                            </div>
-                            <div class="serif-italic text-3xl mb-8">"김서연 속눈썹 5만원 재고 베이스 1개 썼어"</div>
-                            <div class="terminal-text text-center space-y-2 opacity-50">
-                                <div>[SYS] app-assistant.js parsing request...</div>
-                                <div>[SYS] Customer: Kim Seo-yeon (CX-8291)</div>
-                                <div>[SYS] Action: Revenue +50,000 / Inventory -1 (Base)</div>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4 mt-12">
-                            <div class="p-6 bg-luxury-gray rounded-3xl border border-black/5">
-                                <div class="text-[9px] font-bold opacity-30 mb-2 uppercase">Revenue Update</div>
-                                <div class="font-black text-xl text-luxury-accent">+ 50,000</div>
-                            </div>
-                            <div class="p-6 bg-luxury-gray rounded-3xl border border-black/5">
-                                <div class="text-[9px] font-bold opacity-30 mb-2 uppercase">Stock Adjust</div>
-                                <div class="font-black text-xl">- 1 <span class="text-xs font-normal opacity-40">Base Tip</span></div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else if (type === 'receipt') {
-                content.innerHTML = `
-                    <div class="animate-in slide-in-from-right-10 duration-1000">
-                        <div class="relative w-full aspect-video bg-luxury-gray rounded-3xl overflow-hidden mb-12">
-                            <img src="https://images.unsplash.com/photo-1593642532842-98d0fd5ebc1a?auto=format&fit=crop&q=80&w=400" class="w-full h-full object-cover opacity-20">
-                            <div class="absolute inset-0 flex items-center justify-center">
-                                <div class="w-full h-px bg-luxury-accent shadow-[0_0_15px_#E85C75] absolute top-1/2 -translate-y-1/2 animate-bounce"></div>
-                                <span class="text-[10px] font-black tracking-widest text-luxury-accent uppercase">AI Vision Scanning...</span>
-                            </div>
-                        </div>
-                        <div class="space-y-4">
-                            <div class="p-5 rounded-2xl border border-black/5 flex justify-between items-center">
-                                <span class="text-xs font-bold opacity-40">Vendor</span>
-                                <span class="text-sm font-black">네일 재료 상사</span>
-                            </div>
-                            <div class="p-5 rounded-2xl border border-black/5 flex justify-between items-center">
-                                <span class="text-xs font-bold opacity-40">Items</span>
-                                <span class="text-sm font-black text-luxury-accent">3 Items Auto-Detected</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else if (type === 'dm') {
-                content.innerHTML = `
-                    <div class="p-8 h-full flex flex-col justify-end animate-in fade-in duration-700">
-                        <div class="space-y-8">
-                            <div class="flex gap-4">
-                                <div class="w-8 h-8 rounded-full bg-luxury-gray shrink-0"></div>
-                                <div class="bg-luxury-gray p-6 rounded-3xl rounded-tl-none text-sm leading-relaxed max-w-[80%]">
-                                    "안녕하세요, 이번 주 토요일 2시 예약 가능한가요?"
+            setTimeout(() => {
+                if (type === 'sales') {
+                    screen.innerHTML = `
+                        <div class="w-full h-full p-6 text-left">
+                            <h4 class="text-lg font-bold mb-6">📊 오늘 매출 현황</h4>
+                            <div class="grid grid-cols-2 gap-4 mb-8">
+                                <div class="bg-white/5 p-4 rounded-2xl">
+                                    <p class="text-[10px] opacity-30 mb-1">총 매출</p>
+                                    <p class="text-xl font-black text-brand-pink">₩450,000</p>
+                                </div>
+                                <div class="bg-white/5 p-4 rounded-2xl">
+                                    <p class="text-[10px] opacity-30 mb-1">예약 건수</p>
+                                    <p class="text-xl font-black">9건</p>
                                 </div>
                             </div>
-                            <div class="flex gap-4 justify-end">
-                                <div class="bg-luxury-accent p-6 rounded-3xl rounded-tr-none text-sm text-white font-bold leading-relaxed max-w-[80%] shadow-xl shadow-luxury-accent/20">
-                                    "네, 2시 예약 가능합니다. 성함과 시술 품목을 알려주시면 바로 예약 도와드리겠습니다."
-                                </div>
-                                <div class="w-8 h-8 rounded-full bg-luxury-accent shrink-0"></div>
-                            </div>
-                            <div class="text-[9px] text-center opacity-20 font-bold uppercase tracking-widest mt-12">
-                                Handled by Concierge Engine v4.0
+                            <div class="space-y-2">
+                                <div class="flex justify-between text-xs p-3 bg-white/5 rounded-xl"><span>속눈썹 펌 - 김서연</span><span class="text-brand-pink">+50,000</span></div>
+                                <div class="flex justify-between text-xs p-3 bg-white/5 rounded-xl"><span>젤 네일 - 이지우</span><span class="text-brand-pink">+75,000</span></div>
                             </div>
                         </div>
-                    </div>
-                `;
-            }
+                    `;
+                } else if (type === 'dm') {
+                    screen.innerHTML = `
+                        <div class="w-full h-full p-6 flex flex-col">
+                            <h4 class="text-lg font-bold mb-6">💬 AI 자동 응답</h4>
+                            <div class="space-y-4">
+                                <div class="flex gap-2">
+                                    <div class="w-6 h-6 rounded-full bg-white/10"></div>
+                                    <div class="bg-white/5 p-3 rounded-2xl rounded-tl-none text-[11px] max-w-[80%] text-left">오늘 오후 3시 예약 되나요?</div>
+                                </div>
+                                <div class="flex gap-2 justify-end">
+                                    <div class="bg-brand-pink p-3 rounded-2xl rounded-tr-none text-[11px] max-w-[80%] text-left font-bold">네, 가능합니다! 성함과 연락처 남겨주시면 예약 도와드릴까요?</div>
+                                    <div class="w-6 h-6 rounded-full bg-brand-pink"></div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    screen.innerHTML = `
+                        <div class="w-full h-full p-6 text-center">
+                            <div class="w-24 h-24 bg-brand-pink/10 rounded-2xl flex items-center justify-center mx-auto mb-6 text-4xl">📸</div>
+                            <h4 class="text-lg font-bold mb-4">포트폴리오 업로드</h4>
+                            <p class="text-xs text-white/40 mb-8">AI가 사진을 분석하여 해시태그와 설명을 자동 생성했습니다.</p>
+                            <div class="p-3 bg-white/5 rounded-xl text-[10px] italic">#속눈썹연장 #잇데이 #홍대뷰티샵</div>
+                        </div>
+                    `;
+                }
+                screen.classList.remove('opacity-0');
+            }, 300);
         }
     </script>
 </body>
