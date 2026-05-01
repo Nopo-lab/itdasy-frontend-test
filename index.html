@@ -804,7 +804,7 @@ try { localStorage.removeItem('itdasy:fab_pos'); } catch (_e) { void _e; }
   </div>
 </div>
 
-<!-- 2026-05-01 ── 탭바 + 챗봇 묶음. 둘이 같은 flex 컨테이너 안에 있어서 항상 가운데 정렬되며 14px 간격으로 붙음. -->
+<!-- 2026-05-01 ── 탭바 + 챗봇 묶음. align-items:flex-end 로 둘 다 바닥선 일치 (카뱅 스타일). -->
 <div id="bottomNavGroup" style="
   position: fixed;
   bottom: var(--tab-bar-bottom, calc(14px + env(safe-area-inset-bottom, 0px)));
@@ -812,8 +812,8 @@ try { localStorage.removeItem('itdasy:fab_pos'); } catch (_e) { void _e; }
   right: 14px;
   display: flex;
   justify-content: center;
-  align-items: center;
-  gap: 14px;
+  align-items: flex-end;
+  gap: 12px;
   pointer-events: none;
   z-index: 999;
 ">
