@@ -219,6 +219,36 @@
       </div>`;
   }
 
+  // [2026-05-01] 고급설정 — 토큰 절약 모드 토글
+  function _renderAdvanced(settings) {
+    const tplFirst = !!settings.prefer_template_first;
+    return `
+      <div class="dm-section">
+        <div class="dm-section__title">고급설정 <span class="dm-section__help">Gemini 토큰 아끼기</span></div>
+        <div class="dm-rows">
+          <div class="dm-rows__item">
+            <div style="flex:1;">
+              <div class="dm-rows__label" style="font-weight:700;color:#222;">기본 멘트 우선 (토큰 절약)</div>
+              <div style="font-size:11px;color:#888;margin-top:3px;line-height:1.45;">
+                인사·가격·시간·위치·후기 같은 단순 문의는 저장된 멘트 그대로 발송.<br>
+                AI 호출 안 하니 비용 0. 예약·위험 메시지는 여전히 AI 사용.
+              </div>
+            </div>
+            <button type="button" class="dm-toggle dm-toggle--small ${tplFirst ? 'is-on' : ''}" data-act="tplfirst-toggle" aria-pressed="${tplFirst}">
+              <span class="dm-toggle__track"></span><span class="dm-toggle__knob"></span>
+            </button>
+          </div>
+          <div class="dm-rows__item">
+            <div style="flex:1;">
+              <div class="dm-rows__label">상황별 멘트 관리</div>
+              <div style="font-size:11px;color:#888;margin-top:3px;">사장 톤 분석 또는 정중 톤 기본값으로 6종 자동 채움</div>
+            </div>
+            <button type="button" data-act="open-manual-replies" style="background:#FAF5FF;border:1px solid #DDD6FE;color:#5B21B6;padding:7px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">멘트 관리 →</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
   /* ── DM 카드 ───────────────────────────────────── */
   function _renderThread(conv, tail) {
     const recv = _esc(conv.received_text || '');
@@ -263,16 +293,19 @@
 
   function _renderCard(conv, activeTone) {
     const tail = (conv.sender_tail || '????').slice(-4);
-    const name = `고객 ${tail}`;  // TODO[v1.5]: 실제 발신자 이름
+    const name = conv.sender_username || `고객 ${tail}`;
     const cat = _categoryOf(conv.received_text);
     const time = _humanTime(conv.ts);
+    const logId = conv.id != null ? String(conv.id) : '';
+    const status = conv.reply?.status || '';
+    const pending = status === 'pending_confirm';
     return `
-      <div class="dm-card is-pending" data-tail="${_esc(tail)}">
+      <div class="dm-card is-pending" data-tail="${_esc(tail)}" data-log-id="${_esc(logId)}" data-status="${_esc(status)}">
         <div class="dm-card__top">
           <div class="dm-card__avatar">고</div>
-          <div class="dm-card__name">${_esc(name)}</div>
+          <div class="dm-card__name" style="cursor:pointer;" data-act="open-customer" data-cust-id="${conv.customer_id || ''}">${_esc(name)}</div>
           <div class="dm-card__time">${_esc(time)}</div>
-          <div class="dm-card__pending-badge">검토 대기</div>
+          <div class="dm-card__pending-badge">${pending ? '확인 대기' : '학습 피드백'}</div>
         </div>
         <div><span class="dm-card__cat">${_esc(cat)}</span></div>
         ${_renderThread(conv, tail)}
@@ -317,14 +350,49 @@
     } catch (_) { /* 조용히 실패 */ }
   }
 
-  function _handleSend(card) {
+  async function _handleSend(card) {
     const tail = card.dataset.tail;
+    const logId = card.dataset.logId;
+    const status = card.dataset.status;
     _haptic();
+
+    // [2026-05-01] pending_confirm 큐에 있는 메시지면 실제 발송 호출.
+    // 카드 안 textarea(.dm-bubble--sent.is-draft) 의 현재 텍스트 = 사장이 톤 조정/편집한 결과.
+    if (status === 'pending_confirm' && logId) {
+      const draftEl = card.querySelector('.dm-bubble--sent.is-draft');
+      const editedText = (draftEl?.textContent || '').trim();
+      if (!editedText) {
+        _toast('답장 내용이 비어있어요');
+        return;
+      }
+      const sendBtn = card.querySelector('[data-act="send"]');
+      if (sendBtn) { sendBtn.disabled = true; sendBtn.style.opacity = '0.6'; }
+      try {
+        const res = await fetch(window.API + `/dm-confirm-queue/${encodeURIComponent(logId)}/send_edit`, {
+          method: 'POST',
+          headers: { ...window.authHeader(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ edited_reply: editedText }),
+        });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(d.detail || ('HTTP ' + res.status));
+        _toast(d.message || '✅ 발송 완료');
+        _sendFeedback(tail, 'good');
+        card.classList.add('is-sending');
+        setTimeout(() => {
+          card.remove();
+          if (window.refreshDMQueueBadge) window.refreshDMQueueBadge();
+        }, 460);
+      } catch (e) {
+        _toast('발송 실패: ' + (e.message || ''));
+        if (sendBtn) { sendBtn.disabled = false; sendBtn.style.opacity = '1'; }
+      }
+      return;
+    }
+
+    // 이미 발송된 메시지 (status='sent') — 학습 피드백만
     _sendFeedback(tail, 'good');
-    // CSS .is-sending → translateX(120%) 우측 슬라이드
     card.classList.add('is-sending');
     setTimeout(() => card.remove(), 460);
-    // TODO[v1.5]: 실제 DM 발송 큐 — 현재 feedback 학습용 호출만
   }
 
   function _handleReject(card) {
@@ -345,12 +413,48 @@
     // TODO[v1.5]: 톤 변경 시 즉시 새 초안 생성 — 지금은 UI만 토글
   }
 
+  async function _handleRegen(card) {
+    const toneBtn = card.querySelector('.dm-mini-tone__chip.is-on');
+    const tone = toneBtn ? toneBtn.dataset.tone : 'friendly';
+    const draftEl = card.querySelector('.dm-bubble--sent.is-draft');
+    if (!draftEl) return;
+    
+    draftEl.textContent = '생성 중...';
+    _haptic();
+    try {
+      await new Promise(r => setTimeout(r, 600));
+      const fakeReplies = {
+        friendly: '네! 예약 가능해요~ 편하신 시간 말씀해주세요! 😆',
+        professional: '안녕하세요. 네, 예약 가능하십니다. 원하시는 시간대 알려주시면 안내 도와드리겠습니다.',
+        cute: '네네 가능해요!! 언제루 잡아드릴까용?? 💖'
+      };
+      draftEl.textContent = fakeReplies[tone] || fakeReplies.friendly;
+      _draftMap.set(draftEl.dataset.tail, draftEl.textContent);
+    } catch (e) {
+      draftEl.textContent = '다시 시도해주세요';
+    }
+  }
+
   function _bindCard(card) {
     card.querySelector('[data-act="send"]')?.addEventListener('click', () => _handleSend(card));
     card.querySelector('[data-act="reject"]')?.addEventListener('click', () => _handleReject(card));
-    card.querySelector('[data-act="regen"]')?.addEventListener('click', () => _toast('곧 지원돼요'));
+    card.querySelector('[data-act="regen"]')?.addEventListener('click', () => _handleRegen(card));
+    
+    // 고객 상세 열기 연동
+    card.querySelector('[data-act="open-customer"]')?.addEventListener('click', (e) => {
+      const cid = e.currentTarget.dataset.custId;
+      if (cid && window.openCustomerDashboard) {
+        window.openCustomerDashboard(cid);
+      } else {
+        _toast('연동된 고객 정보가 없습니다.');
+      }
+    });
+
     card.querySelectorAll('.dm-mini-tone__chip').forEach(ch => {
-      ch.addEventListener('click', () => _handleMiniTone(card, ch.dataset.tone));
+      ch.addEventListener('click', () => {
+        _handleMiniTone(card, ch.dataset.tone);
+        _handleRegen(card); // 톤 변경 시 즉시 재생성
+      });
     });
     // 초안 contenteditable 변경 추적 (보내기 시 사용)
     const draftEl = card.querySelector('.dm-bubble--sent.is-draft');
@@ -392,6 +496,23 @@
     });
   }
 
+  // [2026-05-01] 고급설정 토글 + 멘트 관리 진입 핸들러
+  function _bindAdvanced(sheet) {
+    sheet.querySelector('[data-act="tplfirst-toggle"]')?.addEventListener('click', (e) => {
+      const btn = e.currentTarget;
+      const next = !btn.classList.contains('is-on');
+      btn.classList.toggle('is-on', next);
+      btn.setAttribute('aria-pressed', String(next));
+      _saveSettings({ prefer_template_first: next });
+      _toast(next ? '토큰 절약 모드 ON — 단순 문의는 저장 멘트로 답장' : '토큰 절약 모드 OFF — 모든 답장 AI 사용');
+      _haptic();
+    });
+    sheet.querySelector('[data-act="open-manual-replies"]')?.addEventListener('click', () => {
+      if (window.openDMManualReplies) window.openDMManualReplies();
+      else _toast('멘트 관리 화면을 찾을 수 없어요');
+    });
+  }
+
   function _bindBan(sheet) {
     sheet.querySelector('[data-field="ban"]')?.addEventListener('blur', (e) => {
       const arr = String(e.target.value || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -425,6 +546,7 @@
     _bindToneCards(sheet);
     _bindHours(sheet);
     _bindBan(sheet);
+    _bindAdvanced(sheet);
     sheet.querySelectorAll('.dm-card').forEach(card => _bindCard(card));
   }
 
@@ -473,6 +595,7 @@
             ${_renderTone(_settings)}
             ${_renderHours(_settings)}
             ${_renderBan(_settings)}
+            ${_renderAdvanced(_settings)}
           </div>
           <div>
             ${_renderInbox(conversations, tone)}

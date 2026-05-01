@@ -16,7 +16,6 @@
     return String(s == null ? '' : s).replace(/[&<>"']/g, ch =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
   }
-  function _krw(n) { return (+n || 0).toLocaleString('ko-KR') + '원'; }
   function _tail(phone) {
     if (!phone) return '';
     const d = phone.replace(/\D/g, '');
@@ -36,7 +35,53 @@
     { id: 'mk6', name: '한다은', phone: '010-2222-9999', memo: '두피 스케일링 선호',         visit_count: 6,  total_spent: 248000, last_visit_at: '2026-04-15' },
   ];
 
-  const _state = { rows: [], enriched: [], searchKW: '', addPanelOpen: false };
+  // _state.filter ∈ 'all' | 'member' | 'new' | 'regular' | 'risk'
+  const _state = { rows: [], enriched: [], searchKW: '', addPanelOpen: false, filter: 'all' };
+
+  /* ── 분류 helper: 신규(첫방문 30일내) / 단골(방문≥5회) / 이탈(60일+ 미방문) / 생일(오늘) / 회원권 보유 ── */
+  function _daysBetween(iso, ref) {
+    if (!iso) return null;
+    const a = new Date(iso).getTime();
+    if (isNaN(a)) return null;
+    const b = (ref || new Date()).getTime();
+    return Math.floor((b - a) / 86400000);
+  }
+  function _classify(c) {
+    const visits = +c.visit_count || 0;
+    const lastDays = _daysBetween(c.last_visit_at);
+    const firstDays = _daysBetween(c.first_visit_at || c.created_at);
+    const isNew     = visits <= 1 || (firstDays !== null && firstDays <= 30 && visits < 3);
+    const isRegular = visits >= 5;
+    const isRisk    = lastDays !== null && lastDays >= 60;
+    const hasMember = +c.membership_balance > 0;
+    const isBirthday = (() => {
+      if (!c.birthday) return false;
+      const raw = String(c.birthday).trim();
+      const m = raw.match(/^(\d{1,2})[-/](\d{1,2})$/) || raw.match(/^\d{4}-(\d{1,2})-(\d{1,2})/);
+      if (!m) return false;
+      const today = new Date();
+      const mo = +m[1], dy = +m[2];
+      return mo === today.getMonth() + 1 && dy === today.getDate();
+    })();
+    return { isNew, isRegular, isRisk, hasMember, isBirthday, visits, lastDays };
+  }
+
+  function _stats(enriched) {
+    const total = enriched.length;
+    let newThisMonth = 0, risk = 0, member = 0;
+    const now = new Date(), curM = now.getMonth(), curY = now.getFullYear();
+    enriched.forEach(c => {
+      const cls = _classify(c);
+      if (cls.isRisk) risk++;
+      if (cls.hasMember) member++;
+      const fv = c.first_visit_at || c.created_at;
+      if (fv) {
+        const d = new Date(fv);
+        if (!isNaN(d) && d.getMonth() === curM && d.getFullYear() === curY) newThisMonth++;
+      }
+    });
+    return { total, newThisMonth, risk, member };
+  }
 
   /* ── 캐시 ──────────────────────────────────────────────────── */
   function _readCache() {
@@ -105,8 +150,33 @@
     if (!overlay) return;
     const ac = window.AppAutocomplete ? window.AppAutocomplete.renderDatalist() : '';
     overlay.innerHTML = ac + _renderHeader() + _renderSearch() +
-      (_state.addPanelOpen ? _renderAddPanel() : '') + _renderList();
+      (_state.addPanelOpen ? _renderAddPanel() : '') +
+      _renderStats() + _renderFilterChips() + _renderList();
     _bindEvents();
+  }
+
+  function _renderStats() {
+    const s = _stats(_state.enriched);
+    return `<div class="hub-stats-row">
+      <div class="hub-stat-mini"><div class="lbl">전체 고객</div><div class="val">${s.total}명</div></div>
+      <div class="hub-stat-mini"><div class="lbl">이번달 신규</div><div class="val">${s.newThisMonth}명</div></div>
+      <div class="hub-stat-mini"><div class="lbl">이탈 위험</div><div class="val${s.risk ? ' danger' : ''}">${s.risk}명</div></div>
+    </div>`;
+  }
+
+  function _renderFilterChips() {
+    const s = _stats(_state.enriched);
+    const f = _state.filter;
+    const counts = { all: s.total, member: s.member, new: 0, regular: 0, risk: s.risk };
+    counts.new = _state.enriched.filter(c => _classify(c).isNew).length;
+    counts.regular = _state.enriched.filter(c => _classify(c).isRegular).length;
+    return `<div class="hub-filter-chips">
+      <button class="hub-fc-chip${f==='all'?' on':''}"     data-act="filter" data-filter="all">전체 ${counts.all}</button>
+      <button class="hub-fc-chip${f==='member'?' on':''}"  data-act="filter" data-filter="member">멤버 ${counts.member}</button>
+      <button class="hub-fc-chip${f==='new'?' on':''}"     data-act="filter" data-filter="new">신규 ${counts.new}</button>
+      <button class="hub-fc-chip${f==='regular'?' on':''}" data-act="filter" data-filter="regular">단골 ${counts.regular}</button>
+      <button class="hub-fc-chip danger${f==='risk'?' on':''}" data-act="filter" data-filter="risk">이탈 위험 ${counts.risk}</button>
+    </div>`;
   }
 
   function _renderHeader() {
@@ -143,43 +213,76 @@
 
   function _renderList() {
     const kw = _state.searchKW.toLowerCase();
-    const list = kw
+    const f  = _state.filter;
+    let list = kw
       ? _state.enriched.filter(c =>
           ((c.name||'') + ' ' + (c.phone||'') + ' ' + (c.memo||'')).toLowerCase().includes(kw))
-      : _state.enriched;
+      : _state.enriched.slice();
 
-    if (!list.length && !kw) {
+    if (f !== 'all') {
+      list = list.filter(c => {
+        const cl = _classify(c);
+        return (f === 'member'  && cl.hasMember) ||
+               (f === 'new'     && cl.isNew) ||
+               (f === 'regular' && cl.isRegular) ||
+               (f === 'risk'    && cl.isRisk);
+      });
+    }
+    // 최근 방문 순 정렬
+    list.sort((a, b) => (b.last_visit_at || '').localeCompare(a.last_visit_at || ''));
+
+    if (!list.length && !kw && f === 'all') {
       return `<div class="hub-empty">
-        <div class="hub-empty-icon">👥</div>
+        <div class="hub-empty-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-users"/></svg></div>
         <div class="hub-empty-title">아직 고객이 없어요</div>
         <div class="hub-empty-desc">예약 잡으면 자동 등록돼요</div>
       </div>`;
     }
-    if (!list.length && kw) {
+    if (!list.length) {
       return `<div class="hub-empty">
-        <div class="hub-empty-icon">🔍</div>
+        <div class="hub-empty-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-search"/></svg></div>
         <div class="hub-empty-title">해당 고객이 없어요</div>
-        <div class="hub-empty-desc">직접 추가하려면 + 버튼을 누르세요</div>
+        <div class="hub-empty-desc">필터를 바꾸거나 + 버튼으로 추가하세요</div>
       </div>`;
     }
     return `<div class="hub-sec-hd">
-        <span>전체</span><span class="hub-sec-count">${list.length}명</span>
+        <span>고객 목록</span><span class="hub-sec-count">${list.length}명 · 최근 방문순</span>
       </div>
       ${list.map(c => _renderRow(c)).join('')}`;
   }
 
   function _renderRow(c) {
-    const sub = [
-      c.last_visit_at ? `최근 ${_dateFmt(c.last_visit_at)}` : null,
-      c.total_spent > 0 ? `누적 ${_krw(c.total_spent)}` : null,
-      c.visit_count  > 0 ? `${c.visit_count}회` : null,
-    ].filter(Boolean);
-    return `<div class="ch-row" data-act="open-customer" data-id="${c.id}" data-phone="${_esc(c.phone || '')}">
-      <div class="ch-row-top">
-        <span class="ch-name">${_esc(c.name)}</span>
-        <span class="ch-phone-tail">${_esc(_tail(c.phone))}</span>
+    const cl = _classify(c);
+    const initial = _esc((c.name || '·').slice(0, 1));
+    const avatarCls = cl.isRegular || cl.hasMember ? '' : ' gray';
+
+    const badges = [];
+    if (cl.isRegular)  badges.push(`<span class="badge badge-regular">단골</span>`);
+    if (cl.hasMember)  badges.push(`<span class="badge badge-member">회원권 ${(+c.membership_balance/10000).toFixed(1)}만</span>`);
+    if (cl.isNew && !cl.isRegular) badges.push(`<span class="badge badge-new">신규</span>`);
+    if (cl.isRisk)     badges.push(`<span class="badge badge-risk">${cl.lastDays}일+ 미방문</span>`);
+    if (cl.isBirthday) badges.push(`<span class="badge badge-birthday">오늘 생일</span>`);
+
+    const phoneTail = c.phone ? _esc(_tail(c.phone)) : '';
+    const cycle = c.avg_cycle_weeks ? `${c.avg_cycle_weeks}주 주기` : null;
+    const recentTxt = c.last_visit_at ? `최근 ${_dateFmt(c.last_visit_at)}` : null;
+    const subParts = [phoneTail, cycle, recentTxt].filter(Boolean);
+
+    return `<div class="cust-row" data-act="open-customer" data-id="${c.id}">
+      <div class="cust-avatar${avatarCls}">${initial}</div>
+      <div class="cust-info">
+        <div class="cust-name-row">
+          <span class="cust-name">${_esc(c.name)}</span>
+          ${cl.visits > 0 ? `<span class="cust-visits">방문 ${cl.visits}회</span>` : ''}
+        </div>
+        <div class="cust-meta">
+          ${badges.join('')}
+          ${subParts.length ? `<span>${subParts.join(' · ')}</span>` : ''}
+        </div>
       </div>
-      ${sub.length ? `<div class="ch-sub">${sub.map((s, i) => (i > 0 ? '<span class="ch-sub-dot">·</span>' : '') + _esc(s)).join('')}</div>` : ''}
+      <span class="cust-chev">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#ic-chevron-right"/></svg>
+      </span>
     </div>`;
   }
 
@@ -195,6 +298,7 @@
       else if (act === 'toggle-add')     { _state.addPanelOpen = !_state.addPanelOpen; _render(); setTimeout(() => overlay.querySelector('[data-field="name"]')?.focus(), 50); }
       else if (act === 'add-customer')   await _addCustomer();
       else if (act === 'excel')          _openExcelImport();
+      else if (act === 'filter')         { _state.filter = btn.dataset.filter || 'all'; _render(); }
       else if (act === 'open-customer') {
         const id = btn.dataset.id;
         if (typeof window.openCustomerDashboard === 'function') window.openCustomerDashboard(id);

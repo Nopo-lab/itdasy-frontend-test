@@ -1,0 +1,686 @@
+/* ── 예약 추가/수정 폼 · 04a 디자인 ──────────────────────────
+   iOS 휠 타임 픽커 + 고객 카드 + 시술 칩 + 더보기 토글
+   ────────────────────────────────────────────────────────── */
+
+/* ── 폼 래퍼 ─────────────────────────────────────────────── */
+.bf-wrap {
+  padding: 16px 18px;
+  animation: bfFadeIn 240ms ease-out both;
+}
+
+@keyframes bfFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 섹션 라벨 */
+.bf-label {
+  font-size: 11px;
+  color: var(--text-subtle, #98A1AC);
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.bf-section {
+  margin-bottom: 18px;
+}
+
+/* ── 날짜 카드 ───────────────────────────────────────────── */
+.bf-date-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface-2, #F8F8F9);
+  border-radius: 12px;
+  cursor: pointer;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  color: var(--text, #0F1419);
+  transition: background 0.12s;
+}
+
+.bf-date-card:active {
+  background: var(--surface-3, #EBEBED);
+}
+
+.bf-date-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--brand-bg, rgba(241,128,145,0.12));
+  color: var(--brand, #F18091);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.bf-date-text {
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+
+.bf-date-meta {
+  font-size: 11.5px;
+  color: var(--text-subtle, #98A1AC);
+  margin-top: 1px;
+  font-weight: 500;
+}
+
+.bf-date-chev {
+  color: var(--text-subtle, #98A1AC);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* hidden native date input */
+.bf-date-native {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+
+/* ── 시간 휠 픽커 (iOS 스타일) ────────────────────────────── */
+.bf-time-picker {
+  background: var(--surface-2, #F8F8F9);
+  border-radius: 12px;
+  padding: 4px;
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  position: relative;
+  touch-action: none;
+}
+
+.bf-tp-wheel {
+  flex: 1;
+  position: relative;
+  height: 132px;
+  overflow: hidden;
+  text-align: center;
+  cursor: grab;
+}
+
+.bf-tp-wheel::before,
+.bf-tp-wheel::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 44px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.bf-tp-wheel::before {
+  top: 0;
+  background: linear-gradient(180deg, var(--surface-2, #F8F8F9) 0%, transparent 100%);
+}
+
+.bf-tp-wheel::after {
+  bottom: 0;
+  background: linear-gradient(0deg, var(--surface-2, #F8F8F9) 0%, transparent 100%);
+}
+
+.bf-tp-inner {
+  transition: transform 120ms ease-out;
+  will-change: transform;
+}
+
+.bf-tp-row {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--text-subtle, #98A1AC);
+  font-variant-numeric: tabular-nums;
+  transition: color 0.15s, font-size 0.15s;
+  user-select: none;
+}
+
+.bf-tp-row.current {
+  color: var(--text, #0F1419);
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: -0.5px;
+}
+
+.bf-tp-sep {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text, #0F1419);
+  padding: 0 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.bf-tp-selection {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 44px;
+  background: var(--surface, #fff);
+  border: 0.5px solid var(--border-strong, rgba(15,20,25,0.1));
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 소요 시간 스텝퍼 */
+.bf-duration-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 11px 14px;
+  background: var(--surface, #fff);
+  border: 0.5px solid var(--border, rgba(15,20,25,0.06));
+  border-radius: 8px;
+}
+
+.bf-dur-label {
+  font-size: 12.5px;
+  color: var(--text-muted, #5A6573);
+  font-weight: 600;
+  flex: 1;
+}
+
+.bf-dur-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text, #0F1419);
+  font-variant-numeric: tabular-nums;
+}
+
+.bf-dur-stepper {
+  display: flex;
+  gap: 4px;
+}
+
+.bf-dur-stepper button {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--surface-2, #F8F8F9);
+  border: 0.5px solid var(--border, rgba(15,20,25,0.06));
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted, #5A6573);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  transition: background 0.12s;
+}
+
+.bf-dur-stepper button:active {
+  background: var(--surface-3, #E8E8EA);
+}
+
+/* ── 고객 카드 ───────────────────────────────────────────── */
+.bf-cust-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--brand-bg, rgba(241,128,145,0.12));
+  border: 0.5px solid rgba(241,128,145,0.18);
+  border-radius: 12px;
+  cursor: pointer;
+  width: 100%;
+  border-style: solid;
+  font-family: inherit;
+  text-align: left;
+  color: var(--text, #0F1419);
+  transition: background 0.15s;
+}
+
+.bf-cust-card.empty {
+  background: var(--surface-2, #F8F8F9);
+  border-color: var(--border, rgba(15,20,25,0.06));
+  border-style: dashed;
+}
+
+.bf-cust-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #F4C0D1, var(--brand, #F18091));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.bf-cust-avatar.empty {
+  background: var(--surface, #fff);
+  color: var(--text-subtle, #98A1AC);
+  border: 1.5px dashed var(--border-strong, rgba(15,20,25,0.1));
+}
+
+.bf-cust-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.bf-cust-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text, #0F1419);
+  letter-spacing: -0.2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bf-cust-badge {
+  font-size: 10px;
+  color: var(--brand, #F18091);
+  font-weight: 700;
+}
+
+.bf-cust-meta {
+  font-size: 11.5px;
+  color: var(--text-subtle, #98A1AC);
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+.bf-cust-meta b {
+  color: var(--text-muted, #5A6573);
+  font-weight: 700;
+}
+
+.bf-cust-empty-text {
+  font-size: 13.5px;
+  color: var(--text-subtle, #98A1AC);
+  font-weight: 600;
+}
+
+.bf-cust-clear {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--surface, #fff);
+  border: 0.5px solid var(--border-strong, rgba(15,20,25,0.1));
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-subtle, #98A1AC);
+  flex-shrink: 0;
+  font-family: inherit;
+  transition: background 0.12s;
+}
+
+.bf-cust-clear:active {
+  background: var(--surface-2, #F8F8F9);
+}
+
+.bf-cust-chev {
+  color: var(--text-subtle, #98A1AC);
+  flex-shrink: 0;
+}
+
+/* ── 시술 칩 ─────────────────────────────────────────────── */
+.bf-svc-chips {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.bf-svc-chip {
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--surface-2, #F8F8F9);
+  border: 0.5px solid var(--border, rgba(15,20,25,0.06));
+  border-radius: 999px;
+  color: var(--text-muted, #5A6573);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.12s;
+}
+
+.bf-svc-chip:active {
+  transform: scale(0.97);
+}
+
+.bf-svc-chip.on {
+  background: var(--text, #0F1419);
+  color: white;
+  border-color: var(--text, #0F1419);
+}
+
+.bf-svc-chip.add {
+  color: var(--text-subtle, #98A1AC);
+  border-style: dashed;
+}
+
+/* ── 더보기 토글 ─────────────────────────────────────────── */
+.bf-more-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  background: var(--surface-2, #F8F8F9);
+  border-radius: 12px;
+  cursor: pointer;
+  width: 100%;
+  border: none;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-muted, #5A6573);
+  font-family: inherit;
+  transition: color 0.12s;
+}
+
+.bf-more-toggle.open {
+  color: var(--text, #0F1419);
+}
+
+.bf-more-icon {
+  transition: transform 0.2s ease;
+}
+
+.bf-more-toggle.open .bf-more-icon {
+  transform: rotate(180deg);
+}
+
+.bf-more-fields {
+  padding: 14px;
+  background: var(--surface, #fff);
+  border: 0.5px solid var(--border, rgba(15,20,25,0.06));
+  border-radius: 12px;
+  margin-top: 6px;
+  animation: bfFadeIn 180ms ease-out both;
+}
+
+/* ── 직원 선택 ───────────────────────────────────────────── */
+.bf-staff-row {
+  display: flex;
+  gap: 6px;
+}
+
+.bf-staff-btn {
+  flex: 1;
+  padding: 9px 0;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--surface-2, #F8F8F9);
+  border: 0.5px solid var(--border, rgba(15,20,25,0.06));
+  border-radius: 8px;
+  color: var(--text-muted, #5A6573);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-family: inherit;
+  transition: all 0.12s;
+}
+
+.bf-staff-btn.on {
+  background: var(--text, #0F1419);
+  color: white;
+  border-color: var(--text, #0F1419);
+}
+
+.bf-staff-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+/* ── 메모 ────────────────────────────────────────────────── */
+.bf-memo {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--surface-2, #F8F8F9);
+  border: 0.5px solid var(--border, rgba(15,20,25,0.06));
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text, #0F1419);
+  font-family: inherit;
+  resize: none;
+  min-height: 70px;
+  transition: border-color 0.15s;
+}
+
+.bf-memo::placeholder {
+  color: var(--text-subtle, #98A1AC);
+}
+
+.bf-memo:focus {
+  outline: none;
+  border-color: var(--brand, #F18091);
+}
+
+.bf-memo-counter {
+  font-size: 11px;
+  color: var(--text-subtle, #98A1AC);
+  text-align: right;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 시술 완료 액션 카드 (수정 모드) ─────────────────────── */
+.bf-complete-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 14px;
+  background: linear-gradient(180deg, var(--brand-bg, rgba(241,128,145,0.12)) 0%, var(--surface, #fff) 100%);
+  border: 0.5px solid rgba(241,128,145,0.18);
+  border-radius: 12px;
+  cursor: pointer;
+  margin-bottom: 18px;
+  width: 100%;
+  font-family: inherit;
+  text-align: left;
+  color: var(--text, #0F1419);
+  transition: transform 0.12s;
+}
+
+.bf-complete-action:active {
+  transform: scale(0.98);
+}
+
+.bf-ca-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--brand, #F18091);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.bf-ca-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text, #0F1419);
+  letter-spacing: -0.2px;
+}
+
+.bf-ca-sub {
+  font-size: 11px;
+  color: var(--text-muted, #5A6573);
+  margin-top: 1px;
+  font-weight: 500;
+}
+
+.bf-ca-chev {
+  color: var(--brand, #F18091);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ── 상태 토글 (수정 모드) ───────────────────────────────── */
+.bf-status-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+}
+
+.bf-status-btn {
+  padding: 10px 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: var(--surface-2, #F8F8F9);
+  border: 0.5px solid var(--border, rgba(15,20,25,0.06));
+  border-radius: 8px;
+  color: var(--text-muted, #5A6573);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.bf-status-btn.on.bf-st-confirmed {
+  background: var(--surface, #fff);
+  border-color: var(--text, #0F1419);
+  color: var(--text, #0F1419);
+}
+
+.bf-status-btn.on.bf-st-completed {
+  background: rgba(16, 165, 107, 0.1);
+  border-color: var(--ok, #10A56B);
+  color: var(--ok, #10A56B);
+}
+
+.bf-status-btn.on.bf-st-noshow {
+  background: rgba(220, 72, 72, 0.08);
+  border-color: var(--danger, #DC4848);
+  color: var(--danger, #DC4848);
+}
+
+.bf-status-btn.on.bf-st-cancelled {
+  background: var(--surface-2, #F8F8F9);
+  border-color: var(--text-muted, #5A6573);
+  color: var(--text-muted, #5A6573);
+  text-decoration: line-through;
+}
+
+/* ── 하단 CTA ────────────────────────────────────────────── */
+.bf-cta {
+  padding: 12px 18px 22px;
+  border-top: 0.5px solid var(--border, rgba(15,20,25,0.06));
+  display: flex;
+  gap: 8px;
+  position: sticky;
+  bottom: 0;
+  background: var(--surface, #fff);
+  z-index: 10;
+}
+
+.bf-btn-secondary {
+  flex: 1;
+  padding: 13px 0;
+  background: var(--surface-2, #F8F8F9);
+  color: var(--text, #0F1419);
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s;
+}
+
+.bf-btn-secondary:active {
+  background: var(--surface-3, #E8E8EA);
+}
+
+.bf-btn-primary {
+  flex: 2;
+  padding: 13px 0;
+  background: var(--brand, #F18091);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: -0.2px;
+  transition: opacity 0.12s;
+}
+
+.bf-btn-primary:active {
+  opacity: 0.85;
+}
+
+.bf-btn-danger {
+  flex: 1;
+  padding: 13px 0;
+  background: var(--surface-2, #F8F8F9);
+  color: var(--danger, #DC4848);
+  border: 0.5px solid rgba(220, 72, 72, 0.2);
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s;
+}
+
+.bf-btn-danger:active {
+  background: rgba(220, 72, 72, 0.06);
+}
+
+/* ── 빈 슬롯 자동 진입 배너 ──────────────────────────────── */
+.bf-auto-banner {
+  padding: 8px 14px;
+  background: var(--brand-bg, rgba(241,128,145,0.12));
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--brand-strong, #D35E70);
+  font-weight: 600;
+}
+
+/* ── 서비스 직접 입력 인풋 ────────────────────────────────── */
+.bf-svc-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--surface-2, #F8F8F9);
+  border: 0.5px solid var(--border, rgba(15,20,25,0.06));
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text, #0F1419);
+  font-family: inherit;
+  margin-top: 8px;
+  transition: border-color 0.15s;
+}
+
+.bf-svc-input:focus {
+  outline: none;
+  border-color: var(--brand, #F18091);
+}
+
+.bf-svc-input::placeholder {
+  color: var(--text-subtle, #98A1AC);
+}

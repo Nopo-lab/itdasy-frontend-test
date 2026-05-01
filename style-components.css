@@ -1,3 +1,18 @@
+/* ───── DM 시트 details/summary 글로벌 정리 (2026-04-30) ───── */
+details > summary { list-style: none; }
+details > summary::-webkit-details-marker { display: none; }
+details[open] > summary > svg:first-child { transform: rotate(180deg); }
+
+/* ───── 인스타 DM 풀스크린 진입/종료 애니메이션 (2026-04-30) ───── */
+@keyframes dmScreenIn {
+  from { transform: translateX(100%); opacity: 0.4; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes dmScreenOut {
+  from { transform: translateX(0);    opacity: 1; }
+  to   { transform: translateX(100%); opacity: 0.4; }
+}
+
 /* ───── 온보딩 캡션 테스트 팝업 ───── */
 #onboardingCaptionPopup {
   position: fixed; inset: 0; z-index: 6000;

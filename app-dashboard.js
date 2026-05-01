@@ -33,8 +33,26 @@
       return v;
     } catch (_) { return null; }
   }
+  // [P1-2A] stale-while-revalidate — TTL 만료 무관 캐시 반환 (없으면 null)
+  // 즉시 화면 표시 후 백그라운드에서 fresh fetch
+  function _getCachedStale(path) {
+    try {
+      const raw = sessionStorage.getItem(_cacheKey(path));
+      if (!raw) {
+        // sessionStorage 없으면 localStorage 도 시도 (세션 새로고침 후 첫 진입)
+        const lraw = localStorage.getItem(_cacheKey(path));
+        if (!lraw) return null;
+        const { v } = JSON.parse(lraw);
+        return v;
+      }
+      const { v } = JSON.parse(raw);
+      return v;
+    } catch (_) { return null; }
+  }
   function _setCached(path, v) {
     try { sessionStorage.setItem(_cacheKey(path), JSON.stringify({ t: Date.now(), v })); } catch(e){ /* storage full — silently ignore */ }
+    // [P1-2A] localStorage 에도 백업 (브라우저 닫고 새로 열어도 즉시 표시 가능)
+    try { localStorage.setItem(_cacheKey(path), JSON.stringify({ t: Date.now(), v })); } catch(e){ /* ignore */ }
   }
 
   async function _apiGet(path, opts) {
@@ -407,64 +425,82 @@
     // [2026-04-26 0초딜레이] 캐시에 모든 path 가 있으면 skeleton 없이 바로 렌더
     // (캐시 _cache 자체에 들어있으면 = sessionStorage 도 있음 → _cachedGet 즉시 반환)
     const period0 = _getPeriod();
-    const prevPath0 = _prevPeriodPath(period0);
-    const requiredPaths = [
-      '/revenue?period=month', '/revenue?period=today', '/revenue?period=' + period0,
-      prevPath0, '/customers', '/bookings'
-    ].filter(Boolean);
-    const allCached = requiredPaths.every(p => {
-      try {
-        const raw = sessionStorage.getItem(_cacheKey(p));
-        if (!raw) return false;
-        const { t } = JSON.parse(raw);
-        return Date.now() - t <= _CACHE_TTL;
-      } catch (_) { return false; }
-    });
-    if (!allCached) _renderLoading();
-
     const period = _getPeriod();
     const prevPath = _prevPeriodPath(period);
 
-    // 병렬 + 캐시 — 실패는 모두 graceful degrade
-    // brief 는 period 파라미터를 함께 전달 (백엔드가 무시하면 today 기준으로 fallback)
-    const [monthRev, prevRev, todayRev, periodRev, custList, bookList, ret, inventory, naverData, briefData] = await Promise.all([
-      _cachedGet('/revenue?period=month').catch(() => ({ items: [] })),
-      prevPath ? _cachedGet(prevPath).catch(() => ({ items: [] })) : Promise.resolve({ items: [] }),
-      _cachedGet('/revenue?period=today').catch(() => ({ items: [] })),
-      _cachedGet('/revenue?period=' + period).catch(() => ({ items: [] })),
-      _cachedGet('/customers').catch(() => ({ total: 0, items: [] })),
-      _cachedGet('/bookings').catch(() => ({ items: [] })),
-      _cachedGet('/retention/at-risk').catch(() => null),
-      _cachedGet('/inventory').catch(() => null),
-      _cachedGet('/naver-reviews/summary').catch(() => null),
-      _cachedGet('/today/brief?period=' + period).catch(() => null),
-    ]);
+    // [P1-2A] stale-while-revalidate — stale 캐시 즉시 렌더 → 백그라운드 fresh fetch → 다시 렌더
+    const allPaths = [
+      '/revenue?period=month',
+      prevPath,
+      '/revenue?period=today',
+      '/revenue?period=' + period,
+      '/customers',
+      '/bookings',
+      '/retention/at-risk',
+      '/inventory',
+      '/naver-reviews/summary',
+      '/today/brief?period=' + period,
+    ].filter(Boolean);
 
-    const stats = _aggregateStats(
-      monthRev.items || [],
-      todayRev.items || [],
-      periodRev.items || [],
-      custList.total != null ? custList.total : (custList.items || []).length,
-      bookList.items || [],
-    );
+    function _renderFromData(data) {
+      const [monthRev, prevRev, todayRev, periodRev, custList, bookList, ret, inventory, naverData, briefData] = data;
+      const stats = _aggregateStats(
+        (monthRev || {}).items || [],
+        (todayRev || {}).items || [],
+        (periodRev || {}).items || [],
+        (custList && custList.total != null) ? custList.total : ((custList || {}).items || []).length,
+        (bookList || {}).items || [],
+      );
+      const prevAmount = ((prevRev || {}).items || []).reduce((s, r) => s + (r.amount || 0), 0);
+      body.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+          ${_periodToggle(period)}
+        </div>
+        ${_heroSection(stats, prevAmount, ret, custList || { total: 0, items: [] }, briefData, period)}
+        <div class="db-sec"><h2>데이터 &amp; 인사이트</h2></div>
+        ${_dataInsightsList(naverData)}
+      `;
+      _bindEvents();
+    }
 
-    const prevAmount = (prevRev.items || []).reduce((s, r) => s + (r.amount || 0), 0);
-    const periodAmount = stats.period_amount;
-    const deltaPct = prevAmount > 0
-      ? Math.round(((periodAmount - prevAmount) / prevAmount) * 100)
-      : null;
+    // 1) stale 캐시 (sessionStorage 또는 localStorage) 즉시 렌더 — 0ms 체감
+    const staleData = allPaths.map(p => _getCachedStale(p));
+    const hasStale = staleData.some(v => v !== null && v !== undefined);
+    if (hasStale) {
+      _renderFromData([
+        staleData[0] || { items: [] },        // monthRev
+        staleData[1] || { items: [] },        // prevRev
+        staleData[2] || { items: [] },        // todayRev
+        staleData[3] || { items: [] },        // periodRev
+        staleData[4] || { total: 0, items: [] }, // custList
+        staleData[5] || { items: [] },        // bookList
+        staleData[6],                          // ret
+        staleData[7],                          // inventory
+        staleData[8],                          // naverData
+        staleData[9],                          // briefData
+      ]);
+    } else {
+      _renderLoading();
+    }
 
-    body.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
-        <!-- 본문 타이틀 제거 — 드로어 토픽바가 대체 -->
-        ${_periodToggle(period)}
-      </div>
-      ${_heroSection(stats, prevAmount, ret, custList, briefData, period)}
-      <div class="db-sec"><h2>데이터 &amp; 인사이트</h2></div>
-      ${_dataInsightsList(naverData)}
-    `;
-
-    _bindEvents();
+    // 2) 백그라운드 fresh fetch — 도착 후 다시 렌더 (조용히 갱신)
+    try {
+      const fresh = await Promise.all([
+        _cachedGet('/revenue?period=month').catch(() => ({ items: [] })),
+        prevPath ? _cachedGet(prevPath).catch(() => ({ items: [] })) : Promise.resolve({ items: [] }),
+        _cachedGet('/revenue?period=today').catch(() => ({ items: [] })),
+        _cachedGet('/revenue?period=' + period).catch(() => ({ items: [] })),
+        _cachedGet('/customers').catch(() => ({ total: 0, items: [] })),
+        _cachedGet('/bookings').catch(() => ({ items: [] })),
+        _cachedGet('/retention/at-risk').catch(() => null),
+        _cachedGet('/inventory').catch(() => null),
+        _cachedGet('/naver-reviews/summary').catch(() => null),
+        _cachedGet('/today/brief?period=' + period).catch(() => null),
+      ]);
+      _renderFromData(fresh);
+    } catch (_e) {
+      // fresh 실패해도 stale 화면은 이미 표시됨 — 조용히 무시
+    }
   }
 
   /* powerview:removed */

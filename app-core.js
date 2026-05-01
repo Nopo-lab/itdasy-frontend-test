@@ -1197,18 +1197,22 @@ function showTab(id, btn) {
   window.scrollTo(0, 0);
   document.body.scrollTop = 0;
   document.documentElement.scrollTop = 0;
-  // 홈 탭 활성화 시 통합 카드 렌더 (Task 5: TodayBrief 가 AI 제안까지 함께 그림)
-  if (id === 'home') {
-    if (window.TodayBrief && typeof window.TodayBrief.render === 'function') {
-      try { window.TodayBrief.render('home-today-brief'); } catch (_e) { /* ignore */ }
+  // [P1-2C] 탭 전환 시 init 호출 200ms 디바운스 — 연속 클릭 시 중복 fetch 방지
+  if (window._tabInitTimer) clearTimeout(window._tabInitTimer);
+  window._tabInitTimer = setTimeout(() => {
+    // 홈 탭 활성화 시 통합 카드 렌더 (Task 5: TodayBrief 가 AI 제안까지 함께 그림)
+    if (id === 'home') {
+      if (window.TodayBrief && typeof window.TodayBrief.render === 'function') {
+        try { window.TodayBrief.render('home-today-brief'); } catch (_e) { /* ignore */ }
+      }
     }
-  }
-  // 내샵관리 탭 활성화 시 대시보드 렌더 (Task 6: 이번달 브리핑 흡수)
-  if (id === 'dashboard') {
-    if (typeof window.initDashboardTab === 'function') {
-      try { window.initDashboardTab(); } catch (_e) { /* ignore */ }
+    // 내샵관리 탭 활성화 시 대시보드 렌더 (Task 6: 이번달 브리핑 흡수)
+    if (id === 'dashboard') {
+      if (typeof window.initDashboardTab === 'function') {
+        try { window.initDashboardTab(); } catch (_e) { /* ignore */ }
+      }
     }
-  }
+  }, 200);
 }
 
 // 태그 선택 (single)
@@ -1265,7 +1269,7 @@ function getSel(id) {
 // ─────────────────────────────────────────────
 //  Service Worker 등록 — 새 버전 배포 시 캐시 자동 갱신
 // ─────────────────────────────────────────────
-window.APP_BUILD = '20260430-v66-design-polish';
+window.APP_BUILD = '20260501-v73-customer-inventory-mockup';
 function _updateVersionBadge(swVer) {
   const el = document.getElementById('appVersionBadge');
   if (!el) return;

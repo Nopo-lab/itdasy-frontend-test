@@ -312,6 +312,163 @@
 }
 .ch-excel-btn:active { background: #F2F2F7; }
 
+/* ── 통계 미니카드 (고객/재고 공용) ───────────────────────── */
+.hub-stats-row {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  padding: 10px 16px 8px;
+}
+.hub-stat-mini {
+  background: #fff; border: 0.5px solid rgba(0,0,0,0.06);
+  border-radius: 12px; padding: 11px 12px;
+}
+.hub-stat-mini .lbl {
+  font-size: 10.5px; color: #98A1AC; font-weight: 600;
+}
+.hub-stat-mini .val {
+  font-size: 16px; font-weight: 700; color: #0F1419;
+  margin-top: 3px; letter-spacing: -0.3px;
+  font-variant-numeric: tabular-nums;
+}
+.hub-stat-mini .val.danger { color: #DC4848; }
+.hub-stat-mini .val.green  { color: #10A56B; }
+
+/* ── 필터 칩 (고객/재고 공용) ────────────────────────────── */
+.hub-filter-chips {
+  display: flex; gap: 5px;
+  padding: 0 16px 10px; overflow-x: auto;
+  scrollbar-width: none;
+}
+.hub-filter-chips::-webkit-scrollbar { display: none; }
+.hub-fc-chip {
+  flex-shrink: 0; padding: 6px 12px;
+  font-size: 12px; font-weight: 600;
+  background: #F8F8F9; border: 0.5px solid rgba(0,0,0,0.06);
+  border-radius: 999px; color: #5A6573;
+  cursor: pointer; transition: all 0.12s;
+  font-family: inherit;
+}
+.hub-fc-chip:active { transform: scale(0.96); }
+.hub-fc-chip.on {
+  background: #0F1419; color: #fff; border-color: #0F1419;
+}
+.hub-fc-chip.danger {
+  color: #DC4848; border-color: rgba(220,72,72,0.25);
+  background: rgba(220,72,72,0.05);
+}
+.hub-fc-chip.danger.on {
+  background: #DC4848; color: #fff; border-color: #DC4848;
+}
+
+/* ── 고객 카드 (아바타 + 배지) ─────────────────────────── */
+.cust-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; border-bottom: 0.5px solid rgba(0,0,0,0.06);
+  cursor: pointer; transition: background 0.12s;
+}
+.cust-row:active { background: #F8F8F9; }
+.cust-row:last-child { border-bottom: none; }
+.cust-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: linear-gradient(135deg, #FBD0D6, #F18091);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 14px; font-weight: 700;
+  flex-shrink: 0; letter-spacing: -0.3px;
+}
+.cust-avatar.gray {
+  background: linear-gradient(135deg, #C4C9D1, #5A6573);
+}
+.cust-info { flex: 1; min-width: 0; }
+.cust-name-row {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.cust-name {
+  font-size: 14px; font-weight: 700; color: #0F1419; letter-spacing: -0.2px;
+}
+.cust-visits {
+  font-size: 11px; color: #98A1AC; font-weight: 500;
+}
+.cust-meta {
+  font-size: 11.5px; color: #98A1AC;
+  margin-top: 3px; font-weight: 500;
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.cust-chev { color: #C7C7CC; flex-shrink: 0; display: flex; }
+
+/* ── 배지 (단골/회원권/신규/이탈/생일) ─────────────────── */
+.badge {
+  font-size: 9.5px; font-weight: 700;
+  padding: 2px 7px; border-radius: 999px;
+  letter-spacing: -0.1px;
+  display: inline-flex; align-items: center; gap: 3px;
+}
+.badge-regular  { background: #FBD0D6; color: #C73E52; }
+.badge-member   { background: #FBD0D6; color: #C73E52; }
+.badge-new      { background: rgba(16,165,107,0.12); color: #10A56B; }
+.badge-risk     { background: rgba(220,72,72,0.10); color: #DC4848; }
+.badge-birthday { background: #F2F2F7; color: #5A6573; }
+
+/* ── OCR 가격표 카드 (재고) ─────────────────────────────── */
+.ocr-card {
+  margin: 0 16px 12px; padding: 12px 14px;
+  background: linear-gradient(180deg, #FEF3F5 0%, #FFF 100%);
+  border: 0.5px solid rgba(232,90,110,0.18);
+  border-radius: 12px;
+  display: flex; align-items: center; gap: 10px;
+  cursor: pointer; transition: transform 0.12s, box-shadow 0.15s;
+  width: calc(100% - 32px); font-family: inherit;
+}
+.ocr-card:active { transform: scale(0.985); }
+.ocr-card:hover {
+  box-shadow: 0 4px 12px rgba(232,90,110,0.10);
+}
+.ocr-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: rgba(255,255,255,0.7);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; color: #E5586E;
+}
+.ocr-text { flex: 1; text-align: left; }
+.ocr-title {
+  font-size: 12.5px; font-weight: 700;
+  color: #4B1528; letter-spacing: -0.2px;
+}
+.ocr-sub {
+  font-size: 11px; color: #993556;
+  margin-top: 1px; font-weight: 500;
+}
+.ocr-chev { color: #E5586E; flex-shrink: 0; display: flex; }
+
+/* 재고 행 편집 버튼 */
+.ih-edit-btn {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: #F2F2F7; border: none;
+  display: flex; align-items: center; justify-content: center;
+  color: #98A1AC; cursor: pointer; flex-shrink: 0;
+  transition: all 0.12s; font-family: inherit;
+}
+.ih-edit-btn:active { background: rgba(0,0,0,0.08); transform: scale(0.92); }
+[data-theme="dark"] .ih-edit-btn { background: var(--surface-2); color: var(--text-subtle); }
+
+/* ── 재고 부족 강화 (badge + forecast) ──────────────────── */
+.inv-low-badge {
+  font-size: 9.5px; font-weight: 700;
+  padding: 1px 7px; border-radius: 999px;
+  background: #DC4848; color: #fff;
+  display: inline-flex; align-items: center;
+}
+.inv-forecast {
+  font-size: 10.5px; color: #DC4848; font-weight: 600;
+  display: inline-flex; align-items: center;
+}
+
+/* low 섹션 헤더 — 이모지 → SVG 아이콘 */
+.ih-low-hd .ic {
+  width: 14px; height: 14px; flex-shrink: 0;
+}
+.ih-ok-hd-sec {
+  display: flex; align-items: center; gap: 6px;
+}
+
 /* ── 다크모드 ─────────────────────────────────────────────── */
 [data-theme="dark"] .hub-overlay,
 [data-theme="dark"] .rr-overlay      { background: var(--surface); }
@@ -381,3 +538,28 @@
 [data-theme="dark"] .ch-phone-tail   { color: var(--text-subtle); }
 [data-theme="dark"] .ch-sub          { color: var(--text-muted); }
 [data-theme="dark"] .ch-excel-btn    { border-color: var(--border); background: var(--surface-2); color: var(--text-muted); }
+
+/* 통계 미니카드 / 필터 칩 / 고객 카드 / 배지 / OCR — 다크 */
+[data-theme="dark"] .hub-stat-mini   { background: var(--surface-2); border-color: var(--border); }
+[data-theme="dark"] .hub-stat-mini .lbl { color: var(--text-subtle); }
+[data-theme="dark"] .hub-stat-mini .val { color: var(--text); }
+
+[data-theme="dark"] .hub-fc-chip     { background: var(--surface-2); border-color: var(--border); color: var(--text-muted); }
+[data-theme="dark"] .hub-fc-chip.on  { background: var(--text); color: var(--surface); border-color: var(--text); }
+
+[data-theme="dark"] .cust-row        { border-color: var(--border); }
+[data-theme="dark"] .cust-row:active { background: var(--surface-2); }
+[data-theme="dark"] .cust-name       { color: var(--text); }
+[data-theme="dark"] .cust-visits,
+[data-theme="dark"] .cust-meta       { color: var(--text-subtle); }
+
+[data-theme="dark"] .badge-regular,
+[data-theme="dark"] .badge-member    { background: rgba(241,128,145,0.18); color: #F8B5BF; }
+[data-theme="dark"] .badge-new       { background: rgba(16,165,107,0.18); color: #4ADE80; }
+[data-theme="dark"] .badge-risk      { background: rgba(220,72,72,0.18); color: #FCA5A5; }
+[data-theme="dark"] .badge-birthday  { background: var(--surface-2); color: var(--text-muted); }
+
+[data-theme="dark"] .ocr-card        { background: linear-gradient(180deg, rgba(241,128,145,0.10), var(--surface-2)); border-color: rgba(241,128,145,0.22); }
+[data-theme="dark"] .ocr-icon        { background: rgba(255,255,255,0.06); color: var(--brand); }
+[data-theme="dark"] .ocr-title       { color: var(--text); }
+[data-theme="dark"] .ocr-sub         { color: var(--text-muted); }

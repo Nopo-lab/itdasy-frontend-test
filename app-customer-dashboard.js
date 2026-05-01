@@ -89,11 +89,11 @@
     if (sheet) return sheet;
     sheet = document.createElement('div');
     sheet.id = 'customerDashSheet';
-    sheet.style.cssText = 'position:fixed;inset:0;z-index:9999;display:none;background:rgba(0,0,0,0.5);';
+    sheet.style.cssText = 'position:fixed;inset:0;z-index:9999;display:none;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;padding:20px;';
     sheet.innerHTML = `
-      <div style="position:absolute;inset:auto 0 0 0;background:var(--bg,#fff);border-radius:20px 20px 0 0;max-height:95vh;display:flex;flex-direction:column;overflow:hidden;">
-        <div id="cdHero" style="padding:20px 18px 24px;color:#fff;position:relative;"></div>
-        <div id="cdBody" style="flex:1;overflow-y:auto;padding:16px 18px;padding-bottom:max(20px,env(safe-area-inset-bottom));"></div>
+      <div class="cust-detail" style="position:relative;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,0.15);">
+        <button onclick="closeCustomerDashboard()" style="position:absolute;top:14px;right:14px;background:var(--surface-2);border:none;width:30px;height:30px;border-radius:50%;color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;">✕</button>
+        <div id="cdBody"></div>
       </div>
     `;
     document.body.appendChild(sheet);
@@ -103,157 +103,94 @@
 
   function _renderHero(d) {
     const c = d.customer;
-    const seg = SEGMENT_STYLE[d.segment] || SEGMENT_STYLE.regular;
-    const retention = RETENTION_BADGE[d.retention?.status];
+    const isRegular = !!c.is_regular;
+    const isBirthday = (() => {
+      if (!c.birthday) return false;
+      const raw = String(c.birthday).trim();
+      const m = raw.match(/^(\d{1,2})[-/](\d{1,2})$/) || raw.match(/^\d{4}-(\d{1,2})-(\d{1,2})/);
+      if (!m) return false;
+      const today = new Date();
+      return +m[1] === today.getMonth() + 1 && +m[2] === today.getDate();
+    })();
+    const badges = [];
+    if (isRegular) badges.push(`<span class="badge badge-regular">단골</span>`);
+    if (c.membership_active) badges.push(`<span class="badge badge-member">회원권 ${(c.membership_balance/10000).toFixed(1)}만</span>`);
+    if (isBirthday) badges.push(`<span class="badge badge-birthday">오늘 생일</span>`);
+
+    const phoneStr = c.phone ? _esc(c.phone) : '';
+    const dobStr = c.birthday ? _esc(c.birthday) : '';
+    const fvStr = c.first_visit_at ? `첫 방문 ${_dateShort(c.first_visit_at)}` : '';
+    const metas = [phoneStr, dobStr, fvStr].filter(Boolean).join(' · ');
+
     return `
-      <div style="background:${seg.bg};margin:-20px -18px 0;padding:20px 18px 28px;position:relative;">
-        <button onclick="closeCustomerDashboard()" style="position:absolute;top:14px;right:14px;background:rgba(255,255,255,0.25);border:none;width:32px;height:32px;border-radius:50%;color:#fff;font-size:18px;cursor:pointer;backdrop-filter:blur(4px);">✕</button>
-        <div style="display:flex;align-items:center;gap:14px;">
-          <div style="width:62px;height:62px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:#fff;backdrop-filter:blur(4px);">
-            ${_esc(_initial(c.name))}
-          </div>
-          <div style="flex:1;min-width:0;">
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;">
-              <strong style="font-size:20px;color:#fff;">${_esc(c.name)}</strong>
-              <span style="font-size:11px;padding:2px 8px;background:rgba(255,255,255,0.25);border-radius:4px;color:#fff;font-weight:700;">${seg.icon} ${seg.label}</span>
-              ${retention ? `<span style="font-size:10px;padding:2px 8px;background:${retention.bg};color:${retention.color};border-radius:4px;font-weight:700;">⚠ ${retention.label}</span>` : ''}
-            </div>
-            ${c.phone ? `<div style="font-size:12px;color:rgba(255,255,255,0.9);">${_esc(c.phone)}</div>` : ''}
-            ${(c.tags || []).length ? `<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;">
-              ${c.tags.slice(0, 4).map(t => `<span style="font-size:10px;padding:2px 6px;background:rgba(255,255,255,0.22);color:#fff;border-radius:4px;">#${_esc(t)}</span>`).join('')}
-            </div>` : ''}
-          </div>
+      <div class="cd-head" style="padding-right: 28px;">
+        <div class="cd-avatar-lg">${_esc(_initial(c.name))}</div>
+        <div class="cd-name-row">
+          <div class="cd-name">${_esc(c.name)} ${badges.join('')}</div>
+          <div class="cd-meta">${metas}</div>
         </div>
+        <button class="cd-edit" data-act="edit">편집</button>
       </div>
     `;
   }
 
   function _renderStats(d) {
     const s = d.stats;
-    // E4 — 매너 점수 + 노쇼 횟수 (80 미만 = 빨간 색)
-    const manner = (d.customer && d.customer.manner_score != null) ? +d.customer.manner_score : 100;
-    const nsCount = (d.customer && d.customer.no_show_count) ? +d.customer.no_show_count : 0;
-    const mannerColor = manner < 60 ? '#d95f5f' : (manner < 80 ? '#e89000' : '#222');
-    const cards = [
-      { icon: '💰', label: '누적 매출', value: _formatKRW(s.total_revenue), sub: `평균 ${_formatKRW(s.avg_ticket)}` },
-      { icon: '🎯', label: '방문 횟수', value: `${s.visit_count}회`, sub: s.last_visit_at ? `최근 ${_relativeDays(s.last_visit_at)}` : '기록 없음' },
-      { icon: '⭐', label: '후기 평균', value: s.nps_avg != null ? `${s.nps_avg}/10` : '—', sub: s.nps_latest != null ? `최근 ${s.nps_latest}` : '응답 없음' },
-      { icon: '📅', label: '다가올 예약', value: `${s.upcoming_bookings}건`, sub: s.first_visit_at ? `첫 방문 ${_dateShort(s.first_visit_at)}` : '신규' },
-      { icon: '🤝', label: '매너 점수', value: `${manner}점`, sub: nsCount > 0 ? `노쇼 ${nsCount}회` : '노쇼 없음', valueColor: mannerColor },
-    ];
+    const bal = d.customer && d.customer.membership_active ? +d.customer.membership_balance : 0;
     return `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
-        ${cards.map(c => `
-          <div style="padding:14px;background:#fff;border:1px solid rgba(0,0,0,0.06);border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-            <div style="font-size:10px;color:#888;margin-bottom:6px;">${c.icon} ${_esc(c.label)}</div>
-            <div style="font-size:18px;font-weight:800;color:${c.valueColor || '#222'};line-height:1.2;">${_esc(c.value)}</div>
-            <div style="font-size:10px;color:#aaa;margin-top:3px;">${_esc(c.sub)}</div>
-          </div>
-        `).join('')}
+      <div class="cd-stats">
+        <div class="cd-stat"><div class="cd-stat-value">${s.visit_count || 0}회</div><div class="cd-stat-label">방문</div></div>
+        <div class="cd-stat"><div class="cd-stat-value">${_formatKRW(s.total_revenue)}</div><div class="cd-stat-label">총 매출</div></div>
+        <div class="cd-stat"><div class="cd-stat-value">${bal > 0 ? (bal/10000).toFixed(1) + '만' : '0'}</div><div class="cd-stat-label">회원권 잔액</div></div>
       </div>
     `;
   }
 
   function _renderActions(id) {
-    return `
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:16px;">
-        <button data-act="booking" style="padding:10px 6px;border:1px solid #eee;border-radius:10px;background:#fff;cursor:pointer;font-size:11px;font-weight:700;color:#555;">📅<br>예약</button>
-        <button data-act="revenue" style="padding:10px 6px;border:1px solid #eee;border-radius:10px;background:#fff;cursor:pointer;font-size:11px;font-weight:700;color:#555;">💰<br>매출</button>
-        <button data-act="nps" style="padding:10px 6px;border:1px solid #eee;border-radius:10px;background:#fff;cursor:pointer;font-size:11px;font-weight:700;color:#555;">⭐<br>후기</button>
-      </div>
-    `;
+    return ``; // Actions are moved to the bottom
   }
 
   function _renderRegularMembership(d) {
     const c = d.customer || {};
-    const isRegular = !!c.is_regular;
-    const memOn = !!c.membership_active;
-    const bal = +c.membership_balance || 0;
-    const lowBal = memOn && bal > 0 && bal < 30000;
-    const exp = c.membership_expires_at;
-    const expDisplay = exp ? _dateShort(exp) : '미설정';
-    const expInputVal = exp ? String(exp).slice(0, 10) : '';
-    const balColor = lowBal ? '#F97316' : '#A78BFA';
-    return `
-      <div style="margin-bottom:14px;">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
-          <strong style="font-size:13px;">
-            <svg width="13" height="13" aria-hidden="true" style="vertical-align:-2px;"><use href="#ic-star"/></svg>
-            단골 · 멤버십
-          </strong>
-        </div>
-        <div style="background:#fff;border-radius:14px;border:1px solid rgba(0,0,0,0.05);overflow:hidden;">
-          <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid rgba(0,0,0,0.05);cursor:pointer;">
-            <span style="font-size:13px;font-weight:700;flex:1;display:inline-flex;align-items:center;gap:6px;">
-              <span class="${isRegular ? 'cm-star-on' : ''}" style="color:#F18091;display:inline-flex;align-items:center;">
-                <svg width="14" height="14" aria-hidden="true"><use href="#ic-star"/></svg>
-              </span>
-              단골 등록
-            </span>
-            <span class="cm-toggle ${isRegular ? 'cm-toggle--on' : ''}" data-cm-toggle="is_regular"
-                  role="switch" aria-checked="${isRegular}" tabindex="0"
-                  style="position:relative;width:44px;height:24px;background:${isRegular ? '#F18091' : '#D1D5DB'};border-radius:999px;transition:background 0.2s;cursor:pointer;flex-shrink:0;">
-              <span style="position:absolute;top:2px;left:${isRegular ? '22px' : '2px'};width:20px;height:20px;background:#fff;border-radius:50%;transition:left 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2);"></span>
-            </span>
-          </label>
-          <!-- [2026-04-29 B2] 멤버십 가입 토글 제거 — 충전 시 자동 active=true 라 토글 무용. 미가입 시 1탭 충전 진입 -->
-          <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;${memOn ? 'border-bottom:1px solid rgba(0,0,0,0.05);' : ''}">
-            <span style="font-size:13px;font-weight:700;flex:1;display:inline-flex;align-items:center;gap:6px;">
-              <span style="color:#A78BFA;display:inline-flex;align-items:center;">
-                <svg width="14" height="14" aria-hidden="true"><use href="#ic-sparkles"/></svg>
-              </span>
-              회원권 ${memOn ? '<span style="font-size:11px;color:#A78BFA;font-weight:700;">활성</span>' : '<span style="font-size:11px;color:#999;font-weight:600;">미가입</span>'}
-            </span>
-            ${!memOn ? `
-              <button data-act="ms-topup" data-cust-id="${c.id}" data-cust-name="${_esc(c.name||'')}" style="padding:8px 14px;background:linear-gradient(135deg,#A78BFA,#C4B5FD);color:#fff;border:none;border-radius:999px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;">💳 시작</button>
-            ` : ''}
-          </div>
-          ${memOn ? `
-            <div style="padding:12px 14px;background:#FAFAFA;">
-              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:8px;">
-                <span style="font-size:11px;color:#888;">잔액</span>
-                <strong style="font-size:18px;font-weight:800;color:${balColor};">${_formatKRW(bal)}</strong>
-              </div>
-              ${lowBal ? `<div style="font-size:10px;color:#F97316;margin-bottom:8px;">⚠ 잔액이 3만원 이하예요. 충전 안내해 주세요.</div>` : ''}
-              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">
-                <button data-cm-charge="50000" style="padding:8px 4px;border:1px solid #E5E7EB;border-radius:10px;background:#fff;cursor:pointer;font-size:11px;font-weight:700;color:#A78BFA;">+5만원</button>
-                <button data-cm-charge="100000" style="padding:8px 4px;border:1px solid #E5E7EB;border-radius:10px;background:#fff;cursor:pointer;font-size:11px;font-weight:700;color:#A78BFA;">+10만원</button>
-                <button data-cm-charge="custom" style="padding:8px 4px;border:1px solid #E5E7EB;border-radius:10px;background:#fff;cursor:pointer;font-size:11px;font-weight:700;color:#555;">직접 입력</button>
-              </div>
-              <div style="display:flex;align-items:center;gap:8px;">
-                <span style="font-size:11px;color:#888;flex:1;">만료: <strong style="color:#555;font-weight:700;">${_esc(expDisplay)}</strong></span>
-                <input type="date" data-cm-expires value="${_esc(expInputVal)}" style="padding:6px 8px;border:1px solid #E5E7EB;border-radius:8px;font-size:11px;background:#fff;" />
-              </div>
-            </div>
-          ` : ''}
-        </div>
+    const tags = Array.isArray(c.tags) ? c.tags : [];
+    
+    // 기본 정보 & 태그 렌더링
+    const nextBooking = d.stats?.upcoming_bookings > 0 ? '예약 있음' : '없음';
+    const avgCycle = c.avg_cycle_weeks ? `${c.avg_cycle_weeks}주` : '—';
+
+    let html = `
+      <div class="cd-section">
+        <div class="cd-sec-title">기본 정보</div>
+        <div class="cd-info-row"><div class="cd-info-label">평균 방문 주기</div><div class="cd-info-value">${avgCycle}</div></div>
+        <div class="cd-info-row"><div class="cd-info-label">다음 예약</div><div class="cd-info-value">${nextBooking}</div></div>
       </div>
     `;
+
+    if (tags.length) {
+      html += `
+        <div class="cd-section">
+          <div class="cd-sec-title">태그</div>
+          <div class="cd-tags">
+            ${tags.map(t => `<div class="cd-tag">${_esc(t)}</div>`).join('')}
+          </div>
+        </div>
+      `;
+    }
+    return html;
   }
 
   function _renderRevenues(rows) {
-    if (!rows || !rows.length) return _emptySection('💰 시술 이력', '아직 기록된 매출이 없어요');
-    const total = rows.reduce((s, r) => s + (r.amount || 0), 0);
-    const marginTotal = rows.reduce((s, r) => s + (r.net_margin || 0), 0);
+    if (!rows || !rows.length) return '';
     return `
-      <div style="margin-bottom:14px;">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
-          <strong style="font-size:13px;">💰 시술 이력</strong>
-          <span style="font-size:10px;color:#888;">최근 ${rows.length}건 · 합 ${_formatKRW(total)}${marginTotal ? ' · 실 ' + _formatKRW(marginTotal) : ''}</span>
-        </div>
-        <div style="background:#fff;border-radius:12px;border:1px solid rgba(0,0,0,0.05);overflow:hidden;">
-          ${rows.map((r, i) => `
-            <div style="padding:10px 12px;${i > 0 ? 'border-top:1px solid rgba(0,0,0,0.05);' : ''}display:flex;align-items:center;gap:10px;">
-              ${r.image_url
-                ? `<img src="${_esc(r.image_url)}" loading="lazy" style="width:48px;height:48px;border-radius:8px;object-fit:cover;background:#f2f2f2;flex-shrink:0;" alt="">`
-                : `<div style="width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#fff0f5,#ffe4ec);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">💇</div>`}
-              <div style="flex:1;min-width:0;">
-                <div style="font-size:13px;font-weight:700;">${_formatKRW(r.amount)} <span style="font-size:10px;font-weight:400;color:#888;margin-left:4px;">${_esc(r.service_name || '시술')}</span></div>
-                <div style="font-size:10px;color:#aaa;margin-top:2px;">${_dateShort(r.recorded_at)} · ${_esc(({card:'카드',cash:'현금',transfer:'계좌이체',bank_transfer:'계좌이체',etc:'기타'}[r.method])||r.method||'카드')}${r.net_margin ? ` · <span style="color:#2B8C7E;">실 ${_formatKRW(r.net_margin)}</span>` : ''}</div>
-              </div>
-            </div>
-          `).join('')}
-        </div>
+      <div class="cd-section">
+        <div class="cd-sec-title">최근 방문 이력</div>
+        ${rows.slice(0, 5).map(r => `
+          <div class="cd-history-row">
+            <div class="cd-history-date">${String(r.recorded_at || '').slice(5,10).replace('-','/')}</div>
+            <div class="cd-history-text">${_esc(r.service_name || '시술')}</div>
+            <div class="cd-history-amount">${(r.amount/10000).toFixed(1)}만원</div>
+          </div>
+        `).join('')}
       </div>
     `;
   }
@@ -322,20 +259,12 @@
   }
 
   function _renderEditBar(id, customer) {
-    // [2026-04-29] 회원권 빠른 진입 — 활성 회원권이면 충전/사용 버튼, 아니면 충전 버튼만
-    const memOn = !!customer?.membership_active;
-    const bal = +customer?.membership_balance || 0;
-    const memberBtns = memOn
-      ? `
-        <button data-act="ms-topup" data-cust-id="${id}" data-cust-name="${_esc(customer.name || '')}" style="flex:1;padding:11px;border:1px solid #A78BFA;border-radius:10px;background:#F3E8FF;color:#6B21A8;font-size:12px;font-weight:700;cursor:pointer;">💳 충전</button>
-        <button data-act="ms-use" data-cust-id="${id}" data-cust-name="${_esc(customer.name || '')}" data-cust-bal="${bal}" style="flex:1;padding:11px;border:1px solid #0288D1;border-radius:10px;background:#E1F5FE;color:#01579B;font-size:12px;font-weight:700;cursor:pointer;">✂️ 사용</button>
-      `
-      : `
-        <button data-act="ms-topup" data-cust-id="${id}" data-cust-name="${_esc(customer.name || '')}" style="flex:1;padding:11px;border:1px solid #A78BFA;border-radius:10px;background:#F3E8FF;color:#6B21A8;font-size:12px;font-weight:700;cursor:pointer;">💳 회원권 시작</button>
-      `;
     return `
-      <div style="display:flex;gap:8px;margin-bottom:8px;">${memberBtns}</div>
-      <button data-act="edit" style="width:100%;padding:11px;border:1px solid rgba(0,0,0,0.08);border-radius:10px;background:#fff;color:#555;font-size:12px;font-weight:700;cursor:pointer;">✏️  정보 편집</button>
+      <div class="cd-actions">
+        <button class="cd-act-btn" data-act="revenue">매출 입력</button>
+        <button class="cd-act-btn" data-act="booking">예약 잡기</button>
+        <button class="cd-act-btn primary" data-act="ms-topup" data-cust-id="${id}" data-cust-name="${_esc(customer.name||'')}">회원권 충전</button>
+      </div>
     `;
   }
 
@@ -471,36 +400,27 @@
     _currentCustomerId = id;
     _ensureSheet();
     const sheet = document.getElementById('customerDashSheet');
-    sheet.style.display = 'block';
+    sheet.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-    const hero = sheet.querySelector('#cdHero');
     const body = sheet.querySelector('#cdBody');
-    hero.innerHTML = '<div style="padding:20px;color:#888;">불러오는 중…</div>';
-    body.innerHTML = '';
+    body.innerHTML = '<div style="padding:20px;color:#888;">불러오는 중…</div>';
     try {
       const d = await _apiGet('/customers/' + id + '/dashboard');
-      hero.innerHTML = '';
-      hero.insertAdjacentHTML('beforeend', _renderHero(d));
       body.innerHTML = `
+        ${_renderHero(d)}
         ${_renderStats(d)}
-        ${_renderActions(d.customer.id)}
-        ${_renderMemo(d)}
         ${_renderRegularMembership(d)}
         ${_renderRevenues(d.recent_revenues)}
-        ${_renderBookings(d.recent_bookings)}
-        ${_renderNps(d.recent_nps)}
         ${_renderEditBar(d.customer.id, d.customer)}
       `;
       _bindActions(d.customer.id, d.customer.name);
       _bindMembership(d);
     } catch (e) {
       console.warn('[customer-dashboard] 실패:', e);
-      hero.innerHTML = '';
       body.innerHTML = `
         <div style="padding:40px 20px;text-align:center;color:#c00;">
           <div style="font-size:36px;margin-bottom:10px;">😢</div>
           <div style="font-size:13px;">대시보드를 불러오지 못했어요</div>
-          <button onclick="closeCustomerDashboard()" style="margin-top:14px;padding:10px 20px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;">닫기</button>
         </div>
       `;
     }

@@ -7,7 +7,7 @@
 //    - /api/, /auth/, /data-export/  → network-first (항상 최신)
 //    - app-*.js, *.css, *.html       → cache-first + 백그라운드 revalidate
 // ─────────────────────────────────────────────
-const CACHE_VERSION = '20260430-v66-design-polish';
+const CACHE_VERSION = '20260501-v73-customer-inventory-mockup';
 const CACHE_NAME    = `itdasy-${CACHE_VERSION}`;
 const API_CACHE_NAME = `itdasy-api-${CACHE_VERSION}`;
 
@@ -20,6 +20,10 @@ const _API_GET_FALLBACK_PATHS = [
   '/inventory',
   '/today/brief',
   '/services',
+  // [P2] 대시보드 추가 fetch 도 오프라인 폴백 가능하게
+  '/retention/at-risk',
+  '/naver-reviews/summary',
+  '/notifications/pending',
 ];
 function _isCacheableApiGet(req, url) {
   if (req.method !== 'GET') return false;
@@ -61,6 +65,9 @@ const STATIC_ASSETS = [
   './app-settings-hub.js',
   './app-assistant-undo.js',
   './app-sheet-anim.js',
+  './app-dm-confirm-queue.js',
+  './app-dm-manual-replies.js',
+  './app-dm-conversations.js',
   './manifest.json',
   './offline.html',
   'https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600&family=Noto+Sans+KR:wght@300;400;500&display=swap',

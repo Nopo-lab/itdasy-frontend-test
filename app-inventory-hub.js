@@ -54,6 +54,25 @@
     };
   }
 
+  /* ── 일일 사용량 추정 → 소진 예상일 (forecast) ───────────────── */
+  function _forecastDays(r) {
+    const qty = +r.quantity || 0;
+    if (qty <= 0) return 0;
+    // r.daily_usage 있으면 사용, 없으면 단순 추정 (1일 평균 1개로 가정)
+    const usage = (+r.daily_usage > 0) ? +r.daily_usage : 1;
+    return Math.max(1, Math.floor(qty / usage));
+  }
+
+  /* ── 통계 ─────────────────────────────────────────────────── */
+  function _stats() {
+    const total = _state.rows.length;
+    let low = 0, ok = 0;
+    _state.rows.forEach(r => {
+      ((+r.quantity || 0) < (+r.threshold || 0)) ? low++ : ok++;
+    });
+    return { total, low, ok };
+  }
+
   /* ── 렌더 ──────────────────────────────────────────────────── */
   function _render() {
     const overlay = document.getElementById(OID);
@@ -61,9 +80,34 @@
     const ac = window.AppAutocomplete ? window.AppAutocomplete.renderDatalist() : '';
     const { low, ok } = _partition(_state.rows);
     overlay.innerHTML = ac + _renderHeader() +
-      _renderInputBar() + _renderPendingBanner() +
+      _renderOcrCard() + _renderInputBar() + _renderPendingBanner() +
+      _renderStats() +
       _renderLowBlock(low) + _renderOkBlock(ok);
     _bindEvents();
+  }
+
+  function _renderOcrCard() {
+    return `<button class="ocr-card" data-act="ocr">
+      <div class="ocr-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-camera"/></svg>
+      </div>
+      <div class="ocr-text">
+        <div class="ocr-title">가격표 사진 한 장으로 한 번에</div>
+        <div class="ocr-sub">AI가 자동으로 재고 정리</div>
+      </div>
+      <span class="ocr-chev">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-chevron-right"/></svg>
+      </span>
+    </button>`;
+  }
+
+  function _renderStats() {
+    const s = _stats();
+    return `<div class="hub-stats-row">
+      <div class="hub-stat-mini"><div class="lbl">전체</div><div class="val">${s.total}개</div></div>
+      <div class="hub-stat-mini"><div class="lbl">부족</div><div class="val${s.low ? ' danger' : ''}">${s.low}개</div></div>
+      <div class="hub-stat-mini"><div class="lbl">정상</div><div class="val${s.ok ? ' green' : ''}">${s.ok}개</div></div>
+    </div>`;
   }
 
   function _renderHeader() {
@@ -107,64 +151,92 @@
 
   function _renderLowBlock(low) {
     if (!low.length) return '';
-    return `<div class="ih-low-hd">🔴 지금 부족해요 <span style="font-size:13px;font-weight:500;color:#666;">(${low.length})</span></div>
-      ${low.map(r => _renderLowCard(r)).join('')}`;
+    return `
+      <div style="display:flex; justify-content:space-between; align-items:baseline; padding:6px 16px; margin-bottom:8px;">
+        <span style="font-size:11px; color:#DC4848; font-weight:700; letter-spacing:0.3px; text-transform:uppercase;">지금 부족해요</span>
+        <span style="font-size:11px; color:#DC4848; font-weight:700;">${low.length}건</span>
+      </div>
+      <div class="inv-list danger">
+        ${low.map(r => _renderLowCard(r)).join('')}
+      </div>
+    `;
   }
 
   function _renderLowCard(r) {
     if (_state.editingId === r.id) return _renderEditRow(r, true);
-    return `<div class="ih-low-card" data-id="${r.id}">
-      <div>
-        <div class="ih-item-name">${_esc(r.name)}</div>
-        <div class="ih-item-meta">임계 ${r.threshold || 0} · ${_esc(({nail:'네일',hair:'헤어',lash:'속눈썹',skin:'피부',hair_extension:'붙임머리',etc:'기타'}[r.category])||r.category||'—')}</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <div class="ih-stepper">
-          <button class="ih-step" data-act="step" data-id="${r.id}" data-delta="-1">−</button>
-          <span class="ih-qty">${r.quantity}</span>
-          <button class="ih-step" data-act="step" data-id="${r.id}" data-delta="1">+</button>
+    const cat = ({nail:'네일',hair:'헤어',lash:'속눈썹',skin:'피부',hair_extension:'붙임머리',etc:'기타'}[r.category]) || r.category || '—';
+    const forecast = _forecastDays(r);
+    return `
+      <div class="inv-item low" data-id="${r.id}">
+        <div class="inv-info">
+          <div class="inv-name-row">
+            <div class="inv-name">${_esc(r.name)}</div>
+            <div class="inv-low-badge">부족</div>
+          </div>
+          <div class="inv-meta">
+            임계 ${r.threshold || 0} · ${_esc(cat)}
+            ${forecast > 0 ? ` · <span class="inv-forecast">${forecast}일 후 소진 예상</span>` : ''}
+          </div>
         </div>
-        <button style="border:none;background:transparent;color:#bbb;cursor:pointer;font-size:13px;padding:4px;" data-act="edit" data-id="${r.id}">✎</button>
+        <div class="stepper">
+          <button class="stepper-btn" data-act="step" data-id="${r.id}" data-delta="-1">−</button>
+          <div class="stepper-val low">${r.quantity}</div>
+          <button class="stepper-btn" data-act="step" data-id="${r.id}" data-delta="1">+</button>
+        </div>
+        <button class="inv-edit" data-act="edit" data-id="${r.id}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-edit-3"/></svg>
+        </button>
       </div>
-    </div>`;
+    `;
   }
 
   function _renderOkBlock(ok) {
     if (!ok.length && !_state.rows.length) {
       return `<div class="hub-empty">
-        <div class="hub-empty-icon">📦</div>
+        <div class="hub-empty-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-package"/></svg></div>
         <div class="hub-empty-title">재고가 비어있어요</div>
         <div class="hub-empty-desc">품목 이름 적고 Enter 로 추가하세요</div>
       </div>`;
     }
     if (!ok.length) return '';
-    return `<div class="hub-sec-hd">
-        <span>🟢 정상</span><span class="hub-sec-count">${ok.length}</span>
+    return `
+      <div style="display:flex; justify-content:space-between; align-items:baseline; padding:6px 16px; margin-bottom:8px;">
+        <span style="font-size:11px; color:var(--text-3); font-weight:700; letter-spacing:0.3px; text-transform:uppercase;">정상 재고</span>
+        <span style="font-size:11px; color:var(--text-3); font-weight:700;">${ok.length}개</span>
       </div>
-      ${ok.map(r => _renderOkRow(r)).join('')}`;
+      <div class="inv-list">
+        ${ok.map(r => _renderOkRow(r)).join('')}
+      </div>
+    `;
   }
 
   function _renderOkRow(r) {
     if (_state.editingId === r.id) return _renderEditRow(r, false);
-    return `<div class="ih-ok-row" data-id="${r.id}">
-      <div>
-        <div class="ih-item-name">${_esc(r.name)}</div>
-        <div class="ih-ok-meta">${r.quantity}${_esc(r.unit || '개')} · 임계 ${r.threshold || 0}</div>
-      </div>
-      <div class="ih-ok-stepper-wrap" style="display:flex;align-items:center;gap:6px;">
-        <div class="ih-stepper">
-          <button class="ih-step" data-act="step" data-id="${r.id}" data-delta="-1">−</button>
-          <span class="ih-qty">${r.quantity}</span>
-          <button class="ih-step" data-act="step" data-id="${r.id}" data-delta="1">+</button>
+    const lastIn = r.last_received_at || r.last_received_date;
+    const lastTxt = lastIn ? `마지막 입고 ${String(lastIn).slice(5,10).replace('-', '/')}` : '';
+    return `
+      <div class="inv-item" data-id="${r.id}">
+        <div class="inv-info">
+          <div class="inv-name-row">
+            <div class="inv-name">${_esc(r.name)}</div>
+          </div>
+          <div class="inv-meta">임계 ${r.threshold || 0}${lastTxt ? ` · ${_esc(lastTxt)}` : ''}</div>
         </div>
-        <button style="border:none;background:transparent;color:#bbb;cursor:pointer;font-size:13px;padding:4px;" data-act="edit" data-id="${r.id}">✎</button>
+        <div class="stepper">
+          <button class="stepper-btn" data-act="step" data-id="${r.id}" data-delta="-1">−</button>
+          <div class="stepper-val">${r.quantity}</div>
+          <button class="stepper-btn" data-act="step" data-id="${r.id}" data-delta="1">+</button>
+        </div>
+        <button class="inv-edit" data-act="edit" data-id="${r.id}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-edit-3"/></svg>
+        </button>
       </div>
-    </div>`;
+    `;
   }
 
   function _renderEditRow(r, isLow) {
-    const wrap = isLow ? 'ih-low-card' : 'ih-ok-row';
-    return `<div class="${wrap} editing" data-id="${r.id}" style="flex-direction:column;align-items:stretch;gap:6px;">
+    const cls = isLow ? 'inv-item low editing' : 'inv-item editing';
+    return `<div class="${cls}" data-id="${r.id}" style="flex-direction:column;align-items:stretch;gap:8px;">
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;">
         <input class="rh-edit-input" data-ef="name"      value="${_esc(r.name||'')}" placeholder="품목"/>
         <input class="rh-edit-input" data-ef="quantity"  value="${r.quantity||0}" type="number" placeholder="수량"/>
@@ -187,6 +259,7 @@
       if (!btn) return;
       const act = btn.dataset.act;
       if      (act === 'close')         closeInventoryHub();
+      else if (act === 'ocr')           _openOcrScan();
       else if (act === 'add')           await _submitQuickAdd();
       else if (act === 'stack')         _stackRow();
       else if (act === 'flush')         await _flushBatch();
@@ -211,6 +284,17 @@
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _submitQuickAdd(); }
       if (e.key === 'Enter' &&  e.shiftKey) { e.preventDefault(); _stackRow(); }
     });
+  }
+
+  /* ── OCR 진입 ────────────────────────────────────────────── */
+  function _openOcrScan() {
+    if (typeof window.openInventoryOrderScan === 'function') {
+      window.openInventoryOrderScan();
+    } else if (typeof window.openReceiptScan === 'function') {
+      window.openReceiptScan('inventory_order');
+    } else if (window.showToast) {
+      window.showToast('영수증 스캔 모듈을 불러올 수 없어요');
+    }
   }
 
   /* ── CRUD ──────────────────────────────────────────────────── */

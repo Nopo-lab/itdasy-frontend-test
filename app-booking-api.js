@@ -12,7 +12,8 @@
   let _items    = [];
   let _isOffline = false;
   const _cache = {};
-  const CACHE_TTL = 60000;
+  // [P2] 60초 → 5분 (재진입 hit 율 ↑). stale-while-revalidate 패턴이라 fresh 데이터도 백그라운드로 도착.
+  const CACHE_TTL = 5 * 60 * 1000;
 
   function _uuid() {
     if (crypto && crypto.randomUUID) return crypto.randomUUID();
@@ -47,21 +48,20 @@
     return res.status === 204 ? null : await res.json();
   }
 
-  async function list(fromISO, toISO) {
-    const key = (fromISO || '') + '|' + (toISO || '');
-    const hit = _cache[key];
-    if (hit && Date.now() - hit.t < CACHE_TTL) {
-      _items = hit.items; return _items;
-    }
+  // [P2] 백그라운드 fresh fetch — stale-while-revalidate 의 fresh 단계
+  // ⚠️ 절대 dispatch('itdasy:data-changed') 하지 말 것 — listener 가 cache invalidate + 재호출 → 무한 루프 (사용량 폭발).
+  async function _fetchFreshBookings(fromISO, toISO, key) {
     const qs = new URLSearchParams();
     if (fromISO) qs.set('from', fromISO);
     if (toISO)   qs.set('to',   toISO);
     try {
       const d = await _api('GET', '/bookings?' + qs);
       _isOffline = false;
-      _items = d.items || [];
-      _cache[key] = { t: Date.now(), items: _items };
-      return _items;
+      const items = d.items || [];
+      _cache[key] = { t: Date.now(), items };
+      _items = items;
+      // dispatch 제거 — 캐시는 다음 list() 호출 시 fresh 자동 사용. 사장이 캘린더 다시 열거나 mutation 발생 시 갱신.
+      return items;
     } catch (e) {
       if (e.message !== 'endpoint-missing' && e.message !== 'no-token') throw e;
       _isOffline = true;
@@ -74,6 +74,22 @@
       });
       return _items;
     }
+  }
+
+  async function list(fromISO, toISO) {
+    const key = (fromISO || '') + '|' + (toISO || '');
+    const hit = _cache[key];
+    // [P2 SWR] 캐시 있으면 즉시 반환 — TTL 만료면 백그라운드에서 fresh fetch
+    if (hit) {
+      _items = hit.items;
+      if (Date.now() - hit.t >= CACHE_TTL) {
+        // stale — 백그라운드 갱신 (await X)
+        _fetchFreshBookings(fromISO, toISO, key).catch(() => {});
+      }
+      return _items;
+    }
+    // 캐시 없으면 await
+    return _fetchFreshBookings(fromISO, toISO, key);
   }
 
   function hasConflict(startsAt, endsAt, excludeId) {

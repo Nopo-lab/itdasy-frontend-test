@@ -96,12 +96,43 @@
       booking_confirm_prev_day: '📅',
       announcement: '📣',
       support_reply: '💬',
+      support_ai_reply: '🤖',
       // [2026-04-29 W5] 회원권 만료/잔액 알림
       membership_expire_7d: '💳',
       membership_expire_1d: '⚠️',
       membership_low_30: '💳',
       membership_low_10: '⚠️',
+      // [2026-04-30 Sprint 7] DM 사장 확인 대기 / 신규 고객 등록 대기
+      dm_pending_confirm: '📨',
+      dm_customer_register: '👤',
+      dm_action_pending: '📨',
+      // [2026-04-30 기능 4] 위험 키워드 즉시 알림
+      dm_risk_alert: '🚨',
     }[kind] || '🔔';
+  }
+
+  // [2026-04-30] 알림 kind 별 click → 적절한 화면으로 이동
+  function _openByKind(n) {
+    const kind = n.kind || '';
+    try {
+      if (['dm_pending_confirm', 'dm_customer_register', 'dm_action_pending', 'dm_risk_alert'].includes(kind)) {
+        if (window.openDMConfirmQueue) { window.openDMConfirmQueue(); return true; }
+      }
+      if (kind === 'support_reply' || kind === 'support_ai_reply') {
+        if (window.openSupportSheet) { window.openSupportSheet(); return true; }
+      }
+      // payload 안에 customer_id 있으면 고객 카드 열기
+      if (n.payload) {
+        try {
+          const p = typeof n.payload === 'string' ? JSON.parse(n.payload) : n.payload;
+          if (p && p.customer_id && window.openCustomerCard) {
+            window.openCustomerCard(p.customer_id);
+            return true;
+          }
+        } catch (_) { /* ignore */ }
+      }
+    } catch (_) { /* ignore */ }
+    return false;
   }
 
   function _renderList() {
@@ -129,10 +160,15 @@
     body.querySelectorAll('[data-notif-id]').forEach(el => {
       el.addEventListener('click', async () => {
         const id = parseInt(el.dataset.notifId, 10);
+        const target = _items.find(x => x.id === id);
         await _markRead(id);
         _items = _items.filter(x => x.id !== id);
         _updateBadge();
         _renderList();
+        // 시트 닫고 해당 화면으로 이동
+        if (target && _openByKind(target)) {
+          try { window.closeNotifications && window.closeNotifications(); } catch (_) { /* ignore */ }
+        }
       });
     });
   }
@@ -206,6 +242,74 @@
       _items = _items.filter(x => x.id !== id);
       _updateBadge();
       _renderMembershipAlertCard();
+    });
+  }
+
+  // [2026-04-30 Sprint 7] DM 사장 확인 대기 + [기능 4] 위험 알림 — 홈 인라인 카드
+  function _renderDMConfirmQueueCard() {
+    const anchor = document.getElementById('home-today-brief')
+      || document.getElementById('homePostConnect')
+      || document.querySelector('main') || document.body;
+    if (!anchor) return;
+    let host = document.getElementById('itdDMConfirmHost');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'itdDMConfirmHost';
+      host.style.cssText = 'margin:0 0 12px 0;';
+      if (anchor.parentNode) anchor.parentNode.insertBefore(host, anchor);
+      else anchor.appendChild(host);
+    }
+    const dismissed = _getDismissed();
+    const dmKinds = ['dm_pending_confirm', 'dm_customer_register', 'dm_action_pending', 'dm_risk_alert'];
+    const dmNotifs = _items.filter(n => dmKinds.includes(n.kind) && !dismissed.includes(n.id));
+    if (!dmNotifs.length) { host.innerHTML = ''; return; }
+    // 위험 알림이 1건이라도 있으면 빨간 카드 우선
+    const riskNotifs = dmNotifs.filter(n => n.kind === 'dm_risk_alert');
+    const isRisk = riskNotifs.length > 0;
+    const showItems = isRisk ? riskNotifs : dmNotifs;
+    const total = showItems.length;
+    const a = showItems[0];
+
+    const colors = isRisk
+      ? { bg: 'linear-gradient(135deg,#FEE2E2 0%,#FECACA 100%)', border: '#FCA5A5', icon: '#DC2626', label: '#991B1B', btn: '#DC2626', btnText: '#fff', subText: '#991B1B' }
+      : { bg: 'linear-gradient(135deg,#FFFBEB 0%,#FEF3C7 100%)', border: '#FDE68A', icon: '#F59E0B', label: '#B45309', btn: '#F59E0B', btnText: '#fff', subText: '#92400E' };
+    const headerLbl = isRisk
+      ? `🚨 위험 메시지 ${total > 1 ? `(${total}건)` : ''}`
+      : `DM 사장 확인 대기 ${total > 1 ? `(${total}건)` : ''}`;
+    const iconHref = isRisk ? '#ic-alert-triangle' : '#ic-bell';
+
+    host.innerHTML = `
+      <div role="status" style="background:${colors.bg};border:1px solid ${colors.border};border-radius:14px;padding:14px 14px 14px 16px;position:relative;">
+        <div style="display:flex;align-items:flex-start;gap:10px;">
+          <div style="flex-shrink:0;width:36px;height:36px;border-radius:12px;background:${colors.icon};display:flex;align-items:center;justify-content:center;color:#fff;">
+            <svg width="20" height="20" aria-hidden="true"><use href="${iconHref}"/></svg>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:11px;font-weight:700;color:${colors.label};letter-spacing:0.2px;margin-bottom:2px;">${headerLbl}</div>
+            <div style="font-size:14px;font-weight:700;color:#1f2330;line-height:1.35;">${_esc(a.title)}</div>
+            <div style="font-size:12px;color:#525c70;margin-top:4px;line-height:1.5;">${_esc(a.body || '')}</div>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:10px;">
+              <button data-dmq-open style="background:${colors.btn};color:${colors.btnText};border:none;padding:7px 14px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;">${isRisk ? '바로 확인' : '큐 열기'}</button>
+              <button data-dmq-dismiss="${a.id}" style="background:none;border:none;color:${colors.subText};font-size:11px;cursor:pointer;">나중에</button>
+              <span style="margin-left:auto;font-size:10px;color:${colors.subText}80;">${_esc(_relativeTime(a.scheduled_at))}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    host.querySelector('[data-dmq-open]')?.addEventListener('click', async () => {
+      if (window.openDMConfirmQueue) window.openDMConfirmQueue();
+      for (const n of showItems) {
+        try { await _markRead(n.id); } catch (_) { /* ignore */ }
+      }
+      _items = _items.filter(n => !showItems.some(x => x.id === n.id));
+      _updateBadge();
+      _renderDMConfirmQueueCard();
+    });
+    host.querySelector('[data-dmq-dismiss]')?.addEventListener('click', (e) => {
+      const id = parseInt(e.currentTarget.dataset.dmqDismiss, 10);
+      _addDismissed(id);
+      _renderDMConfirmQueueCard();
     });
   }
 
@@ -286,15 +390,17 @@
       _updateBadge();
       _renderAnnouncementCard();
       _renderMembershipAlertCard();
+      _renderDMConfirmQueueCard();
     }
   }
 
   function _startPolling() {
     if (_pollTimer) return;
     _poll();
+    // [P1-2B] 폴링 60초 → 120초 (visibilitychange 즉시 폴링은 그대로 유지)
     _pollTimer = setInterval(() => {
       if (document.visibilityState === 'visible') _poll();
-    }, 60 * 1000);
+    }, 120 * 1000);
   }
 
   document.addEventListener('visibilitychange', () => {

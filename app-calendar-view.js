@@ -1159,124 +1159,353 @@
 
   function _buildFormHTML(existing, slots, dateStr, defStart, defEnd) {
     const isEdit = !!existing;
-    const opt = (def) => slots.map(s => `<option value="${s}"${s === def ? ' selected' : ''}>${s}</option>`).join('');
-    const STATUS_BTNS = [
-      ['confirmed','📅 확정','--confirmed'], ['no_show','🚫 안 옴','--no-show'],
-      ['completed','✅ 완료','--completed'], ['cancelled','❌ 취소','--cancelled'],
-    ];
-    return `
-<button class="cv-form-back" id="cv-form-back">← 뒤로</button>
-<div class="dt-field-row"><label class="dt-field-lbl">날짜 *</label><input id="bfDate" type="date" class="dt-field" value="${dateStr}" /></div>
-<div style="display:flex;gap:8px;margin-bottom:12px;">
-  <div style="flex:1"><label class="dt-field-lbl">시작 *</label><select id="bfStart" class="dt-field">${opt(defStart)}</select></div>
-  <div style="flex:1"><label class="dt-field-lbl">종료 *</label><select id="bfEnd" class="dt-field">${opt(defEnd)}</select></div>
-</div>
-<div class="dt-field-row"><label class="dt-field-lbl">고객</label>
-<div style="display:flex;gap:6px;align-items:center;">
-  <input id="bfCustName" readonly class="dt-field" style="flex:1;cursor:pointer;" placeholder="탭해서 고객 선택" value="${_esc(existing?.customer_name || '')}" />
-  <button type="button" id="bfCustPick" class="btn-secondary">👤 선택</button>
-</div>
-<div id="bfCustChip" style="margin-top:6px;display:${existing?.customer_name ? 'flex' : 'none'};align-items:center;gap:6px;padding:6px 12px;background:rgba(241,128,145,0.08);border-radius:10px;font-size:12px;color:var(--brand,#F18091);font-weight:700;">
-  <span id="bfCustChipName">${_esc(existing?.customer_name || '')}</span>
-  <button type="button" id="bfCustClear" style="background:none;border:none;color:#c00;cursor:pointer;font-size:14px;padding:0 4px;" title="고객 지정 해제">✕</button>
-</div>
-</div>
-<div class="dt-field-row"><label class="dt-field-lbl">서비스</label>
-  <input id="bfSvc" list="bfSvcDl" class="dt-field" value="${_esc(existing?.service_name || '')}" placeholder="시술명" maxlength="50" autocomplete="off" /><datalist id="bfSvcDl"></datalist></div>
-<div class="dt-field-row"><label class="dt-field-lbl">메모</label><textarea id="bfMemo" class="dt-field" rows="2" maxlength="200">${_esc(existing?.memo || '')}</textarea></div>
-<div id="bfConflict" class="dt-conflict">⚠️ 이 시간에 이미 예약이 있어요</div>
-<div style="display:flex;gap:8px;margin-bottom:8px;">
-  <button type="button" id="bfSave" class="btn-primary" style="flex:1">${isEdit ? '수정' : '저장'}</button>
-  ${isEdit ? '<button type="button" id="bfDelete" class="btn-secondary" style="color:var(--danger)">삭제</button>' : ''}
-</div>
-${isEdit && existing.status !== 'completed'
-  ? '<button type="button" id="bfComplete" class="main-cta" style="width:100%;margin-bottom:10px">🎀 시술 완료 · 매출·후기 한 번에 기록</button>'
-  : ''}
-${isEdit ? `
-<div style="margin-top:4px;padding-top:12px;border-top:1px dashed var(--border)">
-  <div style="font-size:11px;color:var(--text-subtle);margin-bottom:8px;font-weight:700">예약 상태</div>
-  <div class="dt-status-row">
-    ${STATUS_BTNS.map(([s, l, c]) => `<button type="button" data-bf-status="${s}" class="dt-status-btn${existing.status === s ? ' dt-status-btn' + c : ''}">${l}</button>`).join('')}
-  </div>
-</div>` : ''}`;
+    // 시/분 파싱
+    const [defH, defM] = defStart.split(':').map(Number);
+    const [endH, endM] = defEnd.split(':').map(Number);
+    const durMin = ((endH * 60 + endM) - (defH * 60 + defM)) || 60;
+    // 날짜 파싱
+    const dd = new Date(dateStr + 'T00:00:00');
+    const DOW = ['일','월','화','수','목','금','토'];
+    const dateLabel = (dd.getMonth()+1) + '월 ' + dd.getDate() + '일 ' + DOW[dd.getDay()] + '요일';
+    // 휠 행 생성 (시: 0~23, 분: 0/15/30/45)
+    const hRows = (cur) => {
+      let h = ''; for (let i = cur - 2; i <= cur + 2; i++) {
+        const v = ((i % 24) + 24) % 24;
+        h += `<div class="bf-tp-row${v === cur ? ' current' : ''}" data-val="${v}">${_pad(v)}</div>`;
+      } return h;
+    };
+    const mRows = (cur) => {
+      const ms = [0,15,30,45]; let idx = ms.indexOf(cur); if (idx < 0) idx = 0;
+      let h = ''; for (let i = idx - 2; i <= idx + 2; i++) {
+        const v = ms[((i % 4) + 4) % 4];
+        h += `<div class="bf-tp-row${v === cur ? ' current' : ''}" data-val="${v}">${_pad(v)}</div>`;
+      } return h;
+    };
+    const endTimeLabel = _pad(endH) + ':' + _pad(endM);
+
+    let html = `<button class="cv-form-back" id="cv-form-back">← 뒤로</button>`;
+    // 수정 모드 — 시술 완료 액션 카드
+    if (isEdit && existing.status !== 'completed') {
+      html += `<button type="button" class="bf-complete-action" id="bfComplete">
+        <div class="bf-ca-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div style="flex:1"><div class="bf-ca-title">시술 완료 · 매출·후기 한 번에</div><div class="bf-ca-sub">금액 입력 + 캡션 만들기까지</div></div>
+        <svg class="bf-ca-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>`;
+    }
+    // 수정 모드 — 상태 4토글
+    if (isEdit) {
+      html += `<div class="bf-section"><div class="bf-label">상태</div><div class="bf-status-row">
+        <button type="button" data-bf-status="confirmed" class="bf-status-btn${existing.status==='confirmed'?' on bf-st-confirmed':''}">확정</button>
+        <button type="button" data-bf-status="completed" class="bf-status-btn${existing.status==='completed'?' on bf-st-completed':''}">완료</button>
+        <button type="button" data-bf-status="no_show" class="bf-status-btn${existing.status==='no_show'?' on bf-st-noshow':''}">안 옴</button>
+        <button type="button" data-bf-status="cancelled" class="bf-status-btn${existing.status==='cancelled'?' on bf-st-cancelled':''}">취소</button>
+      </div></div>`;
+    }
+    // 날짜 카드
+    html += `<div class="bf-section"><div class="bf-label">날짜</div>
+      <button type="button" class="bf-date-card" id="bfDateCard">
+        <div class="bf-date-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg></div>
+        <div style="flex:1"><div class="bf-date-text" id="bfDateLabel">${dateLabel}</div><div class="bf-date-meta" id="bfDateMeta">날짜를 탭해서 변경</div></div>
+        <svg class="bf-date-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <input type="date" id="bfDate" class="bf-date-native" value="${dateStr}" />
+    </div>`;
+    // 시간 휠 픽커
+    html += `<div class="bf-section"><div class="bf-label">시작 시간 <span style="color:var(--text-subtle);font-weight:500;text-transform:none;letter-spacing:0">· 위아래 스크롤</span></div>
+      <div class="bf-time-picker"><div class="bf-tp-selection"></div>
+        <div class="bf-tp-wheel" id="bfWheelH"><div class="bf-tp-inner">${hRows(defH)}</div></div>
+        <div class="bf-tp-sep">:</div>
+        <div class="bf-tp-wheel" id="bfWheelM"><div class="bf-tp-inner">${mRows(defM)}</div></div>
+      </div>
+      <div class="bf-duration-row">
+        <div class="bf-dur-label">소요 시간</div>
+        <div class="bf-dur-val" id="bfDurVal">${durMin}분 · ~ ${endTimeLabel}</div>
+        <div class="bf-dur-stepper"><button type="button" id="bfDurMinus">−</button><button type="button" id="bfDurPlus">+</button></div>
+      </div>
+    </div>`;
+    // 고객 카드
+    html += `<div class="bf-section"><div class="bf-label">고객</div>
+      <button type="button" class="bf-cust-card${existing?.customer_name ? '' : ' empty'}" id="bfCustCard">
+        ${existing?.customer_name
+          ? `<div class="bf-cust-avatar">${_esc((existing.customer_name||'')[0])}</div>
+             <div class="bf-cust-info"><div class="bf-cust-name">${_esc(existing.customer_name)}</div><div class="bf-cust-meta" id="bfCustMeta"></div></div>
+             <button type="button" class="bf-cust-clear" id="bfCustClear"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`
+          : `<div class="bf-cust-avatar empty">+</div><div class="bf-cust-info"><div class="bf-cust-empty-text">고객을 골라주세요</div></div>
+             <svg class="bf-cust-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>`}
+      </button>
+      <input type="hidden" id="bfCustName" value="${_esc(existing?.customer_name || '')}" />
+    </div>`;
+    // 시술 칩
+    html += `<div class="bf-section"><div class="bf-label">시술 <span style="color:var(--text-subtle);font-weight:500;text-transform:none;letter-spacing:0">· 자주 받은 순</span></div>
+      <div class="bf-svc-chips" id="bfSvcChips"></div>
+      <input type="hidden" id="bfSvc" value="${_esc(existing?.service_name || '')}" />
+      <input id="bfSvcCustom" class="bf-svc-input" placeholder="시술명 직접 입력" style="display:none" maxlength="50" autocomplete="off" />
+    </div>`;
+    // 더보기 (직원 · 메모)
+    html += `<div class="bf-section" id="bfMoreSection">
+      <button type="button" class="bf-more-toggle" id="bfMoreToggle">
+        <svg class="bf-more-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>
+        더보기 (직원 · 메모)
+      </button>
+      <div class="bf-more-fields" id="bfMoreFields" style="display:none">
+        <div class="bf-section" style="margin-bottom:14px"><div class="bf-label">담당 직원</div><div class="bf-staff-row" id="bfStaffRow"></div></div>
+        <div><div class="bf-label">메모</div>
+          <textarea class="bf-memo" id="bfMemo" placeholder="시술 메모 · 알러지 · 요청사항 등" maxlength="200">${_esc(existing?.memo || '')}</textarea>
+          <div class="bf-memo-counter" id="bfMemoCounter">${(existing?.memo || '').length} / 200</div>
+        </div>
+      </div>
+    </div>`;
+    // 충돌 경고
+    html += `<div id="bfConflict" class="dt-conflict">⚠️ 이 시간에 이미 예약이 있어요</div>`;
+    // 하단 CTA
+    html += `<div class="bf-cta">
+      ${isEdit ? '<button type="button" id="bfDelete" class="bf-btn-danger">삭제</button>' : '<button type="button" id="cv-form-back2" class="bf-btn-secondary">취소</button>'}
+      <button type="button" id="bfSave" class="bf-btn-primary">${isEdit ? '변경 저장' : '예약 저장'}</button>
+    </div>`;
+    return html;
   }
 
   function _bindFormExtras(body, existing) {
     let custId = existing?.customer_id || null;
-    const _updateCustChip = (name) => {
-      const chip = body.querySelector('#bfCustChip');
-      const chipName = body.querySelector('#bfCustChipName');
-      if (chip && chipName) {
-        if (name) { chipName.textContent = '✅ ' + name + ' 선택됨'; chip.style.display = 'flex'; }
-        else { chip.style.display = 'none'; }
+    let _durMin = 60;
+    let _startH, _startM;
+    // 현재 시작 시간 읽기
+    function _readStart() {
+      const hEl = body.querySelector('#bfWheelH .bf-tp-row.current');
+      const mEl = body.querySelector('#bfWheelM .bf-tp-row.current');
+      _startH = hEl ? parseInt(hEl.dataset.val, 10) : 14;
+      _startM = mEl ? parseInt(mEl.dataset.val, 10) : 0;
+    }
+    _readStart();
+    // 초기 소요시간 계산
+    try {
+      const dv = body.querySelector('#bfDurVal');
+      if (dv) { const m = dv.textContent.match(/(\d+)분/); if (m) _durMin = parseInt(m[1], 10); }
+    } catch (_) { /* ignore */ }
+
+    // --- 날짜 카드 → native date picker ---
+    const dateCard = body.querySelector('#bfDateCard');
+    const dateInput = body.querySelector('#bfDate');
+    if (dateCard && dateInput) {
+      dateCard.addEventListener('click', () => dateInput.showPicker ? dateInput.showPicker() : dateInput.click());
+      dateInput.addEventListener('change', () => {
+        const d = new Date(dateInput.value + 'T00:00:00');
+        const DOW2 = ['일','월','화','수','목','금','토'];
+        const lbl = body.querySelector('#bfDateLabel');
+        if (lbl) lbl.textContent = (d.getMonth()+1) + '월 ' + d.getDate() + '일 ' + DOW2[d.getDay()] + '요일';
+        _checkConflict();
+      });
+    }
+
+    // --- 소요시간 스텝퍼 ---
+    function _updateDur() {
+      _readStart();
+      const endMin = _startH * 60 + _startM + _durMin;
+      const eh = Math.floor(endMin / 60) % 24, em = endMin % 60;
+      const dv = body.querySelector('#bfDurVal');
+      if (dv) dv.textContent = _durMin + '분 · ~ ' + _pad(eh) + ':' + _pad(em);
+      _checkConflict();
+    }
+    body.querySelector('#bfDurMinus')?.addEventListener('click', () => { if (_durMin > 15) { _durMin -= 15; _updateDur(); } });
+    body.querySelector('#bfDurPlus')?.addEventListener('click', () => { if (_durMin < 480) { _durMin += 15; _updateDur(); } });
+
+    // --- 휠 스크롤 (간단한 click 기반 — 터치 시 위/아래 탭으로 값 변경) ---
+    body.querySelectorAll('.bf-tp-wheel').forEach(wheel => {
+      const isHour = wheel.id === 'bfWheelH';
+      const vals = isHour ? Array.from({length:24}, (_,i) => i) : [0,15,30,45];
+      wheel.addEventListener('click', e => {
+        const row = e.target.closest('.bf-tp-row');
+        if (!row || row.classList.contains('current')) return;
+        const v = parseInt(row.dataset.val, 10);
+        // 현재 선택 변경
+        wheel.querySelectorAll('.bf-tp-row').forEach(r => {
+          r.classList.toggle('current', parseInt(r.dataset.val, 10) === v);
+        });
+        _updateDur();
+      });
+    });
+
+    // --- 고객 카드 ---
+    function _renderCustCard(picked) {
+      const card = body.querySelector('#bfCustCard');
+      if (!card) return;
+      if (picked) {
+        card.className = 'bf-cust-card';
+        card.innerHTML = `<div class="bf-cust-avatar">${_esc((picked.name || '?')[0])}</div>
+          <div class="bf-cust-info"><div class="bf-cust-name">${_esc(picked.name || '')}</div><div class="bf-cust-meta" id="bfCustMeta"></div></div>
+          <button type="button" class="bf-cust-clear" id="bfCustClear"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`;
+        body.querySelector('#bfCustName').value = picked.name || '';
+        body.querySelector('#bfCustClear')?.addEventListener('click', e => {
+          e.stopPropagation(); custId = null;
+          body.querySelector('#bfCustName').value = '';
+          _renderCustCard(null);
+        });
+      } else {
+        card.className = 'bf-cust-card empty';
+        card.innerHTML = `<div class="bf-cust-avatar empty">+</div><div class="bf-cust-info"><div class="bf-cust-empty-text">고객을 골라주세요</div></div>
+          <svg class="bf-cust-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>`;
       }
-    };
+    }
     const _doPick = async () => {
       if (!window.Customer?.pick) { if (window.showToast) window.showToast('고객 모듈 로드 중…'); return; }
       const picked = await window.Customer.pick({ selectedId: custId });
       if (picked === null) return;
       custId = picked.id;
-      const name = picked.name || '';
-      body.querySelector('#bfCustName').value = name;
-      _updateCustChip(name);
+      _renderCustCard(picked);
     };
-    body.querySelector('#bfCustPick').addEventListener('click', _doPick);
-    body.querySelector('#bfCustName').addEventListener('click', _doPick);
-    body.querySelector('#bfCustClear')?.addEventListener('click', () => {
-      custId = null;
-      body.querySelector('#bfCustName').value = '';
-      _updateCustChip(null);
+    body.querySelector('#bfCustCard')?.addEventListener('click', e => {
+      if (e.target.closest('#bfCustClear')) return;
+      _doPick();
     });
-    const chk = () => {
-      const d = body.querySelector('#bfDate').value;
-      const s = body.querySelector('#bfStart').value;
-      const e = body.querySelector('#bfEnd').value;
-      if (!d || !s || !e) return;
-      const conflict = window.Booking.hasConflict(`${d}T${s}:00+09:00`, `${d}T${e}:00+09:00`, existing?.id);
-      body.querySelector('#bfConflict').style.display = conflict ? 'block' : 'none';
-    };
-    ['bfDate','bfStart','bfEnd'].forEach(id => body.querySelector('#' + id).addEventListener('change', chk));
-    chk();
-    body._getCustId = () => custId;
+
+    // --- 시술 칩 자동완성 ---
+    let _selectedSvc = existing?.service_name || '';
+    function _renderChips(names) {
+      const wrap = body.querySelector('#bfSvcChips');
+      if (!wrap) return;
+      const arr = Array.from(names).slice(0, 8);
+      wrap.innerHTML = arr.map(n =>
+        `<button type="button" class="bf-svc-chip${n === _selectedSvc ? ' on' : ''}" data-svc="${_esc(n)}">${_esc(n)}</button>`
+      ).join('') + '<button type="button" class="bf-svc-chip add" id="bfSvcAddBtn">+ 직접 입력</button>';
+      wrap.querySelectorAll('.bf-svc-chip[data-svc]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          _selectedSvc = _selectedSvc === btn.dataset.svc ? '' : btn.dataset.svc;
+          body.querySelector('#bfSvc').value = _selectedSvc;
+          _renderChips(names);
+          const ci = body.querySelector('#bfSvcCustom');
+          if (ci) ci.style.display = 'none';
+        });
+      });
+      body.querySelector('#bfSvcAddBtn')?.addEventListener('click', () => {
+        const ci = body.querySelector('#bfSvcCustom');
+        if (ci) { ci.style.display = ''; ci.focus(); }
+      });
+    }
+    const ci = body.querySelector('#bfSvcCustom');
+    if (ci) ci.addEventListener('input', () => { body.querySelector('#bfSvc').value = ci.value; _selectedSvc = ci.value; });
+    // 시술 목록 fetch
     (async () => {
-      const dl = body.querySelector('#bfSvcDl'); if (!dl || !window.API || !window.authHeader) return;
       const names = new Set();
-      try { const r = await fetch(window.API + '/services', { headers: window.authHeader() }); if (r.ok) { const d = await r.json(); (d.items || []).forEach(s => s.name && names.add(s.name)); } } catch (_) { /* ignore */ }
-      try { const r = await fetch(window.API + '/revenue?period=month', { headers: window.authHeader() }); if (r.ok) { const d = await r.json(); (d.items || []).forEach(r => r.service_name && names.add(r.service_name)); } } catch (_) { /* ignore */ }
-      dl.innerHTML = Array.from(names).slice(0, 50).map(n => `<option value="${_esc(n)}"></option>`).join('');
+      try {
+        if (window.API && window.authHeader) {
+          const [r1, r2] = await Promise.allSettled([
+            fetch(window.API + '/services', { headers: window.authHeader() }),
+            fetch(window.API + '/revenue?period=month', { headers: window.authHeader() }),
+          ]);
+          if (r1.status === 'fulfilled' && r1.value.ok) { const d = await r1.value.json(); (d.items || []).forEach(s => s.name && names.add(s.name)); }
+          if (r2.status === 'fulfilled' && r2.value.ok) { const d = await r2.value.json(); (d.items || []).forEach(r => r.service_name && names.add(r.service_name)); }
+        }
+      } catch (_) { /* ignore */ }
+      if (!names.size) ['젤 리무브','손톱 케어','젤 풀','젤 + 케어','젤 보강'].forEach(n => names.add(n));
+      _renderChips(names);
     })();
+
+    // --- 더보기 토글 ---
+    const moreToggle = body.querySelector('#bfMoreToggle');
+    const moreFields = body.querySelector('#bfMoreFields');
+    if (moreToggle && moreFields) {
+      // 수정 모드에서는 기본 열기
+      if (existing?.memo || existing?.staff_id) {
+        moreFields.style.display = '';
+        moreToggle.classList.add('open');
+      }
+      moreToggle.addEventListener('click', () => {
+        const open = moreFields.style.display !== 'none';
+        moreFields.style.display = open ? 'none' : '';
+        moreToggle.classList.toggle('open', !open);
+      });
+    }
+
+    // --- 직원 칩 ---
+    let _staffId = existing?.staff_id || null;
+    (async () => {
+      const row = body.querySelector('#bfStaffRow');
+      if (!row) return;
+      let items = [];
+      try {
+        if (window.StaffUI?.list) { const d = await window.StaffUI.list(); items = (d?.items) || []; }
+        else if (window._staffCache?.items) items = window._staffCache.items;
+      } catch (_) { /* ignore */ }
+      if (!items.length) { row.innerHTML = '<span style="font-size:12px;color:var(--text-subtle)">등록된 직원이 없어요</span>'; return; }
+      const colors = ['#E5586E','#98A1AC','#0F1419','#A78BFA','#10A56B'];
+      row.innerHTML = items.map((s, i) =>
+        `<button type="button" class="bf-staff-btn${_staffId === s.id ? ' on' : ''}" data-staff-id="${s.id}"><span class="bf-staff-dot" style="background:${s.color || colors[i % 5]}"></span>${_esc(s.name || '')}</button>`
+      ).join('');
+      row.querySelectorAll('.bf-staff-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = Number(btn.dataset.staffId);
+          _staffId = _staffId === id ? null : id;
+          row.querySelectorAll('.bf-staff-btn').forEach(b => b.classList.toggle('on', Number(b.dataset.staffId) === _staffId));
+        });
+      });
+    })();
+
+    // --- 메모 카운터 ---
+    const memo = body.querySelector('#bfMemo');
+    const counter = body.querySelector('#bfMemoCounter');
+    if (memo && counter) memo.addEventListener('input', () => { counter.textContent = memo.value.length + ' / 200'; });
+
+    // --- 충돌 체크 ---
+    function _checkConflict() {
+      _readStart();
+      const d = body.querySelector('#bfDate')?.value;
+      if (!d) return;
+      const endMin = _startH * 60 + _startM + _durMin;
+      const eh = Math.floor(endMin / 60) % 24, em = endMin % 60;
+      const starts = `${d}T${_pad(_startH)}:${_pad(_startM)}:00+09:00`;
+      const ends = `${d}T${_pad(eh)}:${_pad(em)}:00+09:00`;
+      const conflict = window.Booking.hasConflict(starts, ends, existing?.id);
+      const el = body.querySelector('#bfConflict');
+      if (el) el.style.display = conflict ? 'block' : 'none';
+    }
+    _checkConflict();
+
+    // 취소 버튼
+    body.querySelector('#cv-form-back2')?.addEventListener('click', () => _renderViewBody());
+
+    // 공유 getter
+    body._getCustId = () => custId;
+    body._getStaffId = () => _staffId;
+    body._getDurMin = () => _durMin;
+    body._getStartH = () => { _readStart(); return _startH; };
+    body._getStartM = () => { _readStart(); return _startM; };
   }
 
   function _bindFormSave(body, existing, date) {
     body.querySelector('#bfSave').addEventListener('click', async () => {
       const d = body.querySelector('#bfDate').value;
-      const s = body.querySelector('#bfStart').value;
-      const e = body.querySelector('#bfEnd').value;
-      if (!d || !s || !e) { if (window.showToast) window.showToast('날짜·시간을 입력해 주세요'); return; }
-      if (s >= e) { if (window.showToast) window.showToast('종료 시간이 시작보다 늦어야 해요'); return; }
+      if (!d) { if (window.showToast) window.showToast('날짜를 입력해 주세요'); return; }
+      const sh = body._getStartH(), sm = body._getStartM(), dur = body._getDurMin();
+      const endMin = sh * 60 + sm + dur;
+      const eh = Math.floor(endMin / 60) % 24, em = endMin % 60;
+      const sTime = _pad(sh) + ':' + _pad(sm);
+      const eTime = _pad(eh) + ':' + _pad(em);
+      if (sTime >= eTime && endMin < 1440) { if (window.showToast) window.showToast('종료 시간이 시작보다 늦어야 해요'); return; }
       const payload = {
-        starts_at:     `${d}T${s}:00+09:00`,
-        ends_at:       `${d}T${e}:00+09:00`,
+        starts_at:     `${d}T${sTime}:00+09:00`,
+        ends_at:       `${d}T${eTime}:00+09:00`,
         customer_id:   body._getCustId?.() || null,
         customer_name: body.querySelector('#bfCustName').value.trim() || null,
         service_name:  body.querySelector('#bfSvc').value.trim()      || null,
         memo:          body.querySelector('#bfMemo').value.trim()      || null,
+        staff_id:      body._getStaffId?.() || null,
       };
       try {
-        if (existing) await window.Booking.update(existing.id, payload);
-        else {
+        if (existing) {
+          await window.Booking.update(existing.id, payload);
+        } else {
           await window.Booking.create(payload);
           window.dispatchEvent(new CustomEvent('booking:created', { detail: { customer_name: payload.customer_name, customer_id: payload.customer_id || null } }));
         }
         if (window.hapticLight) window.hapticLight();
         const _name = payload.customer_name || '';
-        const _addToast = _name ? `✓ ${_name}님 ${d} ${s} 예약 추가됨` : `✓ ${d} ${s} 예약 추가됨`;
-        const _editToast = _name ? `✓ ${_name}님 ${d} ${s} 예약 수정됨` : `✓ ${d} ${s} 예약 수정됨`;
-        if (window.showToast) window.showToast(existing ? _editToast : _addToast);
+        const toastMsg = _name
+          ? `✓ ${_name}님 ${d} ${sTime} 예약 ${existing ? '수정' : '추가'}됨`
+          : `✓ ${d} ${sTime} 예약 ${existing ? '수정' : '추가'}됨`;
+        if (window.showToast) window.showToast(toastMsg);
         if (window.Dashboard?.refresh) window.Dashboard.refresh(true);
         _mappedCache = await _loadMonth(_curYear, _curMonth);
         _renderViewBody();
-        void date;
       } catch (err) {
         console.warn('[cal] save 실패:', err);
         if (window.showToast) window.showToast('저장 실패');
@@ -1284,7 +1513,7 @@ ${isEdit ? `
     });
   }
 
-  function _bindFormActions(body, existing) {
+  function _bindFormActions(body, existing, date) {
     body.querySelector('#bfDelete')?.addEventListener('click', async () => {
       if (!confirm('이 예약을 삭제할까요?')) return;
       try {
@@ -1294,7 +1523,7 @@ ${isEdit ? `
         if (window.Dashboard?.refresh) window.Dashboard.refresh(true);
         _mappedCache = await _loadMonth(_curYear, _curMonth);
         _renderViewBody();
-      } catch (_e) { if (window.showToast) window.showToast('삭제 실패'); void _e; }
+      } catch (_) { if (window.showToast) window.showToast('삭제 실패'); }
     });
     body.querySelector('#bfComplete')?.addEventListener('click', () => {
       if (!window.CompleteFlow?.startFromBooking) {
@@ -1316,14 +1545,14 @@ ${isEdit ? `
           if (window.Dashboard?.refresh) window.Dashboard.refresh(true);
           _mappedCache = await _loadMonth(_curYear, _curMonth);
           _renderViewBody();
-        } catch (_e) { if (window.showToast) window.showToast('상태 변경 실패'); void _e; }
+        } catch (_) { if (window.showToast) window.showToast('상태 변경 실패'); }
       });
     });
   }
 
   function _openForm(date, existing) {
     const o = _overlay(); if (!o) return;
-    const body = o.querySelector('#bk-body'); if (!body) return;
+    const body = o.querySelector("#bk-body"); if (!body) return;
     const hours  = window.Booking.shopHours();
     const slots  = _buildSlots(hours);
     const pend   = window._pendingBookingSlot;
@@ -1334,18 +1563,20 @@ ${isEdit ? `
     const dateStr = _ds(defDate);
     const defS = existing ? _fmt(new Date(existing.starts_at)) : (pendS ? _fmt(pendS) : slots[0]);
     const defE = existing ? _fmt(new Date(existing.ends_at))   : (pendE ? _fmt(pendE) : (slots[2] || slots[slots.length - 1]));
-    body.innerHTML = '<div class="cv-form-wrap" style="padding:16px;">' + _buildFormHTML(existing, slots, dateStr, defS, defE) + '</div>';
-    body.querySelector('#cv-form-back').addEventListener('click', () => _switchView(_curView));
+    body.innerHTML = '<div class="cv-form-wrap bf-wrap" style="padding:16px;">' + _buildFormHTML(existing, slots, dateStr, defS, defE) + '</div>';
+    body.querySelector('#cv-form-back').addEventListener('click', () => _renderViewBody());
     _bindFormExtras(body, existing);
     _bindFormSave(body, existing, date);
-    if (existing) _bindFormActions(body, existing);
+    if (existing) _bindFormActions(body, existing, date);
+    // 빈 슬롯 클릭 시 고객 picker 자동 오픈
     if (!existing && pendS) {
       setTimeout(() => {
-        const pickBtn = body.querySelector('#bfCustPick');
-        if (pickBtn && document.body.contains(pickBtn)) pickBtn.click();
+        const card = body.querySelector('#bfCustCard');
+        if (card && document.body.contains(card)) card.click();
       }, 300);
     }
   }
+
 
   // ============================================================
   // §21 뷰 전환
