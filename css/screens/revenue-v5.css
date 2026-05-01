@@ -1,0 +1,725 @@
+/* ── Itdasy Design System v1 · screens/revenue-v5.css ──────────
+   매출관리 v5 — 3 period tab + hero + 도넛 + 인센티브 + 빠른 추가 + 리스트
+   mockup: ../../mockups/05-revenue.html
+   tokens: tokens.css */
+
+/* ============================================================
+   0 · Reset (button native)
+   ============================================================ */
+.rv-header__back,
+.rv-header__action,
+.rv-periods__btn,
+.rv-incentive__config,
+.rv-qa__method,
+.rv-qa__add,
+.rv-list__delete,
+.rv-load-more,
+.rv-fab,
+.rv-pc__period-btn,
+.rv-pc__add,
+.rv-pc-qa__method,
+.rv-pc-qa__add {
+  background: none;
+  border: none;
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ============================================================
+   1 · 모바일 헤더
+   ============================================================ */
+.rv-header {
+  padding: 16px 18px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.rv-header__back {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+}
+.rv-header__title-wrap {
+  text-align: center;
+  flex: 1;
+}
+.rv-header__title {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--text);
+}
+.rv-header__sub {
+  font-size: 11px;
+  color: var(--text-subtle);
+  margin-top: 1px;
+  font-weight: 500;
+}
+.rv-header__action {
+  font-size: 11.5px;
+  color: var(--text);
+  font-weight: 700;
+  padding: 6px 11px;
+  background: var(--surface-2);
+  border-radius: var(--r-pill);
+}
+
+/* ============================================================
+   2 · 기간 탭 (오늘/이번주/이번달)
+   ============================================================ */
+.rv-periods { padding: 8px 16px 12px; }
+.rv-periods__row {
+  display: flex;
+  background: var(--surface-2);
+  padding: 3px;
+  border-radius: var(--r-sm);
+}
+.rv-periods__btn {
+  flex: 1;
+  padding: 8px 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  border-radius: 6px;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.rv-periods__btn.is-on {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+/* ============================================================
+   3 · 본문 스크롤 컨테이너
+   ============================================================ */
+.rv-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 16px 16px;
+}
+.rv-body::-webkit-scrollbar { width: 0; }
+
+/* ============================================================
+   4 · 헤로 스탯 카드
+   ============================================================ */
+.rv-hero {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 18px 20px;
+  margin-bottom: 12px;
+  transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1),
+              box-shadow 0.25s cubic-bezier(0.34,1.56,0.64,1);
+}
+.rv-hero:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.rv-hero__label {
+  font-size: 11px;
+  color: var(--text-subtle);
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+.rv-hero__value {
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--text);
+  margin-top: 4px;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+.rv-hero__meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.rv-hero__meta b { color: var(--text); font-weight: 700; }
+.rv-hero__trend { color: var(--ok); font-weight: 700; }
+.rv-hero__trend.is-down { color: var(--danger); }
+
+/* ============================================================
+   5 · 도넛 차트 카드
+   ============================================================ */
+.rv-chart {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 18px 20px;
+  margin-bottom: 12px;
+}
+.rv-chart__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 14px;
+}
+.rv-chart__title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  color: var(--text);
+}
+.rv-chart__sub {
+  font-size: 11px;
+  color: var(--text-subtle);
+  margin-top: 2px;
+}
+.rv-chart__body {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+/* 도넛 5색 (브랜드 모노크롬 핑크-그레이) — mockup 그대로 유지 */
+.rv-donut {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: conic-gradient(
+    #E5586E 0deg 162deg,
+    #F4A6B8 162deg 234deg,
+    #FBE0E7 234deg 280deg,
+    #C4C9D1 280deg 320deg,
+    #E5E7EB 320deg 360deg
+  );
+  position: relative;
+  flex-shrink: 0;
+}
+.rv-donut::after {
+  content: '';
+  position: absolute;
+  inset: 18px;
+  background: var(--surface);
+  border-radius: 50%;
+}
+.rv-donut__center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+.rv-donut__total {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.3px;
+}
+.rv-donut__label {
+  font-size: 9.5px;
+  color: var(--text-subtle);
+  font-weight: 500;
+  margin-top: 1px;
+}
+
+.rv-legend {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rv-legend__row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+}
+.rv-legend__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.rv-legend__name {
+  flex: 1;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.rv-legend__value {
+  color: var(--text);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.rv-legend__pct {
+  color: var(--text-subtle);
+  font-size: 10.5px;
+  font-weight: 500;
+  min-width: 28px;
+  text-align: right;
+}
+
+/* ============================================================
+   6 · 인센티브 카드
+   ============================================================ */
+.rv-incentive {
+  background: linear-gradient(180deg, var(--brand-bg) 0%, var(--surface) 100%);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  padding: 16px 18px;
+  margin-bottom: 12px;
+}
+.rv-incentive__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+.rv-incentive__title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--brand-strong);
+  letter-spacing: -0.2px;
+}
+.rv-incentive__config {
+  font-size: 11px;
+  color: var(--brand-strong);
+  font-weight: 600;
+  background: rgba(255,255,255,0.6);
+  padding: 3px 8px;
+  border-radius: var(--r-pill);
+}
+.rv-incentive__net {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--brand-strong);
+  letter-spacing: -0.4px;
+  font-variant-numeric: tabular-nums;
+}
+.rv-incentive__formula {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 10.5px;
+  color: var(--brand-strong);
+  font-weight: 500;
+  padding-top: 10px;
+  border-top: 0.5px solid var(--border-strong);
+}
+.rv-incentive__formula-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.rv-incentive__formula-item b {
+  font-size: 11.5px;
+  color: var(--brand-strong);
+  font-weight: 700;
+}
+
+/* ============================================================
+   7 · 빠른 추가 (모바일)
+   ============================================================ */
+.rv-qa {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  margin-bottom: 12px;
+}
+.rv-qa__input {
+  flex: 1;
+  padding: 7px 10px;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  font-family: inherit;
+}
+.rv-qa__input::placeholder {
+  color: var(--text-subtle);
+  font-weight: 500;
+}
+.rv-qa__method {
+  padding: 7px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+}
+.rv-qa__add {
+  width: 36px;
+  height: 36px;
+  background: var(--brand-strong);
+  color: #fff;
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   8 · 섹션 타이틀 + 매출 리스트
+   ============================================================ */
+.rv-section-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 6px 4px;
+  margin-bottom: 8px;
+}
+.rv-section__title {
+  font-size: 11px;
+  color: var(--text-subtle);
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.rv-section__meta {
+  font-size: 11px;
+  color: var(--text-subtle);
+  font-weight: 500;
+}
+
+.rv-list {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.rv-list__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border-bottom: 0.5px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.rv-list__item:last-child { border-bottom: none; }
+.rv-list__item:hover { background: var(--surface-2); }
+.rv-list__amount {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.3px;
+  font-variant-numeric: tabular-nums;
+  min-width: 75px;
+}
+.rv-list__info {
+  flex: 1;
+  min-width: 0;
+}
+.rv-list__service {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.2px;
+}
+.rv-list__meta {
+  font-size: 11px;
+  color: var(--text-subtle);
+  margin-top: 2px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.rv-list__customer {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.rv-list__delete {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-subtle);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.rv-list__delete:hover {
+  background: rgba(239,68,68,0.1);
+  color: var(--danger);
+}
+
+/* 결제 태그 5색 (브랜드 핑크 모노크롬) */
+.rv-tag {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+.rv-tag--card {
+  background: var(--brand-bg);
+  color: var(--brand-strong);
+}
+.rv-tag--cash {
+  background: rgba(229,88,110,0.10);
+  color: var(--brand-strong);
+}
+.rv-tag--transfer {
+  background: rgba(229,88,110,0.06);
+  color: var(--brand-strong);
+}
+.rv-tag--membership {
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.rv-load-more {
+  width: 100%;
+  padding: 12px;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--r-md);
+  margin-top: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+/* ============================================================
+   9 · + FAB
+   ============================================================ */
+.rv-fab {
+  position: absolute;
+  right: 18px;
+  bottom: 86px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--brand-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-brand);
+  z-index: 10;
+}
+
+/* ============================================================
+   10 · PC 메인 (1100px+ 에서만 노출) — ms-side 옆
+   ============================================================ */
+.rv-pc {
+  flex: 1;
+  padding: 24px 28px;
+  overflow-y: auto;
+  background: var(--bg);
+}
+.rv-pc::-webkit-scrollbar { width: 0; }
+
+.rv-pc__header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.rv-pc__title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  color: var(--text);
+}
+.rv-pc__spacer { flex: 1; }
+.rv-pc__periods {
+  display: flex;
+  background: var(--surface);
+  padding: 3px;
+  border-radius: var(--r-sm);
+  border: 0.5px solid var(--border);
+}
+.rv-pc__period-btn {
+  padding: 7px 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  border-radius: 6px;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.rv-pc__period-btn.is-on {
+  background: var(--text);
+  color: var(--surface);
+}
+.rv-pc__add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--brand-strong);
+  color: #fff;
+  border-radius: var(--r-md);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* PC 통계 4열 */
+.rv-pc-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.rv-pc-stat {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 14px 16px;
+  transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1),
+              box-shadow 0.25s cubic-bezier(0.34,1.56,0.64,1);
+}
+.rv-pc-stat:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+.rv-pc-stat__label {
+  font-size: 11px;
+  color: var(--text-subtle);
+  font-weight: 600;
+}
+.rv-pc-stat__value {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+  margin-top: 4px;
+  letter-spacing: -0.4px;
+  font-variant-numeric: tabular-nums;
+}
+.rv-pc-stat__trend {
+  font-size: 11px;
+  color: var(--ok);
+  font-weight: 700;
+  margin-top: 3px;
+}
+.rv-pc-stat__trend.is-down { color: var(--danger); }
+.rv-pc-stat__trend.is-neutral { color: var(--text-subtle); }
+
+/* PC 메인 그리드 */
+.rv-pc-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.rv-pc-chart {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 18px 20px;
+}
+.rv-pc-chart .rv-donut { width: 140px; height: 140px; }
+.rv-pc-chart .rv-donut::after { inset: 22px; }
+.rv-pc-chart .rv-donut__total { font-size: 17px; }
+
+/* PC 빠른 추가 인라인 */
+.rv-pc-qa {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rv-pc-qa__label {
+  font-size: 12px;
+  color: var(--text-subtle);
+  font-weight: 700;
+  padding-right: 8px;
+  border-right: 0.5px solid var(--border);
+}
+.rv-pc-qa__input {
+  padding: 7px 11px;
+  background: var(--surface-2);
+  border: 0.5px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  font-family: inherit;
+}
+.rv-pc-qa__input::placeholder {
+  color: var(--text-subtle);
+  font-weight: 500;
+}
+.rv-pc-qa__input--amount { flex: 0 0 130px; }
+.rv-pc-qa__methods {
+  display: flex;
+  gap: 4px;
+}
+.rv-pc-qa__method {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 7px 11px;
+  background: var(--surface-2);
+  border: 0.5px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text-muted);
+}
+.rv-pc-qa__method.is-on {
+  background: var(--text);
+  color: var(--surface);
+  border-color: var(--text);
+}
+.rv-pc-qa__add {
+  padding: 7px 16px;
+  background: var(--brand-strong);
+  color: #fff;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* ============================================================
+   11 · PC 노출 제어 (1100px+ 에서만)
+   ============================================================ */
+.rv-pc { display: none; }
+@media (min-width: 1100px) {
+  .rv-pc { display: block; }
+}
+
+/* 매출관리 풀스크린 진입 시 시스템 사이드바·여백 무력화 (myshop-v3 패턴) */
+body.rv-mode #sideNav { display: none !important; }
+body.rv-mode { padding-left: 0 !important; overflow: hidden; }
+body:has(#revenueSheet[style*="display: flex"]) #sideNav,
+body:has(#revenueSheet[style*="display:flex"]) #sideNav,
+body:has(#revenue-hub-overlay) #sideNav { display: none !important; }
+body:has(#revenue-hub-overlay) { padding-left: 0 !important; }
+
+/* ============================================================
+   12 · prefers-reduced-motion — hover transform 끄기
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .rv-hero,
+  .rv-pc-stat {
+    transition: none;
+  }
+  .rv-hero:hover,
+  .rv-pc-stat:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  .rv-list__item,
+  .rv-list__delete,
+  .rv-periods__btn,
+  .rv-pc__period-btn {
+    transition: none;
+  }
+}
