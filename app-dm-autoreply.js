@@ -292,7 +292,7 @@
           <span class="dm-thread__time">${_esc(recvTime)}</span>
         </div>
         <div class="dm-thread__row dm-thread__row--sent">
-          <div class="dm-bubble dm-bubble--sent is-draft" contenteditable="true" data-tail="${_esc(tail)}">${draft}</div>
+          <div class="dm-bubble dm-bubble--sent is-draft" contenteditable="true" data-tail="${_esc(tail)}" data-placeholder="여기에 답장을 입력하세요">${draft}</div>
           <div class="dm-thread__avatar dm-thread__avatar--shop">원</div>
         </div>
         <div class="dm-thread__time-row dm-thread__time-row--sent">
@@ -435,13 +435,17 @@
     card.style.transform = 'translateX(-120%)';
     card.classList.add('is-sending');
     setTimeout(() => card.remove(), 460);
-    // 2026-05-01 ── 실제 백엔드 discard — 다음 fetch 때 같은 DM 다시 안 뜨게.
+    // 2026-05-01 ── 실제 백엔드 discard. 결과 확인해서 실패면 사용자에게 알림.
     if (logId) {
       try {
-        await fetch(window.API + `/dm-confirm-queue/${encodeURIComponent(logId)}/discard`, {
+        const res = await fetch(window.API + `/dm-confirm-queue/${encodeURIComponent(logId)}/discard`, {
           method: 'POST', headers: window.authHeader(),
         });
-      } catch (_) { /* silent */ }
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          _toast('거절 실패: ' + (d.detail || res.status));
+        }
+      } catch (e) { _toast('거절 실패: ' + (e.message || 'fetch')); }
     }
     _notifyDMChanged();  // 내샵관리 DM 카운트 즉시 갱신
   }

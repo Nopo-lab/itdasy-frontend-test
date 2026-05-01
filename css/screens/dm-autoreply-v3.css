@@ -562,6 +562,15 @@
 .dm-bubble--sent.is-draft {
   position: relative;
   cursor: text;
+  min-width: 120px;
+  min-height: 1em;
+}
+/* 2026-05-01 ── 빈 초안일 때 placeholder 표시. 사용자 보고: '여기에 초안등록 안되어있어. 빈칸이야' */
+.dm-bubble--sent.is-draft:empty::before {
+  content: attr(data-placeholder);
+  color: rgba(255,255,255,0.65);
+  font-style: italic;
+  pointer-events: none;
 }
 .dm-bubble--sent.is-draft::after {
   content: '✎';
