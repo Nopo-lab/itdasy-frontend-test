@@ -58,11 +58,19 @@
 
   // ─────────── 헬퍼 ───────────
   function _shopName() {
-    try { return localStorage.getItem('shop_name') || '내 샵'; }
-    catch (_e) { return '내 샵'; }
+    // 2026-05-01 ── 인스타 핸들 우선. shop_name 이 'd' 같은 임시값이면 IG 핸들 보여주는 게 자연스러움.
+    try {
+      const ig = localStorage.getItem('itdasy:ig_handle');
+      if (ig) return ig;
+      return localStorage.getItem('shop_name') || '내 샵';
+    } catch (_e) { return '내 샵'; }
   }
   function _shopInitial(shop) {
     return ((shop || '내')[0] || '내').toUpperCase();
+  }
+  function _shopAvatarUrl() {
+    try { return localStorage.getItem('itdasy:ig_profile_pic') || ''; }
+    catch (_e) { return ''; }
   }
   function _won(n) {
     try { return '₩' + (Number(n) || 0).toLocaleString('ko-KR'); }
@@ -218,11 +226,15 @@
   function _renderShopCard(brief) {
     const shop = _shopName();
     const initial = _shopInitial(shop);
+    const avatarUrl = _shopAvatarUrl();
+    const avatarHTML = avatarUrl
+      ? `<img src="${_esc(avatarUrl)}" alt="" referrerpolicy="no-referrer" style="width:100%;height:100%;border-radius:inherit;object-fit:cover;" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:${JSON.stringify(initial)}}))">`
+      : _esc(initial);
     const s = _shopStats(brief);
     return `
       <div class="ms-shop">
         <div class="ms-shop__top">
-          <div class="ms-shop__avatar" aria-hidden="true">${_esc(initial)}</div>
+          <div class="ms-shop__avatar" aria-hidden="true">${avatarHTML}</div>
           <div class="ms-shop__info">
             <div class="ms-shop__name">${_esc(shop)}</div>
             <div class="ms-shop__plan">✦ Pro 플랜</div>

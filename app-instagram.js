@@ -54,7 +54,12 @@ async function checkInstaStatus(fromLogin = false) {
     if (data.connected) {
       // 2026-05-01 ── 다음 방문 시 깜빡임 없게 캐시. checkInstaStatus 응답 오기 전에
       // 인라인 스크립트가 이 캐시 보고 즉시 homePostConnect 표시.
-      try { localStorage.setItem('itdasy:ig_connected_cache', '1'); } catch (_e) { /* ignore */ }
+      try {
+        localStorage.setItem('itdasy:ig_connected_cache', '1');
+        // 프로필 사진/핸들도 캐시 — 내샵관리 등 다른 화면에서 즉시 사용
+        if (data.profile_picture_url) localStorage.setItem('itdasy:ig_profile_pic', data.profile_picture_url);
+        if (data.handle) localStorage.setItem('itdasy:ig_handle', data.handle);
+      } catch (_e) { /* ignore */ }
       document.getElementById('homePreConnect').style.display = 'none';
       document.getElementById('homePostConnect').style.display = 'flex';
       _instaHandle = data.handle || '';

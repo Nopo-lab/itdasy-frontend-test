@@ -411,6 +411,7 @@
         setTimeout(() => {
           card.remove();
           if (window.refreshDMQueueBadge) window.refreshDMQueueBadge();
+          _notifyDMChanged();  // 내샵관리 DM 카운트 즉시 갱신
         }, 460);
       } catch (e) {
         _toast('발송 실패: ' + (e.message || ''));
@@ -442,6 +443,7 @@
         });
       } catch (_) { /* silent */ }
     }
+    _notifyDMChanged();  // 내샵관리 DM 카운트 즉시 갱신
   }
 
   function _handleMiniTone(card, tone) {
@@ -627,6 +629,12 @@
   }
 
   /* ── 시트 열기/닫기 ────────────────────────────── */
+  // 2026-05-01 ── DM 액션 후 다른 화면 (내샵관리 등) 재렌더 트리거
+  function _notifyDMChanged() {
+    try {
+      window.dispatchEvent(new CustomEvent('itdasy:data-changed', { detail: { kind: 'dm_action' } }));
+    } catch (_e) { /* ignore */ }
+  }
   function closeDMAutoreplySettings() {
     // 2026-05-01 ── 방어적 close. visibility 복귀 후 _overlay 가 null 이지만 DOM 에는
     // 살아있는 stuck 케이스 방어 — 항상 #dmAutoreplySheet DOM 정리.
@@ -650,6 +658,8 @@
     } else {
       _hardRemove();
     }
+    // 닫힐 때 다른 화면 (내샵관리 DM 카운트 등) 재렌더 트리거
+    _notifyDMChanged();
   }
 
   let _opening = false;
