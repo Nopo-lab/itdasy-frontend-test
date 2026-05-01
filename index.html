@@ -575,9 +575,11 @@
   </div>
 </div>
 
-<!-- ───── 좌측 사이드 nav (PC ≥768px 전용 — style-responsive.css 가 표시 제어) ───── -->
+<!-- ───── 좌측 사이드 nav (PC ≥768px 전용 — style-responsive.css 가 표시 제어).
+     2026-05-01 ── 운영/허브 항목 추가 (사용자 요청 #6). PC 에서 항상 보이는 풍부한 nav. -->
 <aside class="side-nav" id="sideNav" aria-label="PC 사이드 네비게이션">
   <div class="side-nav__brand">잇데이<small>STUDIO</small></div>
+
   <button type="button" class="side-nav__btn active" data-side-tab="home"
           onclick="showTab('home', document.querySelector('.tab-bar__btn[data-tab=&quot;home&quot;]'));"
           aria-label="홈">
@@ -588,6 +590,43 @@
           aria-label="내 샵 관리">
     <svg><use href="#ic-store"/></svg><span>내 샵 관리</span>
   </button>
+
+  <div class="side-nav__divider"></div>
+
+  <button type="button" class="side-nav__btn" data-side-act="booking"
+          onclick="window.openCalendarView && window.openCalendarView();"
+          aria-label="예약관리">
+    <svg><use href="#ic-calendar"/></svg><span>예약관리</span>
+  </button>
+  <button type="button" class="side-nav__btn" data-side-act="customer"
+          onclick="window.openCustomerHub && window.openCustomerHub();"
+          aria-label="고객관리">
+    <svg><use href="#ic-users"/></svg><span>고객관리</span>
+  </button>
+  <button type="button" class="side-nav__btn" data-side-act="revenue"
+          onclick="(window.openRevenue || window.openRevenueHub)?.();"
+          aria-label="매출관리">
+    <svg><use href="#ic-dollar-sign"/></svg><span>매출관리</span>
+  </button>
+  <button type="button" class="side-nav__btn" data-side-act="inventory"
+          onclick="window.openInventoryHub && window.openInventoryHub();"
+          aria-label="재고관리">
+    <svg><use href="#ic-package"/></svg><span>재고관리</span>
+  </button>
+
+  <div class="side-nav__divider"></div>
+
+  <button type="button" class="side-nav__btn" data-side-act="aiHub"
+          onclick="window.openAiHub && window.openAiHub();"
+          aria-label="AI · 자동화">
+    <svg><use href="#ic-sparkles"/></svg><span>AI · 자동화</span>
+  </button>
+  <button type="button" class="side-nav__btn" data-side-act="settings"
+          onclick="window.openSettingsHub && window.openSettingsHub();"
+          aria-label="설정 · 연동">
+    <svg><use href="#ic-settings"/></svg><span>설정 · 연동</span>
+  </button>
+
   <button type="button" class="side-nav__btn side-nav__btn--fab" data-haptic="light"
           onclick="openNavSheet()" aria-label="만들기">
     <svg><use href="#ic-wand-sparkles"/></svg><span>만들기</span>

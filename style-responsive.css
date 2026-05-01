@@ -28,9 +28,10 @@
     padding-right: 32px;
   }
 
-  /* 콘텐츠 가독 폭 확보 (1인샵 사장님이 PC 풀스크린 봐도 글자가 멀쩡하게) */
+  /* 2026-05-01 ── PC 메인 컨텐츠 폭 확장 (사용자 보고: '메인 화면 좌우 여백이 너무 많아').
+     980px → 1280px. 큰 모니터에서도 적절한 여백 유지. */
   .tab {
-    max-width: 980px;
+    max-width: 1280px;
     margin: 0 auto;
     padding: 28px 32px calc(48px + env(safe-area-inset-bottom));
   }
@@ -106,6 +107,13 @@
     color: #fff;
     justify-content: center;
     box-shadow: var(--shadow-brand, 0 6px 18px rgba(241,128,145,0.30));
+  }
+  /* 2026-05-01 ── 사이드 nav 섹션 구분선 */
+  .side-nav__divider {
+    height: 1px;
+    background: var(--border);
+    margin: 8px 8px;
+    opacity: 0.6;
   }
   .side-nav__btn--fab:hover {
     color: #fff;
