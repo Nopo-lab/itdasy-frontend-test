@@ -1,4 +1,4 @@
-// Itdasy Studio - 시술 사진 디테일 보정
+// Itdasy Studio - 시술 사진 디테일 보정 v2 (2026-05-03)
 
 const _ENHANCE_DEFAULTS = {
   cleanup: 0,
@@ -13,15 +13,16 @@ function _enhanceShopType() {
 
 function _enhanceVisibleKeys() {
   const type = _enhanceShopType();
-  const hair = ['붙임머리', 'extension', 'hair', '헤어', '헤어샵'].some(x => type.includes(x.toLowerCase()));
-  const lash = ['속눈썹', 'lash'].some(x => type.includes(x.toLowerCase()));
-  const semi = ['반영구', 'tattoo'].some(x => type.includes(x.toLowerCase()));
-  const nail = ['네일', 'nail'].some(x => type.includes(x.toLowerCase()));
+  const hair = ['붙임머리', 'extension', 'hair', '헤어', '헤어샵', '미용'].some(x => type.includes(x));
+  const lash = ['속눈썹', 'lash'].some(x => type.includes(x));
+  const semi = ['반영구', 'tattoo', '문신'].some(x => type.includes(x));
+  const nail = ['네일', 'nail'].some(x => type.includes(x));
   if (hair) return ['cleanup', 'color', 'smooth'];
   if (lash) return ['cleanup', 'smooth', 'red'];
   if (semi) return ['color', 'red'];
   if (nail) return ['color'];
-  return ['color'];
+  // shop_type 미설정 또는 미분류 → 전체 노출
+  return ['cleanup', 'color', 'smooth', 'red'];
 }
 
 function openEnhancePanel() {
@@ -56,10 +57,10 @@ function _renderEnhancePanel() {
     <div style="font-size:12px;color:var(--text3);line-height:1.55;margin-bottom:14px;">
       선택한 사진에만 적용돼요. 사진을 고른 뒤 아래 값을 조절하세요.
     </div>
-    ${_enhanceRow('cleanup', '잔머리 정리', '사진 가장자리를 살짝 정돈해 더 깔끔하게 보여줘요.')}
-    ${_enhanceRow('color', '색 균일화', '얼룩진 색감을 부드럽게 맞춰요.')}
-    ${_enhanceRow('smooth', '결 부드럽게', '머릿결·속눈썹 결을 살짝 매끈하게 보여줘요.')}
-    ${_enhanceRow('red', '충혈 제거', '밝은 붉은 부분을 자연스럽게 낮춰요.')}
+    ${_enhanceRow('cleanup', '잔머리 정리', '사진 가장자리의 얇은 잔머리·잔털을 배경으로 녹여요.')}
+    ${_enhanceRow('color', '색 균일화', '뿌염·얼룩진 색감을 부드럽게 맞춰요.')}
+    ${_enhanceRow('smooth', '결 부드럽게', '머릿결·속눈썹 결을 매끈하게 보여줘요.')}
+    ${_enhanceRow('red', '충혈 제거', '시술 직후 붉어진 눈 흰자를 자연스럽게 낮춰요.')}
     <button type="button" onclick="applyEnhanceToSelected()" class="btn-primary" style="width:100%;margin-top:6px;">보정 적용</button>
   `;
   body.querySelectorAll('[data-enhance-row]').forEach(row => {
@@ -85,6 +86,7 @@ function _enhanceSettings() {
 function _loadEnhanceImage(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
+    img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
     img.onerror = reject;
     img.src = src;
@@ -99,29 +101,37 @@ function _drawEnhanceBase(img) {
   return canvas;
 }
 
+// 색 균일화 + 충혈 제거 — pixel 단위
 function _applyColorPixels(data, opt) {
   const color = opt.color || 0;
   const red = opt.red || 0;
-  const cleanup = opt.cleanup || 0;
+
   for (let i = 0; i < data.length; i += 4) {
     let r = data[i], g = data[i + 1], b = data[i + 2];
     const avg = (r + g + b) / 3;
-    r += (avg - r) * color * 0.28;
-    g += (avg - g) * color * 0.28;
-    b += (avg - b) * color * 0.28;
-    const bright = avg > 130;
-    if (bright && r > g + 18 && r > b + 18) {
-      r -= (r - Math.max(g, b)) * red * 0.75;
-      g += (255 - g) * red * 0.08;
-      b += (255 - b) * red * 0.08;
+
+    // 색 균일화: saturation 감쇄 (회색 방향으로 끌어당김) — 계수 0.65로 강화
+    if (color > 0) {
+      r += (avg - r) * color * 0.65;
+      g += (avg - g) * color * 0.65;
+      b += (avg - b) * color * 0.65;
     }
-    const contrast = 1 + cleanup * 0.08;
-    data[i] = Math.max(0, Math.min(255, (r - 128) * contrast + 128));
-    data[i + 1] = Math.max(0, Math.min(255, (g - 128) * contrast + 128));
-    data[i + 2] = Math.max(0, Math.min(255, (b - 128) * contrast + 128));
+
+    // 충혈 제거: 밝고 붉은 픽셀만 타겟 (눈 흰자)
+    if (red > 0 && avg > 110 && r > g + 15 && r > b + 15) {
+      const excess = r - Math.max(g, b);
+      r -= excess * red * 0.88;
+      g += (255 - g) * red * 0.07;
+      b += (255 - b) * red * 0.05;
+    }
+
+    data[i]     = Math.max(0, Math.min(255, r));
+    data[i + 1] = Math.max(0, Math.min(255, g));
+    data[i + 2] = Math.max(0, Math.min(255, b));
   }
 }
 
+// 결 부드럽게 — Gaussian blur blend (강화)
 function _blendSmooth(canvas, amount) {
   if (!amount) return;
   const ctx = canvas.getContext('2d');
@@ -129,26 +139,69 @@ function _blendSmooth(canvas, amount) {
   const tmp = document.createElement('canvas');
   tmp.width = canvas.width; tmp.height = canvas.height;
   const tctx = tmp.getContext('2d');
-  tctx.filter = `blur(${Math.max(0.4, amount * 2.2)}px)`;
+  tctx.filter = `blur(${Math.max(0.8, amount * 4)}px)`;
   tctx.drawImage(canvas, 0, 0);
   const blur = tctx.getImageData(0, 0, canvas.width, canvas.height);
-  const mix = Math.min(0.38, amount * 0.38);
+  const mix = Math.min(0.55, amount * 0.55);  // 최대 55% 블렌딩
   for (let i = 0; i < original.data.length; i += 4) {
-    original.data[i] += (blur.data[i] - original.data[i]) * mix;
+    original.data[i]     += (blur.data[i]     - original.data[i])     * mix;
     original.data[i + 1] += (blur.data[i + 1] - original.data[i + 1]) * mix;
     original.data[i + 2] += (blur.data[i + 2] - original.data[i + 2]) * mix;
   }
   ctx.putImageData(original, 0, 0);
 }
 
+// 잔머리 정리 — 주변보다 어두운 픽셀(잔털 후보)을 주변 평균으로 블렌딩
+function _applyCleanup(canvas, amount) {
+  if (!amount) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+
+  // Step 1: 블러 버전 생성 (잔털 제거 기준)
+  const tmp = document.createElement('canvas');
+  tmp.width = w; tmp.height = h;
+  const tctx = tmp.getContext('2d');
+  tctx.filter = `blur(${Math.max(1.5, amount * 3.5)}px)`;
+  tctx.drawImage(canvas, 0, 0);
+  const blurred = tctx.getImageData(0, 0, w, h);
+
+  // Step 2: 원본에서 주변보다 어두운 픽셀(잔털)을 블러 버전으로 대체
+  const src = ctx.getImageData(0, 0, w, h);
+  const threshold = 0.65;  // 주변보다 35% 이상 어두우면 잔털로 판단
+  const strength = Math.min(0.92, amount * 0.92);
+
+  for (let i = 0; i < src.data.length; i += 4) {
+    const rS = src.data[i], gS = src.data[i + 1], bS = src.data[i + 2];
+    const rB = blurred.data[i], gB = blurred.data[i + 1], bB = blurred.data[i + 2];
+    const brightSrc = (rS + gS + bS) / 3;
+    const brightBlur = (rB + gB + bB) / 3;
+
+    // 블러 버전보다 크게 어두운 픽셀 = 잔털 후보 → 블러로 교체
+    if (brightSrc < brightBlur * threshold) {
+      src.data[i]     = rS + (rB - rS) * strength;
+      src.data[i + 1] = gS + (gB - gS) * strength;
+      src.data[i + 2] = bS + (bB - bS) * strength;
+    }
+  }
+  ctx.putImageData(src, 0, 0);
+}
+
 async function _enhanceOnePhoto(photo, opt) {
   const img = await _loadEnhanceImage(photo.editedDataUrl || photo.dataUrl);
   const canvas = _drawEnhanceBase(img);
   const ctx = canvas.getContext('2d');
+
+  // 잔머리 먼저 (원본 기준으로 제거)
+  _applyCleanup(canvas, opt.cleanup);
+
+  // 색 균일화 + 충혈 제거
   const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
   _applyColorPixels(frame.data, opt);
   ctx.putImageData(frame, 0, 0);
+
+  // 결 부드럽게 (마지막 — 색 처리 후 적용)
   _blendSmooth(canvas, opt.smooth);
+
   photo.beforeEnhanceDataUrl = photo.editedDataUrl || photo.dataUrl;
   photo.editedDataUrl = canvas.toDataURL('image/jpeg', 0.92);
   photo.mode = 'enhanced';
@@ -174,7 +227,7 @@ async function applyEnhanceToSelected() {
     showToast(`${selected.length}장 보정 완료`);
   } catch (e) {
     console.warn('사진 보정 실패:', e);
-    showToast('보정 실패');
+    showToast('보정 실패: ' + (e.message || ''));
   } finally {
     if (progress) progress.style.display = 'none';
   }
