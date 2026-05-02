@@ -69,6 +69,24 @@ let _portfolioDragSrcId = null;
 let _portfolioItems = [];
 let _portfolioUploadPhotoType = 'general';
 
+function _portfolioEscapeText(value) {
+  const div = document.createElement('div');
+  div.textContent = value || '';
+  return div.innerHTML;
+}
+
+function _portfolioEscapeAttr(value) {
+  return _portfolioEscapeText(value).replace(/"/g, '&quot;');
+}
+
+function _openPortfolioTagEditor(detail) {
+  const event = new CustomEvent('itdasy:portfolio-edit', {
+    detail: { item: detail, handled: false },
+  });
+  document.dispatchEvent(event);
+  return event.detail.handled;
+}
+
 function selectPhotoType(btn, type) {
   _portfolioUploadPhotoType = type;
   document.querySelectorAll('.portfolio-type-btn').forEach(b => {
@@ -177,16 +195,26 @@ async function loadPortfolio() {
       const src = item.image_url.startsWith('http') ? item.image_url : API + item.image_url;
       const pt = item.photo_type || 'general';
       const cell = document.createElement('div');
+      const safeSrc = _portfolioEscapeAttr(src);
+      const safeMainTag = _portfolioEscapeText(item.main_tag || '');
+      const safeTags = _portfolioEscapeText(item.tags || '');
       cell.dataset.id = item.id;
       cell.draggable = true;
       cell.style.cssText = 'position:relative; aspect-ratio:1/1; overflow:hidden; border-radius:12px; background:var(--bg2); cursor:grab; transition:opacity 0.2s;';
       cell.innerHTML = `
-        <img src="${src}" style="width:100%; height:100%; object-fit:cover; pointer-events:none;">
+        <img src="${safeSrc}" style="width:100%; height:100%; object-fit:cover; pointer-events:none;">
         <div style="position:absolute; top:4px; right:4px; background:${ptypeColor[pt]}; border-radius:20px; padding:2px 6px; font-size:8px; color:#fff; font-weight:800; opacity:0.92;">${ptypeLabel[pt]}</div>
-        ${item.main_tag ? `<div style="position:absolute; top:4px; left:4px; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); border-radius:20px; padding:2px 6px; font-size:8px; color:#fff; font-weight:700;">${item.main_tag}</div>` : ''}
-        ${item.tags ? `<div style="position:absolute; bottom:0; left:0; right:0; padding:5px 6px; background:linear-gradient(0deg,rgba(0,0,0,0.7),transparent); font-size:9px; color:#fff; line-height:1.4; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">${item.tags}</div>` : ''}
-        <div style="position:absolute; inset:0; background:transparent; cursor:pointer;" onclick="openPortfolioItem(${item.id},'${src}','${(item.main_tag||'').replace(/'/g,"\\'")}','${(item.tags||'').replace(/'/g,"\\'")}')"></div>
+        ${item.main_tag ? `<div style="position:absolute; top:4px; left:4px; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); border-radius:20px; padding:2px 6px; font-size:8px; color:#fff; font-weight:700;">${safeMainTag}</div>` : ''}
+        ${item.tags ? `<div style="position:absolute; bottom:0; left:0; right:0; padding:5px 6px; background:linear-gradient(0deg,rgba(0,0,0,0.7),transparent); font-size:9px; color:#fff; line-height:1.4; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">${safeTags}</div>` : ''}
+        <div data-open-portfolio style="position:absolute; inset:0; background:transparent; cursor:pointer;"></div>
       `;
+      const openTarget = cell.querySelector('[data-open-portfolio]');
+      openTarget?.addEventListener('click', () => {
+        const detail = { ...item, _src: src };
+        if (!_openPortfolioTagEditor(detail)) {
+          openPortfolioItem(item.id, src, item.main_tag || '', item.tags || '');
+        }
+      });
       // 드래그 이벤트
       cell.addEventListener('dragstart', e => {
         _portfolioDragSrcId = item.id;
@@ -228,13 +256,18 @@ async function savePortfolioOrder() {
 }
 
 function openPortfolioItem(id, src, mainTag, tags) {
-  const label = [mainTag, tags].filter(Boolean).join(' · ') || '태그 없음';
+  if (_openPortfolioTagEditor({ id, image_url: src, _src: src, main_tag: mainTag, tags })) {
+    return;
+  }
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed; inset:0; z-index:9000; background:rgba(0,0,0,0.88); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px;';
+  const safeSrc = _portfolioEscapeAttr(src);
+  const safeMainTag = _portfolioEscapeText(mainTag || '');
+  const safeTags = _portfolioEscapeText(tags || '');
   overlay.innerHTML = `
-    <img src="${src}" style="max-width:100%; max-height:62vh; border-radius:16px; object-fit:contain; margin-bottom:14px;">
-    ${mainTag ? `<div style="background:var(--accent); border-radius:20px; padding:3px 12px; font-size:11px; color:#fff; font-weight:700; margin-bottom:6px;">${mainTag}</div>` : ''}
-    <div style="color:rgba(255,255,255,0.7); font-size:12px; margin-bottom:18px;">${tags || ''}</div>
+    <img src="${safeSrc}" style="max-width:100%; max-height:62vh; border-radius:16px; object-fit:contain; margin-bottom:14px;">
+    ${mainTag ? `<div style="background:var(--accent); border-radius:20px; padding:3px 12px; font-size:11px; color:#fff; font-weight:700; margin-bottom:6px;">${safeMainTag}</div>` : ''}
+    <div style="color:rgba(255,255,255,0.7); font-size:12px; margin-bottom:18px;">${safeTags}</div>
     <div style="display:flex; gap:10px;">
       <button onclick="deletePortfolioItem(${id}, this.closest('[style*=fixed]'))" style="padding:11px 18px; border-radius:12px; border:none; background:rgba(192,57,43,0.85); color:#fff; font-weight:700; cursor:pointer; font-size:12px;">삭제 🗑</button>
       <button onclick="this.closest('[style*=fixed]').remove()" style="padding:11px 18px; border-radius:12px; border:none; background:rgba(255,255,255,0.12); color:#fff; font-weight:700; cursor:pointer; font-size:12px;">닫기</button>

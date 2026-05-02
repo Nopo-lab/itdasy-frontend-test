@@ -218,6 +218,7 @@ async function _republishGalleryItem(galleryId) {
     const upRes = await fetch(API + '/portfolio', { method: 'POST', headers: authHeader(), body: fd });
     if (!upRes.ok) { showToast('업로드 실패'); return; }
     const upData = await upRes.json();
+    if (upData.auto_tagged && upData.tags) showToast('포트폴리오 태그도 자동으로 붙였어요');
     const imgUrl = upData.image_url?.startsWith('http') ? upData.image_url : API + (upData.image_url || '');
     if (typeof doInstagramPublish === 'function') {
       const success = await doInstagramPublish(imgUrl, fullCaption);
@@ -307,6 +308,7 @@ async function publishSlotToInstagram(slotId) {
     const upRes  = await fetch(API + '/portfolio', { method: 'POST', headers: authHeader(), body: fd });
     if (!upRes.ok) { showToast('업로드 실패'); return; }
     const upData = await upRes.json();
+    if (upData.auto_tagged && upData.tags) showToast('포트폴리오 태그도 자동으로 붙였어요');
     const imgUrl = upData.image_url?.startsWith('http') ? upData.image_url : API + (upData.image_url || '');
     if (typeof doInstagramPublish === 'function') {
       const success = await doInstagramPublish(imgUrl, fullCaption);

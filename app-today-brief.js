@@ -110,6 +110,16 @@
     if (d.membership_low_balance > 0) {
       items.push({ ic: 'sparkles', label: `회원권 잔액 부족 ${d.membership_low_balance}명`, color: '#A78BFA' });
     }
+    if (d.retouch_due_count > 0) {
+      const first = (d.retouch_due_customers || [])[0] || {};
+      items.push({
+        ic: 'heart',
+        label: `리터치 안내 ${d.retouch_due_count}명 — ${first.name ? _esc(first.name) + '님부터 ' : ''}챙겨요`,
+        color: '#2B8C7E',
+        action: 'retouch_due',
+        customer_id: first.id || '',
+      });
+    }
     // [2026-04-29 F1] 챗봇 능동 제안 — proactive_suggestions
     if (d.proactive_suggestions && Array.isArray(d.proactive_suggestions)) {
       d.proactive_suggestions.forEach(s => {
@@ -171,7 +181,7 @@
         </div>
         <div style="display:flex;flex-direction:column;gap:9px;">
           ${items.map(it => `
-            <div ${it.action ? `data-brief-act="${_esc(it.action)}"${it.chat_input ? ` data-brief-chat="${_esc(it.chat_input)}"` : ''} style="cursor:pointer;"` : ''} style="display:flex;gap:10px;align-items:center;padding:10px 12px;background:rgba(255,255,255,0.06);border-radius:10px;border-left:3px solid ${it.color};${it.action ? 'cursor:pointer;' : ''}">
+            <div ${it.action ? `data-brief-act="${_esc(it.action)}"${it.chat_input ? ` data-brief-chat="${_esc(it.chat_input)}"` : ''}${it.customer_id ? ` data-brief-customer="${_esc(it.customer_id)}"` : ''} style="cursor:pointer;"` : ''} style="display:flex;gap:10px;align-items:center;padding:10px 12px;background:rgba(255,255,255,0.06);border-radius:10px;border-left:3px solid ${it.color};${it.action ? 'cursor:pointer;' : ''}">
               <span style="display:inline-flex;color:${it.color};flex-shrink:0;">${_ic(it.ic)}</span>
               <span style="font-size:12px;line-height:1.4;flex:1;">${_esc(it.label)}</span>
               ${it.action ? `<span style="color:rgba(255,255,255,0.4);display:inline-flex;">${_ic('arrow')}</span>` : ''}
@@ -207,6 +217,10 @@
         // [2026-04-24] 'birthday' 액션 제거 — 통합 카드에서 항목 자체를 노출하지 않음
         if (act === 'unrecorded' && typeof window.openBooking === 'function') {
           window.openBooking();
+          return;
+        }
+        if (act === 'retouch_due') {
+          _draftRetouchDM(el.dataset.briefCustomer);
           return;
         }
         // [2026-04-29 F1] 챗봇 능동 제안 — chat_input 자동 입력
@@ -246,6 +260,29 @@
         if (typeof window.openAssistant === 'function') window.openAssistant();
       });
     });
+  }
+
+  async function _draftRetouchDM(customerId) {
+    if (!customerId) {
+      if (typeof window.openCustomers === 'function') window.openCustomers();
+      return;
+    }
+    try {
+      const res = await fetch(window.API + `/retouch/${encodeURIComponent(customerId)}/draft-dm`, {
+        method: 'POST',
+        headers: window.authHeader(),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      if (data.queued && typeof window.openDMAutoreplySettings === 'function') {
+        if (window.showToast) window.showToast('DM 검토 대기에 넣었어요');
+        window.openDMAutoreplySettings();
+      } else if (window.showToast) {
+        window.showToast('DM 연결 정보가 없어서 초안만 만들었어요');
+      }
+    } catch (e) {
+      if (window.showToast) window.showToast('리터치 안내 준비 실패');
+    }
   }
 
   // 마지막으로 render 된 컨테이너 기억 (re-render 용)

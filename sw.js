@@ -7,7 +7,7 @@
 //    - /api/, /auth/, /data-export/  → network-first (항상 최신)
 //    - app-*.js, *.css, *.html       → cache-first + 백그라운드 revalidate
 // ─────────────────────────────────────────────
-const CACHE_VERSION = '20260502-v74-sprint-e-crm-inventory';
+const CACHE_VERSION = '20260502-v78-sprint-cb-enhance-emoji';
 const CACHE_NAME    = `itdasy-${CACHE_VERSION}`;
 const API_CACHE_NAME = `itdasy-api-${CACHE_VERSION}`;
 
@@ -47,6 +47,7 @@ const STATIC_ASSETS = [
   './app-instagram.js',
   './app-caption.js',
   './app-portfolio.js',
+  './app-portfolio-tags.js',
   './app-ai.js',
   './app-gallery-utils.js',
   './app-gallery-db.js',
@@ -54,6 +55,7 @@ const STATIC_ASSETS = [
   './app-gallery-assign.js',
   './app-gallery-slot-editor.js',
   './app-gallery-bg.js',
+  './app-photo-enhance.js',
   './app-gallery-element.js',
   './app-gallery-review.js',
   './app-gallery-write.js',
@@ -68,6 +70,7 @@ const STATIC_ASSETS = [
   './app-dm-confirm-queue.js',
   './app-dm-manual-replies.js',
   './app-dm-conversations.js',
+  './app-emoji-storage.js',
   './manifest.json',
   './offline.html',
   'https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600&family=Noto+Sans+KR:wght@300;400;500&display=swap',

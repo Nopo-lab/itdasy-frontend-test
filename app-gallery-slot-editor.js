@@ -143,8 +143,8 @@ function _renderPopupPhotoGrid(slot) {
     if (selArr[1]) baLabelMap[selArr[1]] = 'AFTER';
   }
 
-  const modeColor = { original: 'var(--text3)', ai_bg: 'var(--accent)', ba: '#8fa4ff' };
-  const modeLabel = { original: '원본', ai_bg: 'AI합성', ba: '비포/애프터' };
+  const modeColor = { original: 'var(--text3)', ai_bg: 'var(--accent)', ba: '#8fa4ff', enhanced: '#10B981' };
+  const modeLabel = { original: '원본', ai_bg: 'AI합성', ba: '비포/애프터', enhanced: '보정' };
 
   grid.innerHTML = '';
   visiblePhotos.forEach(photo => {

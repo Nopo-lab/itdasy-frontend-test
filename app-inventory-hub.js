@@ -16,6 +16,15 @@
     return String(s == null ? '' : s).replace(/[&<>"']/g, ch =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
   }
+  function _fmtQty(r) {
+    const n = Number(r?.quantity || 0);
+    const d = Math.max(0, Math.min(3, Number(r?.decimal_places ?? 1)));
+    return n.toLocaleString('ko-KR', { maximumFractionDigits: d });
+  }
+  function _fmtNum(v, d) {
+    const n = Number(v || 0);
+    return n.toLocaleString('ko-KR', { maximumFractionDigits: d ?? 2 });
+  }
 
   const _state = { rows: [], pending: [], searchKW: '', editingId: null };
 
@@ -137,8 +146,9 @@
   function _renderInputBar() {
     return `<div class="hub-qadd">
       <input class="hub-input" data-field="name"      placeholder="품목 이름" list="ac-item_name" style="flex:1.5;"/>
-      <input class="hub-input" data-field="quantity"  placeholder="수량" type="number" style="flex:0.6;min-width:60px;"/>
-      <input class="hub-input" data-field="threshold" placeholder="임계" type="number" value="3" style="flex:0.6;min-width:60px;"/>
+      <input class="hub-input" data-field="quantity"  placeholder="수량" type="number" step="0.1" style="flex:0.6;min-width:60px;"/>
+      <input class="hub-input" data-field="unit" placeholder="단위" value="개" style="flex:0.45;min-width:50px;"/>
+      <input class="hub-input" data-field="threshold" placeholder="임계" type="number" step="0.1" value="3" style="flex:0.6;min-width:60px;"/>
       <input class="hub-input" data-field="category"  placeholder="네일|헤어|속눈썹|왁싱|피부|반영구" list="ac-inv_category" style="flex:0.9;"/>
       <button class="hub-btn-stack" data-act="stack">⊕ 쌓기</button>
       <button class="hub-btn-add"  data-act="add">즉시 추가 ↵</button>
@@ -184,13 +194,13 @@
             <div class="inv-low-badge">부족</div>
           </div>
           <div class="inv-meta">
-            임계 ${r.threshold || 0} · ${_esc(cat)}
+            임계 ${_fmtNum(r.threshold, r.decimal_places)}${_esc(r.unit || '')} · ${_esc(cat)}
             ${forecast > 0 ? ` · <span class="inv-forecast">${forecast}일 후 소진 예상</span>` : ''}
           </div>
         </div>
         <div class="stepper">
           <button class="stepper-btn" data-act="step" data-id="${r.id}" data-delta="-1">−</button>
-          <div class="stepper-val low">${r.quantity}</div>
+          <div class="stepper-val low">${_fmtQty(r)}${_esc(r.unit || '')}</div>
           <button class="stepper-btn" data-act="step" data-id="${r.id}" data-delta="1">+</button>
         </div>
         <button class="inv-edit" data-act="edit" data-id="${r.id}">
@@ -230,11 +240,11 @@
           <div class="inv-name-row">
             <div class="inv-name">${_esc(r.name)}</div>
           </div>
-          <div class="inv-meta">임계 ${r.threshold || 0}${lastTxt ? ` · ${_esc(lastTxt)}` : ''}</div>
+          <div class="inv-meta">임계 ${_fmtNum(r.threshold, r.decimal_places)}${_esc(r.unit || '')}${lastTxt ? ` · ${_esc(lastTxt)}` : ''}</div>
         </div>
         <div class="stepper">
           <button class="stepper-btn" data-act="step" data-id="${r.id}" data-delta="-1">−</button>
-          <div class="stepper-val">${r.quantity}</div>
+          <div class="stepper-val">${_fmtQty(r)}${_esc(r.unit || '')}</div>
           <button class="stepper-btn" data-act="step" data-id="${r.id}" data-delta="1">+</button>
         </div>
         <button class="inv-edit" data-act="edit" data-id="${r.id}">
@@ -247,10 +257,12 @@
   function _renderEditRow(r, isLow) {
     const cls = isLow ? 'inv-item low editing' : 'inv-item editing';
     return `<div class="${cls}" data-id="${r.id}" style="flex-direction:column;align-items:stretch;gap:8px;">
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;">
+      <div style="display:grid;grid-template-columns:1fr .7fr .55fr .7fr .6fr 1fr;gap:6px;">
         <input class="rh-edit-input" data-ef="name"      value="${_esc(r.name||'')}" placeholder="품목"/>
-        <input class="rh-edit-input" data-ef="quantity"  value="${r.quantity||0}" type="number" placeholder="수량"/>
-        <input class="rh-edit-input" data-ef="threshold" value="${r.threshold||0}" type="number" placeholder="임계"/>
+        <input class="rh-edit-input" data-ef="quantity"  value="${r.quantity||0}" type="number" step="0.1" placeholder="수량"/>
+        <input class="rh-edit-input" data-ef="unit"      value="${_esc(r.unit||'개')}" placeholder="단위"/>
+        <input class="rh-edit-input" data-ef="threshold" value="${r.threshold||0}" type="number" step="0.1" placeholder="임계"/>
+        <input class="rh-edit-input" data-ef="decimal_places" value="${r.decimal_places ?? 1}" type="number" min="0" max="3" placeholder="자리"/>
         <input class="rh-edit-input" data-ef="category"  value="${_esc(r.category||'')}" placeholder="분류"/>
       </div>
       <div class="rh-edit-actions">
@@ -320,15 +332,17 @@
     if (!o) return;
     o.querySelectorAll('.hub-qadd [data-field]').forEach(i => {
       i.value = i.dataset.field === 'threshold' ? '3' : '';
+      if (i.dataset.field === 'unit') i.value = '개';
     });
     o.querySelector('.hub-qadd [data-field="name"]')?.focus();
   }
   function _buildBody(v) {
     if (!v.name) throw new Error('품목 이름 필수');
     return {
-      name: v.name, unit: '개',
-      quantity:  parseInt(v.quantity)  || 0,
-      threshold: parseInt(v.threshold) || 3,
+      name: v.name, unit: v.unit || '개',
+      quantity:  parseFloat(v.quantity)  || 0,
+      threshold: parseFloat(v.threshold) || 3,
+      decimal_places: String(v.quantity || '').includes('.') ? 1 : 0,
       category:  v.category || 'etc',
     };
   }
@@ -388,7 +402,8 @@
   async function _adjustQuantity(rowId, delta) {
     const row = _state.rows.find(r => String(r.id) === String(rowId));
     if (!row) return;
-    const next = Math.max(0, (row.quantity || 0) + delta);
+    const step = row.decimal_places > 0 ? delta / 10 : delta;
+    const next = Math.max(0, Number(row.quantity || 0) + step);
     try {
       const res = await fetch(`${API()}/inventory/${rowId}`, {
         method: 'PATCH', headers: { ...AUTH(), 'Content-Type': 'application/json' },
@@ -408,8 +423,9 @@
     const row = overlay.querySelector(`[data-id="${rowId}"].editing`); if (!row) return;
     const patch = {};
     row.querySelectorAll('[data-ef]').forEach(i => { patch[i.dataset.ef] = i.value.trim(); });
-    if (patch.quantity)  patch.quantity  = parseInt(patch.quantity);
-    if (patch.threshold) patch.threshold = parseInt(patch.threshold);
+    if (patch.quantity !== '') patch.quantity = parseFloat(patch.quantity);
+    if (patch.threshold !== '') patch.threshold = parseFloat(patch.threshold);
+    if (patch.decimal_places !== '') patch.decimal_places = parseInt(patch.decimal_places, 10);
     try {
       const res = await fetch(`${API()}/inventory/${rowId}`, {
         method: 'PATCH', headers: { ...AUTH(), 'Content-Type': 'application/json' },

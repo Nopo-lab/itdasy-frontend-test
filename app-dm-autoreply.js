@@ -321,29 +321,58 @@
 
   function _renderCard(conv, activeTone) {
     const tail = (conv.sender_tail || '????').slice(-4);
-    const name = conv.sender_username || `고객 ${tail}`;
+    // [2026-05-02] sender_username (자동 수집된 @아이디) 우선 → 없으면 "손님 …{tail}"
+    const name = conv.sender_username || `손님 …${tail}`;
     const cat = _categoryOf(conv.received_text);
     const time = _humanTime(conv.ts);
     const logId = conv.id != null ? String(conv.id) : '';
     const status = conv.reply?.status || '';
     const pending = status === 'pending_confirm';
+    const actReq = conv.action_required || '';
+    const actMeta = conv.action_meta || {};
+    const isBookingAction = actReq === 'booking_action';
+    const calChecked = !!actMeta.calendar_checked;
+    const showAltBtn = isBookingAction && calChecked;
+
+    // [Phase 1.2++] booking_action 메타 한 줄 요약 (사장 카드 라벨)
+    const actInfo = isBookingAction ? `
+      <div style="display:flex;flex-direction:column;gap:4px;padding:8px 10px;background:#FFF7E6;border:1px solid #FBBF24;border-radius:8px;margin:8px 0;">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <span style="font-size:11px;font-weight:800;color:#92400E;">📅 예약 승인 대기</span>
+          ${calChecked ? '<span style="font-size:10px;background:#10B981;color:#fff;padding:1px 7px;border-radius:99px;font-weight:700;">📅 캘린더 확인됨</span>' : ''}
+        </div>
+        ${actMeta.owner_label ? `<div style="font-size:11.5px;color:#92400E;font-weight:700;line-height:1.4;">${_esc(actMeta.owner_label)}</div>` : `
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;color:#92400E;">
+            ${actMeta.time_kst ? `<span style="font-weight:700;">${_esc(actMeta.time_kst)}</span>` : (actMeta.requested_time ? `<span>${_esc(actMeta.requested_time)}</span>` : '')}
+            ${actMeta.service_name ? `<span>· ${_esc(actMeta.service_name)}</span>` : ''}
+          </div>
+        `}
+      </div>` : '';
+
+    // 액션 버튼 라벨 — booking_action 이면 "예약 승인 + 캘린더 추가", 아니면 단순 발송
+    const sendLabel = isBookingAction
+      ? '✓ 예약 승인 (캘린더 추가 + 확정 DM 발송)'
+      : '✓ 답장 발송';
+
     return `
-      <div class="dm-card is-pending" data-tail="${_esc(tail)}" data-log-id="${_esc(logId)}" data-status="${_esc(status)}">
+      <div class="dm-card is-pending" data-tail="${_esc(tail)}" data-log-id="${_esc(logId)}" data-status="${_esc(status)}" data-action="${_esc(actReq)}">
         <div class="dm-card__top">
           <div class="dm-card__avatar">고</div>
           <div class="dm-card__name" style="cursor:pointer;" data-act="open-customer" data-cust-id="${conv.customer_id || ''}">${_esc(name)}</div>
           <div class="dm-card__time">${_esc(time)}</div>
-          <div class="dm-card__pending-badge">${pending ? '확인 대기' : '학습 피드백'}</div>
+          <div class="dm-card__pending-badge">${pending ? '검토 대기' : '학습 피드백'}</div>
         </div>
         <div><span class="dm-card__cat">${_esc(cat)}</span></div>
         ${_renderThread(conv, tail)}
+        ${actInfo}
         ${_renderMiniTone(activeTone)}
-        <div class="dm-actions">
-          <button type="button" class="dm-action is-reject" data-act="reject">거절</button>
-          <button type="button" class="dm-action is-send" data-act="send">
+        <div class="dm-actions" style="display:flex;flex-direction:column;gap:6px;">
+          <button type="button" class="dm-action is-send" data-act="send" style="width:100%;justify-content:center;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-            보내기
+            ${sendLabel}
           </button>
+          ${showAltBtn ? `<button type="button" class="dm-action" data-act="alt" style="width:100%;justify-content:center;background:#FFFBEB;color:#92400E;border:1px solid #F59E0B;">⏰ 불가 및 대안 시간 제안</button>` : ''}
+          <button type="button" class="dm-action is-reject" data-act="reject" style="width:100%;justify-content:center;">직접 거절 / 수정</button>
         </div>
       </div>`;
   }
@@ -352,15 +381,15 @@
     if (!conversations.length) {
       return `
         <div class="dm-section">
-          <div class="dm-section__title">최근 도착 DM</div>
+          <div class="dm-section__title">DM 검토 대기</div>
           <div class="dm-rows" style="padding:24px 14px;text-align:center;color:var(--text-subtle);font-size:12px;">
-            아직 도착한 DM이 없어요
+            대기 중인 DM 이 없어요 ✨
           </div>
         </div>`;
     }
     return `
       <div class="dm-section">
-        <div class="dm-section__title">최근 도착 DM <span class="dm-section__help">학습 피드백 · 보내기/거절</span></div>
+        <div class="dm-section__title">DM 검토 대기 <span class="dm-section__help">예약 승인 · 대안 시간 · 거절</span></div>
         <div class="dm-inbox">
           ${conversations.map(c => _renderCard(c, activeTone)).join('')}
         </div>
@@ -382,36 +411,48 @@
     const tail = card.dataset.tail;
     const logId = card.dataset.logId;
     const status = card.dataset.status;
+    const action = card.dataset.action || '';
     _haptic();
 
-    // 2026-05-01 ── pending_confirm (AI 초안) 또는 received (broadcast/수동 답장 가능) 둘 다 send_edit 시도.
-    // 카드 안 contenteditable 버블(.dm-bubble--sent.is-draft) 의 현재 텍스트로 발송.
+    // 2026-05-01 ── pending_confirm (AI 초안) 또는 received (broadcast/수동 답장 가능) 둘 다 발송 가능.
     const sendable = (status === 'pending_confirm' || status === 'received' || status === '') && logId;
     if (sendable) {
       const draftEl = card.querySelector('.dm-bubble--sent.is-draft');
       const editedText = (draftEl?.textContent || '').trim();
-      if (!editedText) {
-        _toast('답장 내용을 먼저 입력해주세요');
-        draftEl?.focus();
-        return;
-      }
       const sendBtn = card.querySelector('[data-act="send"]');
       if (sendBtn) { sendBtn.disabled = true; sendBtn.style.opacity = '0.6'; }
       try {
-        const res = await fetch(window.API + `/dm-confirm-queue/${encodeURIComponent(logId)}/send_edit`, {
+        let url, body;
+        // [2026-05-02 Phase 1.2++] action_required 카드는 /send 호출 → 자동 액션 실행
+        // (Booking 생성 + 캘린더 등록 + 손님에게 확정 DM 자동 발송).
+        // 일반 카드는 /send_edit 으로 수정한 텍스트만 발송.
+        if (action) {
+          url = `/dm-confirm-queue/${encodeURIComponent(logId)}/send`;
+          body = JSON.stringify({ selected_index: 0 });
+        } else {
+          if (!editedText) {
+            _toast('답장 내용을 먼저 입력해주세요');
+            draftEl?.focus();
+            if (sendBtn) { sendBtn.disabled = false; sendBtn.style.opacity = '1'; }
+            return;
+          }
+          url = `/dm-confirm-queue/${encodeURIComponent(logId)}/send_edit`;
+          body = JSON.stringify({ edited_reply: editedText });
+        }
+        const res = await fetch(window.API + url, {
           method: 'POST',
           headers: { ...window.authHeader(), 'Content-Type': 'application/json' },
-          body: JSON.stringify({ edited_reply: editedText }),
+          body,
         });
         const d = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(d.detail || ('HTTP ' + res.status));
-        _toast(d.message || '✅ 발송 완료');
+        _toast(d.message || '✅ 처리 완료');
         _sendFeedback(tail, 'good');
         card.classList.add('is-sending');
         setTimeout(() => {
           card.remove();
           if (window.refreshDMQueueBadge) window.refreshDMQueueBadge();
-          _notifyDMChanged();  // 내샵관리 DM 카운트 즉시 갱신
+          _notifyDMChanged();
         }, 460);
       } catch (e) {
         _toast('발송 실패: ' + (e.message || ''));
@@ -458,24 +499,55 @@
   }
 
   async function _handleRegen(card) {
+    // [2026-05-02 Phase 1.2++] 진짜 백엔드 호출 — fake hardcoded 제거.
+    // POST /dm-confirm-queue/{log_id}/regenerate { tone } → 시간 컨텍스트 가드레일 보존.
+    const logId = card.dataset.logId;
+    if (!logId) {
+      _toast('재생성하려면 먼저 메시지가 큐에 등록되어야 해요');
+      return;
+    }
     const toneBtn = card.querySelector('.dm-mini-tone__chip.is-on');
     const tone = toneBtn ? toneBtn.dataset.tone : 'friendly';
     const draftEl = card.querySelector('.dm-bubble--sent.is-draft');
     if (!draftEl) return;
-    
+
+    const orig = draftEl.textContent;
     draftEl.textContent = '생성 중...';
     _haptic();
     try {
-      await new Promise(r => setTimeout(r, 600));
-      const fakeReplies = {
-        friendly: '네! 예약 가능해요~ 편하신 시간 말씀해주세요! 😆',
-        professional: '안녕하세요. 네, 예약 가능하십니다. 원하시는 시간대 알려주시면 안내 도와드리겠습니다.',
-        cute: '네네 가능해요!! 언제루 잡아드릴까용?? 💖'
-      };
-      draftEl.textContent = fakeReplies[tone] || fakeReplies.friendly;
+      const res = await fetch(window.API + `/dm-confirm-queue/${encodeURIComponent(logId)}/regenerate`, {
+        method: 'POST',
+        headers: { ...window.authHeader(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tone }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.detail || ('HTTP ' + res.status));
+      draftEl.textContent = d.ai_draft_text || orig;
       _draftMap.set(draftEl.dataset.tail, draftEl.textContent);
+      if (d.guarded) _toast('✓ 시간 정보 유지하며 톤만 변경됨');
     } catch (e) {
-      draftEl.textContent = '다시 시도해주세요';
+      draftEl.textContent = orig;
+      _toast('재생성 실패: ' + (e.message || ''));
+    }
+  }
+
+  // [2026-05-02 Phase 1.2++] 불가 및 대안 시간 제안 — booking_action+calendar_checked 카드만
+  async function _handleAlt(card) {
+    const logId = card.dataset.logId;
+    if (!logId) return;
+    if (!confirm('이 시간 거절하고 대안 시간을 손님에게 안내할까요?')) return;
+    _haptic();
+    try {
+      const res = await fetch(window.API + `/dm-confirm-queue/${encodeURIComponent(logId)}/decline-with-alternatives`, {
+        method: 'POST', headers: window.authHeader(),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.detail || ('HTTP ' + res.status));
+      _toast(d.message || `📅 대안 시간 안내 발송 (${d.alternatives_sent || 0}개)`);
+      card.classList.add('is-sending');
+      setTimeout(() => { card.remove(); _notifyDMChanged(); }, 460);
+    } catch (e) {
+      _toast('실패: ' + (e.message || ''));
     }
   }
 
@@ -483,6 +555,7 @@
     card.querySelector('[data-act="send"]')?.addEventListener('click', () => _handleSend(card));
     card.querySelector('[data-act="reject"]')?.addEventListener('click', () => _handleReject(card));
     card.querySelector('[data-act="regen"]')?.addEventListener('click', () => _handleRegen(card));
+    card.querySelector('[data-act="alt"]')?.addEventListener('click', () => _handleAlt(card));
     
     // 고객 상세 열기 연동
     card.querySelector('[data-act="open-customer"]')?.addEventListener('click', (e) => {

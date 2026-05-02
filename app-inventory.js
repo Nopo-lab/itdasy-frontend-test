@@ -27,6 +27,11 @@
   function _esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));
   }
+  function _fmtQty(x) {
+    const n = Number(x?.quantity || 0);
+    const d = Math.max(0, Math.min(3, Number(x?.decimal_places ?? 1)));
+    return n.toLocaleString('ko-KR', { maximumFractionDigits: d });
+  }
   function _loadOffline() {
     try { return JSON.parse(localStorage.getItem(OFFLINE_KEY) || '[]'); }
     catch (_) { return []; }
@@ -109,8 +114,9 @@
     const data = {
       name: String(payload.name).trim().slice(0, 50),
       unit: payload.unit ? String(payload.unit).slice(0, 10) : '개',
-      quantity: Math.max(0, parseInt(payload.quantity, 10) || 0),
-      threshold: Math.max(0, parseInt(payload.threshold, 10) || 5),
+      quantity: Math.max(0, parseFloat(payload.quantity) || 0),
+      threshold: Math.max(0, parseFloat(payload.threshold) || 5),
+      decimal_places: Math.max(0, Math.min(3, parseInt(payload.decimal_places, 10) || 0)),
       category: payload.category || 'etc',
     };
     if (_isOffline) {
@@ -156,7 +162,7 @@
   }
 
   async function adjust(id, delta) {
-    const n = parseInt(delta, 10);
+    const n = parseFloat(delta);
     if (!Number.isFinite(n) || n === 0) return null;
     if (_isOffline) {
       const all = _loadOffline();
@@ -260,7 +266,7 @@
           </div>
           <div class="dt-stepper">
             <button class="dt-stepper__btn" data-inv-delta="-1" data-inv-target="${x.id}" type="button">−</button>
-            <span class="dt-stepper__val${isLow ? ' dt-stepper__val--low' : ''}">${x.quantity || 0}<span style="font-size:12px;font-weight:400;color:var(--text-subtle);margin-left:4px;">${_esc(x.unit||'개')}</span></span>
+            <span class="dt-stepper__val${isLow ? ' dt-stepper__val--low' : ''}">${_fmtQty(x)}<span style="font-size:12px;font-weight:400;color:var(--text-subtle);margin-left:4px;">${_esc(x.unit||'개')}</span></span>
             <button class="dt-stepper__btn" data-inv-delta="1" data-inv-target="${x.id}" type="button">+</button>
             <button data-inv-edit="${x.id}" class="btn-secondary" style="padding:8px 10px;" type="button">⚙</button>
           </div>
@@ -295,10 +301,11 @@
       <button onclick="window._inventoryBack()" class="dt-back" style="margin-bottom:12px;" aria-label="뒤로"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
       <div class="dt-field-row"><label class="dt-field-lbl">이름 *</label><input id="ifName" name="ifName" class="dt-field" value="${_esc(existing?.name||'')}" placeholder="네일팁 / 젤 / 접착제" maxlength="50" /></div>
       <div style="display:flex;gap:8px;margin-bottom:12px;">
-        <div style="flex:1;"><label class="dt-field-lbl">현재 수량</label><input id="ifQty" name="ifQty" type="number" inputmode="numeric" class="dt-field" value="${existing?.quantity ?? 0}" /></div>
+        <div style="flex:1;"><label class="dt-field-lbl">현재 수량</label><input id="ifQty" name="ifQty" type="number" step="0.1" inputmode="decimal" class="dt-field" value="${existing?.quantity ?? 0}" /></div>
         <div style="width:80px;"><label class="dt-field-lbl">단위</label><input id="ifUnit" name="ifUnit" class="dt-field" value="${_esc(existing?.unit||'개')}" maxlength="10" /></div>
       </div>
-      <div class="dt-field-row"><label class="dt-field-lbl">부족 알림 임계치</label><input id="ifThreshold" name="ifThreshold" type="number" inputmode="numeric" class="dt-field" value="${existing?.threshold ?? 5}" /></div>
+      <div class="dt-field-row"><label class="dt-field-lbl">부족 알림 임계치</label><input id="ifThreshold" name="ifThreshold" type="number" step="0.1" inputmode="decimal" class="dt-field" value="${existing?.threshold ?? 5}" /></div>
+      <div class="dt-field-row"><label class="dt-field-lbl">소수 자리</label><input id="ifDecimalPlaces" name="ifDecimalPlaces" type="number" min="0" max="3" class="dt-field" value="${existing?.decimal_places ?? 1}" /></div>
       <div style="display:flex;gap:8px;margin-top:8px;">
         <button type="button" id="ifSave" class="btn-primary" data-mutation style="flex:1;">${existing ? '수정' : '추가'}</button>
         ${existing ? '<button type="button" id="ifDelete" class="btn-secondary" data-mutation style="color:var(--danger);">삭제</button>' : ''}
@@ -308,9 +315,10 @@
     listEl.querySelector('#ifSave').addEventListener('click', async () => {
       const payload = {
         name: document.getElementById('ifName').value.trim(),
-        quantity: parseInt(document.getElementById('ifQty').value, 10) || 0,
+        quantity: parseFloat(document.getElementById('ifQty').value) || 0,
         unit: document.getElementById('ifUnit').value.trim() || '개',
-        threshold: parseInt(document.getElementById('ifThreshold').value, 10) || 5,
+        threshold: parseFloat(document.getElementById('ifThreshold').value) || 5,
+        decimal_places: parseInt(document.getElementById('ifDecimalPlaces').value, 10) || 0,
       };
       if (!payload.name) { if (window.showToast) window.showToast('이름을 입력해 주세요'); return; }
       try {
@@ -320,7 +328,7 @@
             const all = _loadOffline();
             const idx = all.findIndex(x => x.id === existing.id);
             if (idx >= 0) {
-              all[idx] = { ...all[idx], name: payload.name, unit: payload.unit, quantity: payload.quantity, threshold: payload.threshold };
+              all[idx] = { ...all[idx], name: payload.name, unit: payload.unit, quantity: payload.quantity, threshold: payload.threshold, decimal_places: payload.decimal_places };
               _saveOffline(all);
               _items = all;
             }
