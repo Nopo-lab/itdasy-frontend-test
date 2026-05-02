@@ -142,15 +142,22 @@
           <div style="display:flex;flex-direction:column;gap:4px;padding:8px 10px;background:#FFF7E6;border:1px solid #FBBF24;border-radius:8px;margin-bottom:8px;">
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
               <span style="font-size:12px;font-weight:800;color:#92400E;">${actLbl}</span>
-              ${actMeta.requested_time ? `<span style="font-size:11px;color:#92400E;">${_esc(actMeta.requested_time)}</span>` : ''}
-              ${actMeta.service_name ? `<span style="font-size:11px;color:#92400E;">· ${_esc(actMeta.service_name)}</span>` : ''}
-              ${actMeta.name ? `<span style="font-size:11px;color:#92400E;font-weight:700;">${_esc(actMeta.name)}</span>` : ''}
-              ${actMeta.phone ? `<span style="font-size:11px;color:#92400E;">${_esc(actMeta.phone)}</span>` : ''}
-              ${actMeta.service_interest ? `<span style="font-size:10px;background:#fff;padding:1px 6px;border-radius:99px;color:#92400E;">${_esc(actMeta.service_interest)}</span>` : ''}
+              ${actMeta.calendar_checked ? `<span style="font-size:10px;background:#10B981;color:#fff;padding:1px 7px;border-radius:99px;font-weight:700;">📅 캘린더 확인됨</span>` : ''}
               <span style="margin-left:auto;font-size:10px;color:#92400E80;">승인 시 자동 실행</span>
             </div>
+            ${actMeta.owner_label ? `<div style="font-size:12px;color:#92400E;font-weight:700;line-height:1.4;">${_esc(actMeta.owner_label)}</div>` : `
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                ${actMeta.time_kst ? `<span style="font-size:11px;color:#92400E;font-weight:700;">${_esc(actMeta.time_kst)}</span>` : (actMeta.requested_time ? `<span style="font-size:11px;color:#92400E;">${_esc(actMeta.requested_time)}</span>` : '')}
+                ${actMeta.service_name ? `<span style="font-size:11px;color:#92400E;">· ${_esc(actMeta.service_name)}</span>` : ''}
+                ${actMeta.name ? `<span style="font-size:11px;color:#92400E;font-weight:700;">${_esc(actMeta.name)}</span>` : ''}
+                ${actMeta.phone ? `<span style="font-size:11px;color:#92400E;">${_esc(actMeta.phone)}</span>` : ''}
+                ${actMeta.service_interest ? `<span style="font-size:10px;background:#fff;padding:1px 6px;border-radius:99px;color:#92400E;">${_esc(actMeta.service_interest)}</span>` : ''}
+              </div>
+            `}
             ${actMeta.confidence ? `<div style="font-size:10px;color:#92400E80;">신뢰도 ${Math.round((actMeta.confidence || 0) * 100)}%</div>` : ''}
           </div>` : '';
+        // [Phase 1.1+] booking_action + calendar_checked 카드면 [거절+대안] 버튼 노출
+        const showDeclineAlt = it.action_required === 'booking_action' && actMeta.calendar_checked;
         // [기능 7] 후보 list (없으면 ai_draft_text 1개로 fallback)
         const candidates = (it.ai_draft_candidates && it.ai_draft_candidates.length)
           ? it.ai_draft_candidates
@@ -183,8 +190,9 @@
             <textarea class="dcq-edit" rows="3" style="width:100%;margin-top:6px;padding:9px;border:1px solid #DDD6FE;border-radius:8px;font-size:13px;line-height:1.5;background:#FAF5FF;resize:vertical;box-sizing:border-box;font-family:inherit;">${_esc(candidates[0] || '')}</textarea>
             <button class="dcq-send-edit" style="margin-top:6px;width:100%;padding:9px;border:none;background:linear-gradient(135deg,#7C3AED,#A78BFA);color:#fff;font-weight:700;font-size:12px;border-radius:10px;cursor:pointer;">수정한 텍스트로 발송</button>
           </details>
-          <div style="display:flex;gap:6px;">
-            <button class="dcq-send" style="flex:1;padding:11px;border:none;background:linear-gradient(135deg,#10B981,#34D399);color:#fff;font-weight:800;font-size:13px;border-radius:10px;cursor:pointer;">${sendBtnLabel}</button>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="dcq-send" style="flex:1;min-width:120px;padding:11px;border:none;background:linear-gradient(135deg,#10B981,#34D399);color:#fff;font-weight:800;font-size:13px;border-radius:10px;cursor:pointer;">${sendBtnLabel}</button>
+            ${showDeclineAlt ? `<button class="dcq-decline-alt" style="padding:11px 12px;border:1px solid #F59E0B;background:#FFFBEB;color:#92400E;font-weight:700;font-size:12px;border-radius:10px;cursor:pointer;" title="이 시간은 안 되니 대안 시간을 손님에게 안내">⏰ 거절+대안</button>` : ''}
             <button class="dcq-discard" style="padding:11px 14px;border:1px solid #FCA5A5;background:#fff;color:#B91C1C;font-weight:700;font-size:12px;border-radius:10px;cursor:pointer;">✕</button>
           </div>
         </div>
@@ -211,6 +219,9 @@
       });
       list.querySelectorAll('.dcq-discard').forEach(b => {
         b.addEventListener('click', () => _doAction(b, 'discard'));
+      });
+      list.querySelectorAll('.dcq-decline-alt').forEach(b => {
+        b.addEventListener('click', () => _doAction(b, 'decline_alt'));
       });
     } catch (e) {
       list.innerHTML = `<div style="text-align:center;color:#dc3545;padding:20px;font-size:12px;">불러오기 실패: ${_esc(e.message)}</div>`;
@@ -240,6 +251,12 @@
           return;
         }
         r = await _fetch('POST', `/dm-confirm-queue/${id}/send_edit`, { edited_reply: editedText });
+      } else if (action === 'decline_alt') {
+        if (!confirm('이 시간은 거절하고 대안 시간을 손님에게 안내할까요?')) {
+          btn.disabled = false; btn.style.opacity = '1';
+          return;
+        }
+        r = await _fetch('POST', `/dm-confirm-queue/${id}/decline-with-alternatives`);
       } else {
         r = await _fetch('POST', `/dm-confirm-queue/${id}/discard`);
       }
