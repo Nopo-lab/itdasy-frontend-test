@@ -611,6 +611,10 @@
     <span class="ms-side__icon"><svg width="18" height="18"><use href="#ic-package"/></svg></span>
     <span class="ms-side__label">재고관리</span>
   </button>
+  <button type="button" class="ms-side__item" onclick="window.openServiceTemplates && window.openServiceTemplates();" aria-label="시술 메뉴">
+    <span class="ms-side__icon"><svg width="18" height="18"><use href="#ic-scissors"/></svg></span>
+    <span class="ms-side__label">시술 메뉴</span>
+  </button>
 
   <div class="ms-side__section">통합 허브</div>
   <button type="button" class="ms-side__item" onclick="window.openAiHub && window.openAiHub();" aria-label="AI · 자동화">
@@ -828,6 +832,13 @@ try { localStorage.removeItem('itdasy:fab_pos'); } catch (_e) { void _e; }
       <span class="nav-sheet-body">
         <span class="nav-sheet-t">새로 만들기</span>
         <span class="nav-sheet-s">사진 올리면 AI가 글까지 알아서</span>
+      </span>
+    </button>
+    <button class="nav-sheet-opt" onclick="closeNavSheet(); showTab('workshop',null); if(typeof initWorkshopTab==='function')initWorkshopTab();">
+      <span class="nav-sheet-ic"><svg width="20" height="20"><use href="#ic-image"/></svg></span>
+      <span class="nav-sheet-body">
+        <span class="nav-sheet-t">포트폴리오</span>
+        <span class="nav-sheet-s">작업실에서 슬롯·사진 관리</span>
       </span>
     </button>
     <button class="nav-sheet-opt" onclick="closeNavSheet(); goCaption();">
